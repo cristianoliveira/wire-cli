@@ -26,8 +26,6 @@ teardown() {
 }
 
 @test "Given invalid credentials, when login runs, then auth fails and no session is created" {
-  skip "Enable after login command and test stub mode are implemented"
-
   export WIRE_STUB_MODE="login_invalid"
   run_wire login --email "jane@example.com" --password "wrong"
   assert_status 10
@@ -35,12 +33,19 @@ teardown() {
   [ ! -f "${WIRE_SESSION_FILE}" ]
 }
 
-@test "Given valid credentials, when login runs, then session is persisted" {
-  skip "Enable after login command and test stub mode are implemented"
+@test "Given auth network failure, when login runs, then actionable error and non-zero exit are returned" {
+  export WIRE_STUB_MODE="login_network_error"
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 12
+  [[ "${output}" == *"Check your connection and retry"* ]]
+  [ ! -f "${WIRE_SESSION_FILE}" ]
+}
 
+@test "Given valid credentials, when login runs, then session is persisted" {
   export WIRE_STUB_MODE="login_ok"
   run_wire login --email "jane@example.com" --password "correct-horse"
   assert_status 0
+  [[ "${output}" == *"Login successful"* ]]
   [ -f "${WIRE_SESSION_FILE}" ]
 }
 

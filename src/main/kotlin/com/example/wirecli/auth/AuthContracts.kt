@@ -13,6 +13,12 @@ data class AuthSession(
     val server: String?
 )
 
+data class SessionInventory(
+    val activeSession: AuthSession?,
+    val validSessions: Int,
+    val invalidSessions: Int
+)
+
 sealed interface AuthResult {
     data class Success(val message: String) : AuthResult
     data class Failure(val message: String, val exitCode: Int) : AuthResult
@@ -30,6 +36,7 @@ sealed interface AuthApiResult {
 
 interface AuthSessionStore {
     fun readActiveSession(): AuthSession?
+    fun readSessionInventory(): SessionInventory
     fun writeActiveSession(session: AuthSession)
     fun clearActiveSession()
 }

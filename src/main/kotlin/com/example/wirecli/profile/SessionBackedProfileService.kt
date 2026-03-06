@@ -8,6 +8,7 @@ class SessionBackedProfileService(
     private val sessionStore: AuthSessionStore,
     private val apiClient: ProfileApiClient
 ) : ProfileService {
+    // TODO: Consider using SessionInventory for more detailed error messages when not guarded by AuthGuardedProfileService.
     override fun getCurrentProfile(): ProfileResult {
         val session = sessionStore.readActiveSession()
             ?: return ProfileResult.Failure(

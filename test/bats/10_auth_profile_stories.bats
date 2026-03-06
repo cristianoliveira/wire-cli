@@ -17,6 +17,12 @@ teardown() {
   teardown_wire_test_env
 }
 
+write_session_inventory() {
+  local file_path="$1"
+  shift
+  printf '%s\n' "$@" >"${file_path}"
+}
+
 @test "Given no session, when profile runs, then access is denied" {
   run_wire profile
   assert_status 11
@@ -58,6 +64,26 @@ teardown() {
   [[ "${output}" == *"Name: Jane Doe"* ]]
   [[ "${output}" == *"Email: jane@example.com"* ]]
   [[ "${output}" != *"Run wire login"* ]]
+}
+
+@test "Given multiple persisted valid sessions, when profile runs, then active account selection is deterministic" {
+  write_session_inventory "${WIRE_SESSION_FILE}" \
+    "user-zed" "token-zed" "" \
+    "user-amy" "token-amy" ""
+
+  run_wire profile
+  assert_status 0
+  [[ "${output}" == *"Handle: user-amy"* ]]
+}
+
+@test "Given mixed valid and invalid persisted sessions, when profile runs, then a valid session is used" {
+  write_session_inventory "${WIRE_SESSION_FILE}" \
+    "" "token-invalid" "" \
+    "user-bruno" "token-bruno" ""
+
+  run_wire profile
+  assert_status 0
+  [[ "${output}" == *"Handle: user-bruno"* ]]
 }
 
 @test "Given missing optional profile fields, when profile runs, then output remains readable" {
@@ -104,6 +130,30 @@ teardown() {
   run_wire profile
   assert_status 11
   [[ "${output}" == *"Session is invalid or expired"* ]]
+  [[ "${output}" == *"Run wire login to re-authenticate"* ]]
+}
+
+@test "Given only invalid persisted sessions, when profile runs, then unauthorized diagnostics include recovery guidance" {
+  write_session_inventory "${WIRE_SESSION_FILE}" \
+    "" "token-without-user" "" \
+    "dangling-record-only-user"
+
+  run_wire profile
+  assert_status 11
+  [[ "${output}" == *"No valid active session"* ]]
+  [[ "${output}" == *"Found 2 invalid or expired stored sessions"* ]]
+  [[ "${output}" == *"Run wire login to re-authenticate"* ]]
+}
+
+@test "Given only invalid persisted sessions, when logout runs, then unauthorized diagnostics include recovery guidance" {
+  write_session_inventory "${WIRE_SESSION_FILE}" \
+    "" "token-without-user" "" \
+    "dangling-record-only-user"
+
+  run_wire logout
+  assert_status 11
+  [[ "${output}" == *"No valid active session"* ]]
+  [[ "${output}" == *"Found 2 invalid or expired stored sessions"* ]]
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 

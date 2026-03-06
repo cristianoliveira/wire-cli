@@ -23,9 +23,10 @@ class AuthSessionServiceImpl(
     }
 
     override fun logout(): AuthResult {
-        val session = sessionStore.readActiveSession()
+        val inventory = sessionStore.readSessionInventory()
+        val session = inventory.activeSession
             ?: return AuthResult.Failure(
-                message = AuthMessages.noActiveSession(),
+                message = missingSessionMessage(inventory),
                 exitCode = ExitCodes.UNAUTHORIZED
             )
 
@@ -47,13 +48,23 @@ class AuthSessionServiceImpl(
     }
 
     override fun requireActiveSession(): AuthResult {
-        return if (sessionStore.readActiveSession() == null) {
+        val inventory = sessionStore.readSessionInventory()
+
+        return if (inventory.activeSession == null) {
             AuthResult.Failure(
-                message = AuthMessages.noActiveSession(),
+                message = missingSessionMessage(inventory),
                 exitCode = ExitCodes.UNAUTHORIZED
             )
         } else {
             AuthResult.Success("Active session available.")
+        }
+    }
+
+    private fun missingSessionMessage(inventory: SessionInventory): String {
+        return if (inventory.invalidSessions > 0) {
+            AuthMessages.noValidSession(inventory.invalidSessions)
+        } else {
+            AuthMessages.noActiveSession()
         }
     }
 }

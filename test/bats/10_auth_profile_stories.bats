@@ -20,7 +20,7 @@ teardown() {
 @test "Given no session, when profile runs, then access is denied" {
   run_wire profile
   assert_status 11
-  [[ "${output}" == *"Run wire login"* ]]
+  [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 @test "Given invalid credentials, when login runs, then auth fails and no session is created" {
@@ -95,11 +95,27 @@ teardown() {
   [[ "${output}" == *"Retry later or check server settings"* ]]
 }
 
-@test "Given authenticated session, when logout runs, then session is removed" {
+@test "Given expired or invalid session, when profile runs, then unauthorized guidance and non-zero exit are returned" {
+  export WIRE_STUB_MODE="login_ok"
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 0
+
+  export WIRE_STUB_MODE="profile_unauthorized"
+  run_wire profile
+  assert_status 11
+  [[ "${output}" == *"Session is invalid or expired"* ]]
+  [[ "${output}" == *"Run wire login to re-authenticate"* ]]
+}
+
+@test "Given authenticated user, when login profile logout run in sequence, then flow succeeds end-to-end" {
   export WIRE_STUB_MODE="login_ok"
   run_wire login --email "jane@example.com" --password "correct-horse"
   assert_status 0
   [ -f "${WIRE_SESSION_FILE}" ]
+
+  run_wire profile
+  assert_status 0
+  [[ "${output}" == *"Name: Jane Doe"* ]]
 
   export WIRE_STUB_MODE="logout_ok"
   run_wire logout
@@ -109,5 +125,5 @@ teardown() {
 
   run_wire profile
   assert_status 11
-  [[ "${output}" == *"Run wire login"* ]]
+  [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }

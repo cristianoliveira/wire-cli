@@ -1,6 +1,7 @@
 package com.example.wirecli.profile
 
 import com.example.wirecli.auth.AuthSessionStore
+import com.example.wirecli.auth.AuthMessages
 import com.example.wirecli.auth.ExitCodes
 
 class SessionBackedProfileService(
@@ -10,7 +11,7 @@ class SessionBackedProfileService(
     override fun getCurrentProfile(): ProfileResult {
         val session = sessionStore.readActiveSession()
             ?: return ProfileResult.Failure(
-                message = "No active session. Run wire login.",
+                message = AuthMessages.noActiveSession(),
                 exitCode = ExitCodes.UNAUTHORIZED
             )
 

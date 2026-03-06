@@ -25,6 +25,28 @@ Show CLI help:
 gradle run --args='--help'
 ```
 
+## Command usage
+
+Login and persist a local session:
+
+```bash
+gradle run --args='login --email jane@example.com --password correct-horse'
+```
+
+Show current profile (requires an active session):
+
+```bash
+gradle run --args='profile'
+```
+
+Logout and clear local session:
+
+```bash
+gradle run --args='logout'
+```
+
+If `profile` or `logout` is run without a valid session, the CLI returns exit code `11` and prints re-login guidance.
+
 ## Bash integration tests (Bats)
 
 Run bash-based integration tests:

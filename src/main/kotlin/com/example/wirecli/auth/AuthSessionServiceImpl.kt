@@ -25,7 +25,7 @@ class AuthSessionServiceImpl(
     override fun logout(): AuthResult {
         val session = sessionStore.readActiveSession()
             ?: return AuthResult.Failure(
-                message = "No active session. Run wire login.",
+                message = AuthMessages.noActiveSession(),
                 exitCode = ExitCodes.UNAUTHORIZED
             )
 
@@ -49,7 +49,7 @@ class AuthSessionServiceImpl(
     override fun requireActiveSession(): AuthResult {
         return if (sessionStore.readActiveSession() == null) {
             AuthResult.Failure(
-                message = "No active session. Run wire login.",
+                message = AuthMessages.noActiveSession(),
                 exitCode = ExitCodes.UNAUTHORIZED
             )
         } else {

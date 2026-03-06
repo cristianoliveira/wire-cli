@@ -1,6 +1,7 @@
 package com.example.wirecli.profile
 
 import com.example.wirecli.auth.AuthSession
+import com.example.wirecli.auth.AuthMessages
 import com.example.wirecli.auth.ExitCodes
 
 class StubProfileApiClient(
@@ -18,6 +19,11 @@ class StubProfileApiClient(
             "profile_server_error" -> ProfileResult.Failure(
                 message = "Profile service is unavailable. Retry later or check server settings.",
                 exitCode = ExitCodes.SERVER_ERROR
+            )
+
+            "profile_unauthorized" -> ProfileResult.Failure(
+                message = AuthMessages.invalidOrExpiredSession(),
+                exitCode = ExitCodes.UNAUTHORIZED
             )
 
             "profile_missing_optional" -> ProfileResult.Success(

@@ -24,3 +24,19 @@ Show CLI help:
 ```bash
 gradle run --args='--help'
 ```
+
+## Bash integration tests (Bats)
+
+Run bash-based integration tests:
+
+```bash
+gradle batsTest
+```
+
+Or run through the generic verification lifecycle:
+
+```bash
+gradle check
+```
+
+Test files live under `test/bats/` and are written in BDD style.

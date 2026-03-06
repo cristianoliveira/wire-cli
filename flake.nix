@@ -34,6 +34,8 @@
             jdk17
             gradle
             kotlin
+            bats
+            shellcheck
           ];
 
           shellHook = ''

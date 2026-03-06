@@ -33,6 +33,21 @@ tasks.named("check") {
     dependsOn(batsTest)
 }
 
+val batsTest by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Runs bash integration tests with Bats"
+    dependsOn(tasks.named("installDist"))
+    commandLine("bash", "${project.rootDir}/test/bats/run.sh")
+    environment(
+        "WIRE_BIN",
+        layout.buildDirectory.file("install/${project.name}/bin/${project.name}").get().asFile.absolutePath
+    )
+}
+
+tasks.named("check") {
+    dependsOn(batsTest)
+}
+
 kotlin {
     jvmToolchain(17)
 }

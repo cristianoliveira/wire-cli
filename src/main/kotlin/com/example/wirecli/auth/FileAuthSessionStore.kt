@@ -35,8 +35,8 @@ class FileAuthSessionStore(
     }
 
     override fun clearActiveSession() {
-        if (sessionFile.exists()) {
-            sessionFile.delete()
+        if (sessionFile.exists() && !sessionFile.delete()) {
+            throw IllegalStateException("Failed to clear active session file: ${sessionFile.absolutePath}")
         }
     }
 }

@@ -5,6 +5,7 @@ import com.example.wirecli.auth.AuthSessionServiceImpl
 import com.example.wirecli.auth.ExitCodes
 import com.example.wirecli.auth.FileAuthSessionStore
 import com.example.wirecli.auth.StubAuthApiClient
+import com.example.wirecli.profile.AuthGuardedProfileService
 import com.example.wirecli.profile.ProfileResult
 import com.example.wirecli.profile.ProfileService
 
@@ -23,7 +24,10 @@ private object DefaultKaliumRuntime : KaliumRuntime {
         apiClient = StubAuthApiClient(System.getenv()),
         sessionStore = FileAuthSessionStore()
     )
-    override val profileService: ProfileService = PlaceholderProfileService
+    override val profileService: ProfileService = AuthGuardedProfileService(
+        authSessionService = authSessionService,
+        delegate = PlaceholderProfileService
+    )
 }
 
 private object PlaceholderProfileService : ProfileService {

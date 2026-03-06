@@ -18,8 +18,6 @@ teardown() {
 }
 
 @test "Given no session, when profile runs, then access is denied" {
-  skip "Enable after profile command is implemented"
-
   run_wire profile
   assert_status 11
   [[ "${output}" == *"Run wire login"* ]]
@@ -50,20 +48,30 @@ teardown() {
 }
 
 @test "Given persisted session, when profile runs in new process, then no relogin is needed" {
-  skip "Enable after login/profile command paths are implemented"
-
-  export WIRE_STUB_MODE="profile_ok"
-  run_wire profile
+  export WIRE_STUB_MODE="login_ok"
+  run_wire login --email "jane@example.com" --password "correct-horse"
   assert_status 0
-  [[ "${output}" == *"Name:"* ]]
-  [[ "${output}" == *"Email:"* ]]
+  [ -f "${WIRE_SESSION_FILE}" ]
+
+  run_wire profile
+  assert_status 1
+  [[ "${output}" == *"Profile is not implemented yet"* ]]
+  [[ "${output}" != *"Run wire login"* ]]
 }
 
 @test "Given authenticated session, when logout runs, then session is removed" {
-  skip "Enable after logout command is implemented"
+  export WIRE_STUB_MODE="login_ok"
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 0
+  [ -f "${WIRE_SESSION_FILE}" ]
 
   export WIRE_STUB_MODE="logout_ok"
   run_wire logout
   assert_status 0
+  [[ "${output}" == *"Logged out"* ]]
   [ ! -f "${WIRE_SESSION_FILE}" ]
+
+  run_wire profile
+  assert_status 11
+  [[ "${output}" == *"Run wire login"* ]]
 }

@@ -31,8 +31,15 @@ class AuthSessionServiceImpl(
 
         return when (val logoutResult = apiClient.logout(session)) {
             is AuthApiResult.Success -> {
-                sessionStore.clearActiveSession()
-                AuthResult.Success("Logged out.")
+                try {
+                    sessionStore.clearActiveSession()
+                    AuthResult.Success("Logged out.")
+                } catch (_: RuntimeException) {
+                    AuthResult.Failure(
+                        message = "Logout completed remotely, but local session cleanup failed.",
+                        exitCode = ExitCodes.SERVER_ERROR
+                    )
+                }
             }
 
             is AuthApiResult.Failure -> AuthResult.Failure(logoutResult.message, logoutResult.exitCode)

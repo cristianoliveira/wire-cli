@@ -54,9 +54,45 @@ teardown() {
   [ -f "${WIRE_SESSION_FILE}" ]
 
   run_wire profile
-  assert_status 1
-  [[ "${output}" == *"Profile is not implemented yet"* ]]
+  assert_status 0
+  [[ "${output}" == *"Name: Jane Doe"* ]]
+  [[ "${output}" == *"Email: jane@example.com"* ]]
   [[ "${output}" != *"Run wire login"* ]]
+}
+
+@test "Given missing optional profile fields, when profile runs, then output remains readable" {
+  export WIRE_STUB_MODE="login_ok"
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 0
+
+  export WIRE_STUB_MODE="profile_missing_optional"
+  run_wire profile
+  assert_status 0
+  [[ "${output}" == *"Name: Jane Doe"* ]]
+  [[ "${output}" == *"Email: jane@example.com"* ]]
+  [[ "${output}" == *"Handle: -"* ]]
+}
+
+@test "Given upstream network failure, when profile runs, then actionable error and non-zero exit are returned" {
+  export WIRE_STUB_MODE="login_ok"
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 0
+
+  export WIRE_STUB_MODE="profile_network_error"
+  run_wire profile
+  assert_status 12
+  [[ "${output}" == *"Check your connection and retry"* ]]
+}
+
+@test "Given upstream server failure, when profile runs, then clear error and non-zero exit are returned" {
+  export WIRE_STUB_MODE="login_ok"
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 0
+
+  export WIRE_STUB_MODE="profile_server_error"
+  run_wire profile
+  assert_status 13
+  [[ "${output}" == *"Retry later or check server settings"* ]]
 }
 
 @test "Given authenticated session, when logout runs, then session is removed" {

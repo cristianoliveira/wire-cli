@@ -2,12 +2,12 @@ package com.example.wirecli.runtime
 
 import com.example.wirecli.auth.AuthSessionService
 import com.example.wirecli.auth.AuthSessionServiceImpl
-import com.example.wirecli.auth.ExitCodes
 import com.example.wirecli.auth.FileAuthSessionStore
 import com.example.wirecli.auth.StubAuthApiClient
 import com.example.wirecli.profile.AuthGuardedProfileService
-import com.example.wirecli.profile.ProfileResult
 import com.example.wirecli.profile.ProfileService
+import com.example.wirecli.profile.SessionBackedProfileService
+import com.example.wirecli.profile.StubProfileApiClient
 
 interface KaliumRuntime {
     val authSessionService: AuthSessionService
@@ -20,20 +20,18 @@ object KaliumRuntimeBootstrap {
 }
 
 private object DefaultKaliumRuntime : KaliumRuntime {
+    private val sessionStore = FileAuthSessionStore()
+
     override val authSessionService: AuthSessionService = AuthSessionServiceImpl(
         apiClient = StubAuthApiClient(System.getenv()),
-        sessionStore = FileAuthSessionStore()
+        sessionStore = sessionStore
     )
+
     override val profileService: ProfileService = AuthGuardedProfileService(
         authSessionService = authSessionService,
-        delegate = PlaceholderProfileService
-    )
-}
-
-private object PlaceholderProfileService : ProfileService {
-    override fun getCurrentProfile(): ProfileResult =
-        ProfileResult.Failure(
-            message = "Profile is not implemented yet.",
-            exitCode = ExitCodes.UNKNOWN_ERROR
+        delegate = SessionBackedProfileService(
+            sessionStore = sessionStore,
+            apiClient = StubProfileApiClient(System.getenv())
         )
+    )
 }

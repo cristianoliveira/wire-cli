@@ -3,7 +3,7 @@ plugins {
     application
 }
 
-group = "com.example"
+group = "wirecli"
 version = "0.1.0"
 
 repositories {
@@ -15,7 +15,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("com.example.wirecli.MainKt")
+    mainClass.set("wirecli.MainKt")
 }
 
 val batsTest by tasks.registering(Exec::class) {

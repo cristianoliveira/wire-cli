@@ -1,4 +1,4 @@
-package com.example.wirecli.auth
+package wirecli.auth
 // FIXME: Consider unifying AuthResult and AuthApiResult into a generic Result<T> to reduce duplication.
 
 data class LoginInput(
@@ -11,6 +11,12 @@ data class AuthSession(
     val userId: String,
     val accessToken: String,
     val server: String?
+)
+
+data class SessionInventory(
+    val activeSession: AuthSession?,
+    val validSessions: Int,
+    val invalidSessions: Int
 )
 
 sealed interface AuthResult {
@@ -30,6 +36,7 @@ sealed interface AuthApiResult {
 
 interface AuthSessionStore {
     fun readActiveSession(): AuthSession?
+    fun readSessionInventory(): SessionInventory
     fun writeActiveSession(session: AuthSession)
     fun clearActiveSession()
 }

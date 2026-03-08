@@ -8,7 +8,7 @@ Define the concrete code design for implementing `login`, `logout`, and `profile
 Use a thin command layer and move SDK orchestration into services.
 
 ```text
-src/main/kotlin/com/example/wirecli/
+src/main/kotlin/wirecli/
   Main.kt
   commands/
     LoginCommand.kt
@@ -103,7 +103,7 @@ Rules:
 ## Service Interfaces (Example)
 
 ```kotlin
-package com.example.wirecli.auth
+package wirecli.auth
 
 data class LoginInput(
     val email: String,
@@ -124,7 +124,7 @@ interface AuthSessionService {
 ```
 
 ```kotlin
-package com.example.wirecli.profile
+package wirecli.profile
 
 data class ProfileView(
     val name: String?,

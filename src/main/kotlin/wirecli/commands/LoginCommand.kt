@@ -1,10 +1,10 @@
-package com.example.wirecli.commands
+package wirecli.commands
 // TODO: Password should be prompted interactively or read from environment variable for security.
 // TODO: Add validation for email format and server URL.
 
-import com.example.wirecli.auth.AuthResult
-import com.example.wirecli.auth.AuthSessionService
-import com.example.wirecli.auth.LoginInput
+import wirecli.auth.AuthResult
+import wirecli.auth.AuthSessionService
+import wirecli.auth.LoginInput
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.options.option

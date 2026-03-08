@@ -1,7 +1,7 @@
-package com.example.wirecli.commands
+package wirecli.commands
 
-import com.example.wirecli.profile.ProfileResult
-import com.example.wirecli.profile.ProfileService
+import wirecli.profile.ProfileResult
+import wirecli.profile.ProfileService
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 

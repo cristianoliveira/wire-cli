@@ -91,6 +91,7 @@ repo/
 ## Wire SDK Integration Design
 - For this repository's Wire-specific command architecture and SDK usage patterns, see:
   - `docs/architecture/wire-sdk-cli-design.md`
+  - `docs/architecture/real-auth-system-design.md`
 
 ## Source Basis
 This architecture is synthesized from observed patterns in active Kotlin CLI repositories and framework guidance, including detekt, ktlint, kotlinx-kover, jbang, Clikt docs, picocli docs, Kotlin docs, and Gradle docs.

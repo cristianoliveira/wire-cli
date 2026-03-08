@@ -1,10 +1,10 @@
-package com.example.wirecli
+package wirecli
 
-import com.example.wirecli.commands.LoginCommand
-import com.example.wirecli.commands.LogoutCommand
-import com.example.wirecli.commands.RootCommand
-import com.example.wirecli.commands.ProfileCommand
-import com.example.wirecli.runtime.KaliumRuntimeBootstrap
+import wirecli.commands.LoginCommand
+import wirecli.commands.LogoutCommand
+import wirecli.commands.RootCommand
+import wirecli.commands.ProfileCommand
+import wirecli.runtime.KaliumRuntimeBootstrap
 import com.github.ajalt.clikt.core.subcommands
 
 fun main(args: Array<String>) {

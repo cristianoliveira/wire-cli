@@ -18,7 +18,11 @@
           runtimeInputs = with pkgs; [ gradle jdk17 ];
           text = ''
             export JAVA_HOME="${pkgs.jdk17}"
-            exec gradle -Dorg.gradle.java.installations.paths="$JAVA_HOME" run --args="$*"
+            if [ $# -eq 0 ]; then
+              exec gradle -Dorg.gradle.java.installations.paths="$JAVA_HOME" run
+            else
+              exec gradle -Dorg.gradle.java.installations.paths="$JAVA_HOME" run --args="$*"
+            fi
           '';
         };
 

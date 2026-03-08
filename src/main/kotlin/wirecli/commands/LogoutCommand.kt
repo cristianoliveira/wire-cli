@@ -1,7 +1,7 @@
-package com.example.wirecli.commands
+package wirecli.commands
 
-import com.example.wirecli.auth.AuthResult
-import com.example.wirecli.auth.AuthSessionService
+import wirecli.auth.AuthResult
+import wirecli.auth.AuthSessionService
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 

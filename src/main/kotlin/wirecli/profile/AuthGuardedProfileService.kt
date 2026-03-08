@@ -1,7 +1,7 @@
-package com.example.wirecli.profile
+package wirecli.profile
 
-import com.example.wirecli.auth.AuthResult
-import com.example.wirecli.auth.AuthSessionService
+import wirecli.auth.AuthResult
+import wirecli.auth.AuthSessionService
 
 class AuthGuardedProfileService(
     private val authSessionService: AuthSessionService,

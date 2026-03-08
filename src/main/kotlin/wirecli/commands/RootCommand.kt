@@ -1,4 +1,4 @@
-package com.example.wirecli.commands
+package wirecli.commands
 
 import com.github.ajalt.clikt.core.NoOpCliktCommand
 

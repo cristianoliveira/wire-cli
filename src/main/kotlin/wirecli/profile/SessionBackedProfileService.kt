@@ -1,8 +1,8 @@
-package com.example.wirecli.profile
+package wirecli.profile
 
-import com.example.wirecli.auth.AuthSessionStore
-import com.example.wirecli.auth.AuthMessages
-import com.example.wirecli.auth.ExitCodes
+import wirecli.auth.AuthSessionStore
+import wirecli.auth.AuthMessages
+import wirecli.auth.ExitCodes
 
 class SessionBackedProfileService(
     private val sessionStore: AuthSessionStore,

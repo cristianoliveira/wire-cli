@@ -1,4 +1,4 @@
-package com.example.wirecli.auth
+package wirecli.auth
 // FIXME: Consider unifying AuthResult and AuthApiResult into a generic Result<T> to reduce duplication.
 
 data class LoginInput(

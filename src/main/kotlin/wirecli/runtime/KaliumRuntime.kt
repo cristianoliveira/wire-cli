@@ -1,13 +1,13 @@
-package com.example.wirecli.runtime
+package wirecli.runtime
 
-import com.example.wirecli.auth.AuthSessionService
-import com.example.wirecli.auth.AuthSessionServiceImpl
-import com.example.wirecli.auth.FileAuthSessionStore
-import com.example.wirecli.auth.StubAuthApiClient
-import com.example.wirecli.profile.AuthGuardedProfileService
-import com.example.wirecli.profile.ProfileService
-import com.example.wirecli.profile.SessionBackedProfileService
-import com.example.wirecli.profile.StubProfileApiClient
+import wirecli.auth.AuthSessionService
+import wirecli.auth.AuthSessionServiceImpl
+import wirecli.auth.FileAuthSessionStore
+import wirecli.auth.StubAuthApiClient
+import wirecli.profile.AuthGuardedProfileService
+import wirecli.profile.ProfileService
+import wirecli.profile.SessionBackedProfileService
+import wirecli.profile.StubProfileApiClient
 
 interface KaliumRuntime {
     val authSessionService: AuthSessionService

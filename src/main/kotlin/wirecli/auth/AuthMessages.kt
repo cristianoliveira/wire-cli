@@ -1,4 +1,4 @@
-package com.example.wirecli.auth
+package wirecli.auth
 
 object AuthMessages {
     private const val RELOGIN_GUIDANCE = "Run wire login to re-authenticate."

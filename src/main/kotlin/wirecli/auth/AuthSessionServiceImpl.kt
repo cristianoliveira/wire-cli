@@ -1,4 +1,4 @@
-package com.example.wirecli.auth
+package wirecli.auth
 
 class AuthSessionServiceImpl(
     private val apiClient: AuthApiClient,

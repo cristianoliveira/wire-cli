@@ -1,4 +1,4 @@
-package com.example.wirecli.auth
+package wirecli.auth
 
 import java.io.File
 

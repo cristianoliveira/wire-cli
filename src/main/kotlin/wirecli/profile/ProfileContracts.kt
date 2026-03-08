@@ -1,6 +1,6 @@
-package com.example.wirecli.profile
+package wirecli.profile
 
-import com.example.wirecli.auth.AuthSession
+import wirecli.auth.AuthSession
 
 data class ProfileView(
     val name: String?,

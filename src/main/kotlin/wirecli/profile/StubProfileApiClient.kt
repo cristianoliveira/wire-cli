@@ -1,8 +1,8 @@
-package com.example.wirecli.profile
+package wirecli.profile
 
-import com.example.wirecli.auth.AuthSession
-import com.example.wirecli.auth.AuthMessages
-import com.example.wirecli.auth.ExitCodes
+import wirecli.auth.AuthSession
+import wirecli.auth.AuthMessages
+import wirecli.auth.ExitCodes
 
 class StubProfileApiClient(
     private val environment: Map<String, String>

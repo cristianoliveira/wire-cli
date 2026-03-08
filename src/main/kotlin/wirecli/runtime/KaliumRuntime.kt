@@ -6,6 +6,7 @@ import wirecli.auth.AuthApiResult
 import wirecli.auth.AuthSession
 import wirecli.auth.AuthSessionService
 import wirecli.auth.AuthSessionServiceImpl
+import wirecli.auth.AuthSessionStore
 import wirecli.auth.ExitCodes
 import wirecli.auth.FileAuthSessionStore
 import wirecli.auth.StubAuthApiClient

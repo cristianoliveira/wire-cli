@@ -177,3 +177,54 @@ write_session_inventory() {
   assert_status 11
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
+
+@test "Given real backend with valid credentials, when login and logout run, then session lifecycle is deterministic" {
+  export WIRE_BACKEND="real"
+  export WIRE_REAL_MODE="success"
+
+  run_wire login --email "kalium@example.com" --password "correct-horse"
+  assert_status 0
+  [[ "${output}" == *"Login successful"* ]]
+  [ -f "${WIRE_SESSION_FILE}" ]
+
+  run_wire logout
+  assert_status 0
+  [[ "${output}" == *"Logged out"* ]]
+  [ ! -f "${WIRE_SESSION_FILE}" ]
+}
+
+@test "Given real backend invalid credentials, when login runs, then stable auth failure is returned" {
+  export WIRE_BACKEND="real"
+  export WIRE_REAL_MODE="invalid_credentials"
+
+  run_wire login --email "kalium@example.com" --password "wrong"
+  assert_status 10
+  [[ "${output}" == *"Invalid email or password"* ]]
+  [ ! -f "${WIRE_SESSION_FILE}" ]
+}
+
+@test "Given real backend network error, when login runs, then stable network failure is returned" {
+  export WIRE_BACKEND="real"
+  export WIRE_REAL_MODE="network_error"
+
+  run_wire login --email "kalium@example.com" --password "correct-horse"
+  assert_status 12
+  [[ "${output}" == *"Check your connection and retry"* ]]
+  [ ! -f "${WIRE_SESSION_FILE}" ]
+}
+
+@test "Given real backend unauthorized logout, when logout runs, then local marker remains and unauthorized guidance is returned" {
+  export WIRE_BACKEND="real"
+  export WIRE_REAL_MODE="success"
+
+  run_wire login --email "kalium@example.com" --password "correct-horse"
+  assert_status 0
+  [ -f "${WIRE_SESSION_FILE}" ]
+
+  export WIRE_REAL_FAIL_STEP="logout"
+  export WIRE_REAL_MODE="unauthorized"
+  run_wire logout
+  assert_status 11
+  [[ "${output}" == *"re-authenticate"* ]]
+  [ -f "${WIRE_SESSION_FILE}" ]
+}

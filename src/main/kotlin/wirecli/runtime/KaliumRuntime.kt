@@ -2,13 +2,13 @@ package wirecli.runtime
 
 import java.util.Locale
 import wirecli.auth.AuthApiClient
-import wirecli.auth.AuthApiResult
 import wirecli.auth.AuthSession
 import wirecli.auth.AuthSessionService
 import wirecli.auth.AuthSessionServiceImpl
-import wirecli.auth.AuthSessionStore
 import wirecli.auth.ExitCodes
+import wirecli.auth.EnvironmentKaliumAuthRuntime
 import wirecli.auth.FileAuthSessionStore
+import wirecli.auth.RealAuthApiClient
 import wirecli.auth.StubAuthApiClient
 import wirecli.profile.AuthGuardedProfileService
 import wirecli.profile.ProfileApiClient
@@ -101,27 +101,13 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
 
 private object RealRuntimeBackendFactory : RuntimeBackendFactory {
     override fun createAuthApiClient(environment: Map<String, String>): AuthApiClient {
-        return RealAuthApiClient
+        return RealAuthApiClient(
+            runtime = EnvironmentKaliumAuthRuntime(environment)
+        )
     }
 
     override fun createProfileApiClient(environment: Map<String, String>): ProfileApiClient {
         return RealProfileApiClient
-    }
-}
-
-private object RealAuthApiClient : AuthApiClient {
-    override fun login(input: wirecli.auth.LoginInput): AuthApiResult {
-        return AuthApiResult.Failure(
-            message = "Real auth backend is selected but not wired yet.",
-            exitCode = ExitCodes.SERVER_ERROR
-        )
-    }
-
-    override fun logout(session: AuthSession): AuthApiResult {
-        return AuthApiResult.Failure(
-            message = "Real auth backend is selected but not wired yet.",
-            exitCode = ExitCodes.SERVER_ERROR
-        )
     }
 }
 

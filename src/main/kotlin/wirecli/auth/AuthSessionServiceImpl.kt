@@ -85,17 +85,17 @@ class StubAuthApiClient(
             )
 
             "login_invalid" -> AuthApiResult.Failure(
-                message = "Invalid email or password. Verify credentials and try again.",
+                message = AuthMessages.invalidCredentials(),
                 exitCode = ExitCodes.AUTH_FAILED
             )
 
             "login_network_error" -> AuthApiResult.Failure(
-                message = "Authentication failed: network is unreachable. Check your connection and retry.",
+                message = AuthMessages.networkFailure("Authentication"),
                 exitCode = ExitCodes.NETWORK_ERROR
             )
 
             else -> AuthApiResult.Failure(
-                message = "Authentication service is unavailable. Retry later or check server settings.",
+                message = AuthMessages.authServiceUnavailable(),
                 exitCode = ExitCodes.SERVER_ERROR
             )
         }

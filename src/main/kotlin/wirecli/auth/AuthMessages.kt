@@ -10,6 +10,12 @@ object AuthMessages {
         return "No valid active session. Found $invalidSessions invalid or expired stored $noun. $RELOGIN_GUIDANCE"
     }
 
+    fun unsupportedSessionSchema(version: String): String =
+        "Stored session format version '$version' is unsupported. Run wire login to recreate local credentials."
+
+    fun legacySessionMigrationFailed(): String =
+        "Stored session format is outdated and migration failed. Run wire login to recreate local credentials."
+
     fun invalidOrExpiredSession(): String = "Session is invalid or expired. $RELOGIN_GUIDANCE"
 
     fun invalidCredentials(): String =

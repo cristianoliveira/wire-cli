@@ -53,6 +53,17 @@ write_session_inventory() {
   [ -f "${WIRE_SESSION_FILE}" ]
 }
 
+@test "Given successful login, when session is saved, then file and directory permissions are restricted" {
+  export WIRE_STUB_MODE="login_ok"
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 0
+  [ -f "${WIRE_SESSION_FILE}" ]
+
+  session_dir="$(dirname "${WIRE_SESSION_FILE}")"
+  [ "$(file_mode_octal "${WIRE_SESSION_FILE}")" = "600" ]
+  [ "$(file_mode_octal "${session_dir}")" = "700" ]
+}
+
 @test "Given persisted session, when profile runs in new process, then no relogin is needed" {
   export WIRE_STUB_MODE="login_ok"
   run_wire login --email "jane@example.com" --password "correct-horse"
@@ -84,6 +95,28 @@ write_session_inventory() {
   run_wire profile
   assert_status 0
   [[ "${output}" == *"Handle: user-bruno"* ]]
+}
+
+@test "Given legacy persisted sessions, when profile runs, then inventory is migrated to the versioned schema" {
+  write_session_inventory "${WIRE_SESSION_FILE}" \
+    "user-zed" "token-zed" "" \
+    "user-amy" "token-amy" ""
+
+  run_wire profile
+  assert_status 0
+  [[ "${output}" == *"Handle: user-amy"* ]]
+  [[ "$(head -n 1 "${WIRE_SESSION_FILE}")" = "wire-cli-session-store:1" ]]
+}
+
+@test "Given unsupported session schema version, when profile runs, then actionable guidance is shown" {
+  write_session_inventory "${WIRE_SESSION_FILE}" \
+    "wire-cli-session-store:99" \
+    "user-zed" "token-zed" ""
+
+  run_wire profile
+  assert_status 11
+  [[ "${output}" == *"Stored session format version '99' is unsupported"* ]]
+  [[ "${output}" == *"Run wire login to recreate local credentials"* ]]
 }
 
 @test "Given missing optional profile fields, when profile runs, then output remains readable" {

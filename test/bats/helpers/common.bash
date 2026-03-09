@@ -23,6 +23,15 @@ run_wire() {
 	run "${WIRE_BIN}" "$@"
 }
 
+file_mode_octal() {
+	local target="$1"
+	if stat -f "%Lp" "${target}" >/dev/null 2>&1; then
+		stat -f "%Lp" "${target}"
+	else
+		stat -c "%a" "${target}"
+	fi
+}
+
 assert_status() {
 	local expected="$1"
 	[ "${status}" -eq "${expected}" ]

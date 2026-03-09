@@ -61,6 +61,7 @@ class AuthSessionServiceImpl(
     }
 
     private fun missingSessionMessage(inventory: SessionInventory): String {
+        inventory.diagnosticMessage?.let { return it }
         return if (inventory.invalidSessions > 0) {
             AuthMessages.noValidSession(inventory.invalidSessions)
         } else {

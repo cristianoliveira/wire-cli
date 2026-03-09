@@ -1,14 +1,17 @@
 package wirecli.auth
 
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.PosixFilePermission
+import java.nio.file.attribute.PosixFilePermissions
 
 class FileAuthSessionStore(
-    // File format: plain text session records grouped by 3 lines:
-    // userId, accessToken, server (optional).
-    // Multiple records are allowed to support inventory diagnostics.
     private val sessionFile: File = defaultSessionFile()
 ) : AuthSessionStore {
-    private val LINES_PER_RECORD = 3
     override fun readActiveSession(): AuthSession? {
         return readSessionInventory().activeSession
     }
@@ -18,50 +21,84 @@ class FileAuthSessionStore(
             return SessionInventory(activeSession = null, validSessions = 0, invalidSessions = 0)
         }
 
-        val lines = sessionFile.readLines()
-        val candidates = mutableListOf<AuthSession>()
-        var invalidSessions = 0
-
-        var index = 0
-        while (index < lines.size) {
-            val userId = lines.getOrNull(index)
-            val accessToken = lines.getOrNull(index + 1)
-            val server = lines.getOrNull(index + 2)?.ifBlank { null }
-
-            if (userId == null || accessToken == null) {
-                invalidSessions += 1
-                break
+        val parsedData = parseStoredSessions(sessionFile.readLines())
+        if (parsedData.format == SessionFileFormat.LEGACY) {
+            val migrated = runCatching {
+                val serialized = serializeVersionedSessions(parsedData.rawPayloadLines)
+                writeAtomically(serialized)
             }
 
-            if (userId.isBlank() || accessToken.isBlank()) {
-                invalidSessions += 1
-            } else {
-                candidates += AuthSession(userId = userId, accessToken = accessToken, server = server)
+            if (migrated.isFailure) {
+                return parsedData.inventory.copy(
+                    diagnosticMessage = AuthMessages.legacySessionMigrationFailed()
+                )
             }
-
-            index += LINES_PER_RECORD
         }
 
-        val activeSession = candidates
-            .sortedWith(compareBy<AuthSession> { it.userId }.thenBy { it.server.orEmpty() }.thenBy { it.accessToken })
-            .firstOrNull()
-
-        return SessionInventory(
-            activeSession = activeSession,
-            validSessions = candidates.size,
-            invalidSessions = invalidSessions
-        )
+        return parsedData.inventory
     }
 
     override fun writeActiveSession(session: AuthSession) {
-        sessionFile.parentFile?.mkdirs()
-        val serverLine = session.server.orEmpty()
-        sessionFile.writeText("${session.userId}\n${session.accessToken}\n${serverLine}\n")
+        writeAtomically(serializeSingleSession(session))
     }
 
     override fun clearActiveSession() {
         if (sessionFile.exists() && !sessionFile.delete()) {
             throw IllegalStateException("Failed to clear active session file: ${sessionFile.absolutePath}")
+        }
+    }
+
+    private fun writeAtomically(contents: String) {
+        val path = sessionFile.toPath()
+        val parent = path.parent
+
+        if (parent != null) {
+            Files.createDirectories(parent)
+            restrictDirectoryPermissions(parent)
+        }
+
+        val tempFile = Files.createTempFile(parent ?: Path.of("."), "session-", ".tmp")
+        try {
+            restrictFilePermissions(tempFile)
+            Files.writeString(tempFile, contents, StandardCharsets.UTF_8)
+            try {
+                Files.move(
+                    tempFile,
+                    path,
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING
+                )
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(tempFile, path, StandardCopyOption.REPLACE_EXISTING)
+            }
+            restrictFilePermissions(path)
+        } finally {
+            Files.deleteIfExists(tempFile)
+        }
+    }
+
+    private fun restrictDirectoryPermissions(path: Path) {
+        runCatching {
+            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rwx------"))
+        }.recover {
+            path.toFile().setReadable(false, false)
+            path.toFile().setReadable(true, true)
+            path.toFile().setWritable(false, false)
+            path.toFile().setWritable(true, true)
+            path.toFile().setExecutable(false, false)
+            path.toFile().setExecutable(true, true)
+        }
+    }
+
+    private fun restrictFilePermissions(path: Path) {
+        runCatching {
+            Files.setPosixFilePermissions(path, setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE))
+        }.recover {
+            path.toFile().setReadable(false, false)
+            path.toFile().setReadable(true, true)
+            path.toFile().setWritable(false, false)
+            path.toFile().setWritable(true, true)
+            path.toFile().setExecutable(false, false)
         }
     }
 }

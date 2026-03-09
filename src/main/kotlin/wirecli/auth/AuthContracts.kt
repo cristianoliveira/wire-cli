@@ -16,7 +16,8 @@ data class AuthSession(
 data class SessionInventory(
     val activeSession: AuthSession?,
     val validSessions: Int,
-    val invalidSessions: Int
+    val invalidSessions: Int,
+    val diagnosticMessage: String? = null
 )
 
 sealed interface AuthResult {

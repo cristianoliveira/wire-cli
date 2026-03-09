@@ -2,17 +2,16 @@ package wirecli.runtime
 
 import java.util.Locale
 import wirecli.auth.AuthApiClient
-import wirecli.auth.AuthSession
 import wirecli.auth.AuthSessionService
 import wirecli.auth.AuthSessionServiceImpl
-import wirecli.auth.ExitCodes
 import wirecli.auth.EnvironmentKaliumAuthRuntime
 import wirecli.auth.FileAuthSessionStore
 import wirecli.auth.RealAuthApiClient
 import wirecli.auth.StubAuthApiClient
 import wirecli.profile.AuthGuardedProfileService
+import wirecli.profile.EnvironmentKaliumProfileRuntime
 import wirecli.profile.ProfileApiClient
-import wirecli.profile.ProfileResult
+import wirecli.profile.RealProfileApiClient
 import wirecli.profile.ProfileService
 import wirecli.profile.SessionBackedProfileService
 import wirecli.profile.StubProfileApiClient
@@ -107,15 +106,8 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
     }
 
     override fun createProfileApiClient(environment: Map<String, String>): ProfileApiClient {
-        return RealProfileApiClient
-    }
-}
-
-private object RealProfileApiClient : ProfileApiClient {
-    override fun fetchProfile(session: AuthSession): ProfileResult {
-        return ProfileResult.Failure(
-            message = "Real profile backend is selected but not wired yet.",
-            exitCode = ExitCodes.SERVER_ERROR
+        return RealProfileApiClient(
+            runtime = EnvironmentKaliumProfileRuntime(environment)
         )
     }
 }

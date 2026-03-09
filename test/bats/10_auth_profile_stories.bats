@@ -246,6 +246,50 @@ write_session_inventory() {
   [ ! -f "${WIRE_SESSION_FILE}" ]
 }
 
+@test "Given real backend session, when profile runs, then self user details are rendered in stable order" {
+  export WIRE_BACKEND="real"
+  export WIRE_REAL_MODE="success"
+
+  run_wire login --email "kalium@example.com" --password "correct-horse"
+  assert_status 0
+
+  run_wire profile
+  assert_status 0
+  [[ "${lines[0]}" == "Name: Real kalium" ]]
+  [[ "${lines[1]}" == "Email: kalium@wire.test" ]]
+  [[ "${lines[2]}" == "Handle: kalium" ]]
+}
+
+@test "Given real backend missing optional fields, when profile runs, then dash fallback is preserved" {
+  export WIRE_BACKEND="real"
+  export WIRE_REAL_MODE="success"
+
+  run_wire login --email "kalium@example.com" --password "correct-horse"
+  assert_status 0
+
+  export WIRE_REAL_MODE="profile_missing_optional"
+  run_wire profile
+  assert_status 0
+  [[ "${lines[0]}" == "Name: -" ]]
+  [[ "${lines[1]}" == "Email: -" ]]
+  [[ "${lines[2]}" == "Handle: -" ]]
+}
+
+@test "Given real backend expired session, when profile runs, then unauthorized guidance is returned" {
+  export WIRE_BACKEND="real"
+  export WIRE_REAL_MODE="success"
+
+  run_wire login --email "kalium@example.com" --password "correct-horse"
+  assert_status 0
+
+  export WIRE_REAL_FAIL_STEP="self_user"
+  export WIRE_REAL_MODE="unauthorized"
+  run_wire profile
+  assert_status 11
+  [[ "${output}" == *"Session is invalid or expired"* ]]
+  [[ "${output}" == *"Run wire login to re-authenticate"* ]]
+}
+
 @test "Given real backend unauthorized logout, when logout runs, then local marker remains and unauthorized guidance is returned" {
   export WIRE_BACKEND="real"
   export WIRE_REAL_MODE="success"

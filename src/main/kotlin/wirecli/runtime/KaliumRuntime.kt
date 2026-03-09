@@ -2,16 +2,16 @@ package wirecli.runtime
 
 import java.util.Locale
 import wirecli.auth.AuthApiClient
+import wirecli.auth.RealKaliumAuthClient
+import wirecli.auth.SdkKaliumAuthRuntime
 import wirecli.auth.AuthSessionService
 import wirecli.auth.AuthSessionServiceImpl
-import wirecli.auth.EnvironmentKaliumAuthRuntime
 import wirecli.auth.FileAuthSessionStore
-import wirecli.auth.RealAuthApiClient
 import wirecli.auth.StubAuthApiClient
 import wirecli.profile.AuthGuardedProfileService
-import wirecli.profile.EnvironmentKaliumProfileRuntime
 import wirecli.profile.ProfileApiClient
-import wirecli.profile.RealProfileApiClient
+import wirecli.profile.RealKaliumProfileApiClient
+import wirecli.profile.SdkKaliumProfileRuntime
 import wirecli.profile.ProfileService
 import wirecli.profile.SessionBackedProfileService
 import wirecli.profile.StubProfileApiClient
@@ -100,14 +100,10 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
 
 private object RealRuntimeBackendFactory : RuntimeBackendFactory {
     override fun createAuthApiClient(environment: Map<String, String>): AuthApiClient {
-        return RealAuthApiClient(
-            runtime = EnvironmentKaliumAuthRuntime(environment)
-        )
+        return RealKaliumAuthClient(SdkKaliumAuthRuntime(environment))
     }
 
     override fun createProfileApiClient(environment: Map<String, String>): ProfileApiClient {
-        return RealProfileApiClient(
-            runtime = EnvironmentKaliumProfileRuntime(environment)
-        )
+        return RealKaliumProfileApiClient(SdkKaliumProfileRuntime(environment))
     }
 }

@@ -1,5 +1,7 @@
+import org.gradle.jvm.application.tasks.CreateStartScripts
+
 plugins {
-    kotlin("jvm") version "2.0.21"
+    kotlin("jvm") version "2.3.0"
     application
 }
 
@@ -7,11 +9,14 @@ group = "wirecli"
 version = "0.1.0"
 
 repositories {
+    google()
     mavenCentral()
 }
 
 dependencies {
     implementation("com.github.ajalt.clikt:clikt:4.4.0")
+    implementation("com.wire:logic")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 }
 
 application {
@@ -31,6 +36,17 @@ val batsTest by tasks.registering(Exec::class) {
 
 tasks.named("check") {
     dependsOn(batsTest)
+}
+
+tasks.named<CreateStartScripts>("startScripts") {
+    doLast {
+        val unixScriptFile = unixScript
+        val patched = unixScriptFile.readText().replace(
+            Regex("^CLASSPATH=(.*)$", RegexOption.MULTILINE),
+            "CLASSPATH=\"$1\""
+        )
+        unixScriptFile.writeText(patched)
+    }
 }
 
 kotlin {

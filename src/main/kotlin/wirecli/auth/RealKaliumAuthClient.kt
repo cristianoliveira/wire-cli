@@ -1,6 +1,24 @@
 package wirecli.auth
 
-internal class RealAuthApiClient(
+import com.wire.kalium.common.error.CoreFailure
+import com.wire.kalium.common.error.NetworkFailure
+import com.wire.kalium.logic.CoreLogic
+import com.wire.kalium.logic.configuration.server.ServerConfig
+import com.wire.kalium.logic.data.auth.AccountTokens
+import com.wire.kalium.logic.data.auth.login.ProxyCredentials
+import com.wire.kalium.logic.data.logout.LogoutReason
+import com.wire.kalium.logic.data.user.SsoId
+import com.wire.kalium.logic.data.user.SsoManagedBy
+import com.wire.kalium.logic.data.user.UserId
+import com.wire.kalium.logic.feature.auth.AuthenticationResult
+import com.wire.kalium.logic.feature.auth.autoVersioningAuth.AutoVersionAuthScopeUseCase
+import com.wire.kalium.logic.feature.client.RegisterClientParam
+import com.wire.kalium.logic.feature.client.RegisterClientResult
+import com.wire.kalium.logic.feature.server.GetServerConfigResult
+import com.wire.kalium.logic.featureFlags.KaliumConfigs
+import kotlinx.coroutines.runBlocking
+
+internal class RealKaliumAuthClient(
     private val runtime: RealKaliumAuthRuntime
 ) : AuthApiClient {
     override fun login(input: LoginInput): AuthApiResult {
@@ -33,7 +51,14 @@ internal class RealAuthApiClient(
                 PersistedAccount(
                     userId = success.userId,
                     server = input.server,
-                    accessToken = success.accessToken
+                    accessToken = success.accessToken,
+                    refreshToken = success.refreshToken,
+                    tokenType = success.tokenType,
+                    cookieLabel = success.cookieLabel,
+                    serverConfigId = success.serverConfigId,
+                    ssoId = success.ssoId,
+                    managedBy = success.managedBy,
+                    proxyCredentials = success.proxyCredentials
                 )
             )
         ) {
@@ -87,13 +112,27 @@ internal interface KaliumAuthScope {
 
 internal data class AuthenticatedPrincipal(
     val userId: String,
-    val accessToken: String
+    val accessToken: String,
+    val refreshToken: String,
+    val tokenType: String,
+    val cookieLabel: String?,
+    val serverConfigId: String,
+    val ssoId: SsoId?,
+    val managedBy: SsoManagedBy?,
+    val proxyCredentials: ProxyCredentials?
 )
 
 internal data class PersistedAccount(
     val userId: String,
     val server: String?,
-    val accessToken: String
+    val accessToken: String,
+    val refreshToken: String,
+    val tokenType: String,
+    val cookieLabel: String?,
+    val serverConfigId: String,
+    val ssoId: SsoId?,
+    val managedBy: SsoManagedBy?,
+    val proxyCredentials: ProxyCredentials?
 )
 
 internal data class KaliumSessionScope(
@@ -116,101 +155,247 @@ internal enum class AuthFailureCategory {
     UNKNOWN
 }
 
-internal class EnvironmentKaliumAuthRuntime(
+internal class SdkKaliumAuthRuntime(
     private val environment: Map<String, String>
 ) : RealKaliumAuthRuntime {
-    private val mode = environment[ENV_REAL_MODE]?.trim().orEmpty()
+    private val coreLogic: CoreLogic by lazy {
+        CoreLogic(
+            rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
+            kaliumConfigs = KaliumConfigs(),
+            userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}"
+        )
+    }
 
     override fun resolveAuthScope(server: String?): AuthStepResult<KaliumAuthScope> {
-        val failure = failureForStep("scope")
-        if (failure != null) return failure
+        return runBlocking {
+            when (val links = resolveServerLinks(server)) {
+                is AuthStepResult.Failure -> links
+                is AuthStepResult.Success -> {
+                    when (val authScope = coreLogic.versionedAuthenticationScope(links.value).invoke(null)) {
+                        is AutoVersionAuthScopeUseCase.Result.Success -> AuthStepResult.Success(SdkKaliumAuthScope(authScope.authenticationScope))
+                        is AutoVersionAuthScopeUseCase.Result.Failure.UnknownServerVersion -> {
+                            AuthStepResult.Failure(AuthFailureCategory.SERVER)
+                        }
 
-        return AuthStepResult.Success(EnvironmentKaliumAuthScope(mode, server))
-    }
+                        is AutoVersionAuthScopeUseCase.Result.Failure.TooNewVersion -> {
+                            AuthStepResult.Failure(AuthFailureCategory.SERVER)
+                        }
 
-    override fun addAuthenticatedAccount(account: PersistedAccount): AuthStepResult<Unit> {
-        return failureForStep("persist") ?: AuthStepResult.Success(Unit)
-    }
-
-    override fun resolveSessionScope(userId: String): AuthStepResult<KaliumSessionScope> {
-        val failure = failureForStep("session")
-        if (failure != null) return failure
-
-        return AuthStepResult.Success(KaliumSessionScope(userId))
-    }
-
-    override fun ensureClient(sessionScope: KaliumSessionScope, password: String): AuthStepResult<Unit> {
-        return failureForStep("client") ?: AuthStepResult.Success(Unit)
-    }
-
-    override fun logout(session: AuthSession): AuthStepResult<Unit> {
-        return failureForStep("logout") ?: AuthStepResult.Success(Unit)
-    }
-
-    private fun failureForStep(step: String): AuthStepResult.Failure? {
-        val explicit = environment[ENV_REAL_FAIL_STEP]?.trim()?.lowercase()
-        if (explicit == step) {
-            return categoryForMode(mode)
-        }
-
-        if (mode == "login_$step") {
-            return AuthStepResult.Failure(AuthFailureCategory.SERVER)
-        }
-
-        return when (mode) {
-            "invalid", "invalid_credentials" -> AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
-            "network", "network_error" -> AuthStepResult.Failure(AuthFailureCategory.NETWORK)
-            "server", "server_error" -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
-            "unauthorized" -> AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
-            "unknown" -> AuthStepResult.Failure(AuthFailureCategory.UNKNOWN)
-            else -> null
-        }
-    }
-
-    private fun categoryForMode(rawMode: String): AuthStepResult.Failure {
-        return when (rawMode) {
-            "invalid", "invalid_credentials" -> AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
-            "network", "network_error" -> AuthStepResult.Failure(AuthFailureCategory.NETWORK)
-            "unauthorized" -> AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
-            "unknown" -> AuthStepResult.Failure(AuthFailureCategory.UNKNOWN)
-            else -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
-        }
-    }
-
-    private class EnvironmentKaliumAuthScope(
-        private val mode: String,
-        private val server: String?
-    ) : KaliumAuthScope {
-        override fun login(email: String, password: String): AuthStepResult<AuthenticatedPrincipal> {
-            val normalizedEmail = email.trim()
-            if (normalizedEmail.isEmpty() || password.isEmpty()) {
-                return AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
-            }
-
-            return if (mode == "success" || mode == "" || mode == "login_ok") {
-                AuthStepResult.Success(
-                    AuthenticatedPrincipal(
-                        userId = normalizedEmail.substringBefore('@').ifEmpty { "user" },
-                        accessToken = "kalium-token-${server ?: "default"}"
-                    )
-                )
-            } else {
-                when (mode) {
-                    "invalid", "invalid_credentials" -> AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
-                    "network", "network_error" -> AuthStepResult.Failure(AuthFailureCategory.NETWORK)
-                    "unauthorized" -> AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
-                    "unknown" -> AuthStepResult.Failure(AuthFailureCategory.UNKNOWN)
-                    else -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
+                        is AutoVersionAuthScopeUseCase.Result.Failure.Generic -> {
+                            AuthStepResult.Failure(coreFailureToCategory(authScope.genericFailure))
+                        }
+                    }
                 }
             }
         }
     }
 
-    companion object {
-        const val ENV_REAL_MODE = "WIRE_REAL_MODE"
-        const val ENV_REAL_FAIL_STEP = "WIRE_REAL_FAIL_STEP"
+    override fun addAuthenticatedAccount(account: PersistedAccount): AuthStepResult<Unit> {
+        return runBlocking {
+            val userId = account.userId.toQualifiedIdOrNull()
+                ?: return@runBlocking AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+            val authTokens = AccountTokens(
+                userId = userId,
+                accessToken = account.accessToken,
+                refreshToken = account.refreshToken,
+                tokenType = account.tokenType,
+                cookieLabel = account.cookieLabel
+            )
+
+            when (
+                val result = coreLogic.globalScope {
+                    addAuthenticatedAccount(
+                        serverConfigId = account.serverConfigId,
+                        ssoId = account.ssoId,
+                        authTokens = authTokens,
+                        proxyCredentials = account.proxyCredentials,
+                        isPersistentWebSocketEnabled = false,
+                        managedBy = account.managedBy,
+                        replace = true
+                    )
+                }
+            ) {
+                is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Success -> AuthStepResult.Success(Unit)
+                com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.UserAlreadyExists -> {
+                    AuthStepResult.Success(Unit)
+                }
+
+                is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.Generic -> {
+                    AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
+                }
+            }
+        }
+    }
+
+    override fun resolveSessionScope(userId: String): AuthStepResult<KaliumSessionScope> {
+        return if (userId.toQualifiedIdOrNull() == null) {
+            AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+        } else {
+            AuthStepResult.Success(KaliumSessionScope(userId))
+        }
+    }
+
+    override fun ensureClient(sessionScope: KaliumSessionScope, password: String): AuthStepResult<Unit> {
+        val userId = sessionScope.userId.toQualifiedIdOrNull()
+            ?: return AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+
+        return runBlocking {
+            try {
+                when (
+                    val result = coreLogic.sessionScope(userId) {
+                        client.getOrRegister(RegisterClientParam(password, emptyList()))
+                    }
+                ) {
+                    is RegisterClientResult.Success,
+                    is RegisterClientResult.E2EICertificateRequired -> AuthStepResult.Success(Unit)
+
+                    is RegisterClientResult.Failure.InvalidCredentials,
+                    RegisterClientResult.Failure.PasswordAuthRequired -> AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+
+                    RegisterClientResult.Failure.TooManyClients -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
+                    is RegisterClientResult.Failure.Generic -> {
+                        AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
+                    }
+                }
+            } catch (error: Throwable) {
+                AuthStepResult.Failure(categoryFromThrowable(error))
+            }
+        }
+    }
+
+    override fun logout(session: AuthSession): AuthStepResult<Unit> {
+        val userId = session.userId.toQualifiedIdOrNull()
+            ?: return AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+
+        return runBlocking {
+            try {
+                coreLogic.sessionScope(userId) {
+                    logout(LogoutReason.SELF_HARD_LOGOUT, waitUntilCompletes = true)
+                }
+                AuthStepResult.Success(Unit)
+            } catch (error: Throwable) {
+                AuthStepResult.Failure(categoryFromThrowable(error))
+            }
+        }
+    }
+
+    private suspend fun resolveServerLinks(server: String?): AuthStepResult<ServerConfig.Links> {
+        val target = server?.trim().orEmpty()
+        if (target.isEmpty()) {
+            return AuthStepResult.Success(ServerConfig.DEFAULT)
+        }
+
+        if (target.equals("staging", ignoreCase = true)) {
+            return AuthStepResult.Success(ServerConfig.STAGING)
+        }
+
+        if (target.equals("production", ignoreCase = true)) {
+            return AuthStepResult.Success(ServerConfig.PRODUCTION)
+        }
+
+        return when (val result = coreLogic.globalScope { fetchServerConfigFromDeepLink(target) }) {
+            is GetServerConfigResult.Success -> AuthStepResult.Success(result.serverConfigLinks)
+            is GetServerConfigResult.Failure.Generic -> {
+                AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
+            }
+        }
+    }
+
+    private fun coreFailureToCategory(failure: CoreFailure): AuthFailureCategory {
+        return when (failure) {
+            is NetworkFailure.NoNetworkConnection,
+            is NetworkFailure.ProxyError -> AuthFailureCategory.NETWORK
+
+            is NetworkFailure.ServerMiscommunication -> AuthFailureCategory.SERVER
+
+            is NetworkFailure.FederatedBackendFailure,
+            NetworkFailure.FeatureNotSupported,
+            is NetworkFailure.MlsMessageRejectedFailure -> AuthFailureCategory.SERVER
+
+            else -> AuthFailureCategory.UNKNOWN
+        }
+    }
+
+    private fun categoryFromThrowable(error: Throwable): AuthFailureCategory {
+        val message = error.message.orEmpty()
+        return when {
+            message.contains("network", ignoreCase = true) -> AuthFailureCategory.NETWORK
+            message.contains("unauthorized", ignoreCase = true) -> AuthFailureCategory.UNAUTHORIZED
+            message.contains("auth", ignoreCase = true) -> AuthFailureCategory.UNAUTHORIZED
+            message.isNotEmpty() -> AuthFailureCategory.SERVER
+            else -> AuthFailureCategory.UNKNOWN
+        }
+    }
+
+    private class SdkKaliumAuthScope(
+        private val authScope: com.wire.kalium.logic.feature.auth.AuthenticationScope
+    ) : KaliumAuthScope {
+        override fun login(email: String, password: String): AuthStepResult<AuthenticatedPrincipal> {
+            return runBlocking {
+                when (val login = authScope.login(email, password, shouldPersistClient = false)) {
+                    is AuthenticationResult.Success -> {
+                        AuthStepResult.Success(
+                            AuthenticatedPrincipal(
+                                userId = login.authData.userId.serialize(),
+                                accessToken = login.authData.accessToken.value,
+                                refreshToken = login.authData.refreshToken.value,
+                                tokenType = login.authData.tokenType,
+                                cookieLabel = login.authData.cookieLabel,
+                                serverConfigId = login.serverConfigId,
+                                ssoId = login.ssoID,
+                                managedBy = login.managedBy,
+                                proxyCredentials = login.proxyCredentials
+                            )
+                        )
+                    }
+
+                    AuthenticationResult.Failure.SocketError -> AuthStepResult.Failure(AuthFailureCategory.NETWORK)
+                    is AuthenticationResult.Failure.InvalidCredentials,
+                    AuthenticationResult.Failure.InvalidUserIdentifier -> {
+                        AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
+                    }
+
+                    AuthenticationResult.Failure.AccountPendingActivation,
+                    AuthenticationResult.Failure.AccountSuspended -> {
+                        AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+                    }
+
+                    is AuthenticationResult.Failure.Generic -> {
+                        when (login.genericFailure) {
+                            is NetworkFailure.NoNetworkConnection,
+                            is NetworkFailure.ProxyError -> AuthStepResult.Failure(AuthFailureCategory.NETWORK)
+
+                            is NetworkFailure.ServerMiscommunication,
+                            is NetworkFailure.FederatedBackendFailure,
+                            NetworkFailure.FeatureNotSupported,
+                            is NetworkFailure.MlsMessageRejectedFailure -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
+
+                            else -> AuthStepResult.Failure(AuthFailureCategory.UNKNOWN)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun resolveHomeDirectory(env: Map<String, String>): String {
+        val home = env["HOME"]?.trim()
+        if (!home.isNullOrEmpty()) return home
+        return System.getProperty("user.home")
     }
 }
+
+private fun String.toQualifiedIdOrNull(): UserId? {
+    val trimmed = trim()
+    val atIndex = trimmed.lastIndexOf('@')
+    if (atIndex <= 0 || atIndex == trimmed.lastIndex) return null
+    val value = trimmed.substring(0, atIndex)
+    val domain = trimmed.substring(atIndex + 1)
+    if (value.isBlank() || domain.isBlank()) return null
+    return UserId(value = value, domain = domain)
+}
+
+private fun UserId.serialize(): String = "$value@$domain"
 
 private fun AuthStepResult.Failure.toAuthFailure(
     action: String,

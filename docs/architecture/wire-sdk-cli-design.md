@@ -7,6 +7,8 @@ Define the concrete code design for implementing `login`, `logout`, and `profile
 
 Use a thin command layer and move SDK orchestration into services.
 
+Current repository shape (today) is already close to this design and should be used as the baseline:
+
 ```text
 src/main/kotlin/wirecli/
   Main.kt
@@ -14,17 +16,27 @@ src/main/kotlin/wirecli/
     LoginCommand.kt
     LogoutCommand.kt
     ProfileCommand.kt
+    RootCommand.kt
   auth/
-    AuthSessionService.kt
-    SessionResolver.kt
-    AuthErrorMapper.kt
-    ExitCodes.kt
+    AuthContracts.kt
+    AuthMessages.kt
+    AuthSessionServiceImpl.kt
+    FileAuthSessionStore.kt
+    RealKaliumAuthClient.kt
+    StubAuthApiClient.kt
   profile/
-    ProfileService.kt
-    ProfileFormatter.kt
+    ProfileContracts.kt
+    AuthGuardedProfileService.kt
+    SessionBackedProfileService.kt
+    RealKaliumProfileApiClient.kt
+    StubProfileApiClient.kt
   runtime/
     KaliumRuntime.kt
 ```
+
+Notes:
+- `SessionResolver`, `AuthErrorMapper`, and `ProfileFormatter` are conceptual roles and currently implemented across existing services/helpers rather than as standalone files.
+- Keep this document aligned to actual code to avoid architecture drift.
 
 ## Layer Responsibilities
 
@@ -59,8 +71,26 @@ The login service should run this sequence in order:
 5. Register or get current client/device.
 6. Keep sync alive for a healthy session lifecycle.
 
+This sequence is validated against the local Kalium sample implementation in `.local/kalium/sample/cli`:
+- build auth scope via `versionedAuthenticationScope(...)`
+- run `login(...)`
+- on success call `addAuthenticatedAccount(...)`
+- resolve `sessionScope(userId)`
+- run `client.getOrRegister(...)`
+- start sync (`keepSyncAlwaysOn()`)
+
 Do not treat login as complete until step 3 succeeds. Authentication without persisted account state will not satisfy session persistence requirements.
 For one-shot commands, keep sync only as long as needed for session health/bootstrap, then shut down cleanly.
+
+### Required Auth Branches
+
+Handle these branches explicitly in service mapping:
+- invalid credentials
+- missing 2FA
+- invalid/expired 2FA
+- pending activation / suspended account
+- client-limit / client-registration failures
+- network/server/bootstrap failures
 
 ## Session Model
 
@@ -71,11 +101,26 @@ For one-shot commands, keep sync only as long as needed for session health/boots
 - Protected commands (`profile`) should fail fast when there is no valid session.
 - Recovery guidance should always tell the user how to re-authenticate.
 
+### Persistence Topology
+
+- Kalium runtime data root should be stable across process restarts (for example `~/.wire/kalium`).
+- CLI should keep a minimal local active-session marker (current repo uses a versioned file with migration support).
+- Document env precedence for marker path overrides (`WIRE_SESSION_FILE`, `XDG_CONFIG_HOME`, `HOME`).
+
 ## Logout Model
 
-- MVP behavior: logout current active session and remove local persisted active auth state for that session so protected commands require re-authentication.
+- Current behavior in this repo is hard logout (`SELF_HARD_LOGOUT`) on the active session, followed by local marker removal on success.
 - After logout, protected commands must return unauthorized and non-zero exit.
-- Optional hard-logout mode can be added later.
+- Optional future enhancement: configurable soft vs hard logout mode.
+
+## Credential and Secret Handling
+
+- Current CLI still accepts `--password` directly; this is functional but not the target secure UX.
+- Target behavior:
+  - hidden interactive password prompt by default
+  - `--password-stdin` for automation
+  - no token/password leaks in logs/errors/output
+  - strict file permissions and atomic writes for local state
 
 ## Error and Exit Code Contract
 
@@ -192,6 +237,12 @@ Formatting rules:
   - logout invalidation.
 - Integration smoke test:
   - login -> profile -> logout -> profile denied.
+
+- Real-auth branch coverage (required before production default):
+  - 2FA required and invalid 2FA
+  - client registration failures
+  - expired/removed session handling
+  - server-initiated logout reason mapping
 
 ## Implementation Notes
 

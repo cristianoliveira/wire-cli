@@ -62,3 +62,10 @@ As a user, I want profile access to require authentication so unauthorized reque
 Acceptance criteria:
 - Given I am not authenticated, when I run the profile command, then access is denied and I am prompted to log in.
 - Given my session is invalid or expired, when I run the profile command, then I receive an unauthorized response and recovery guidance.
+
+## Real backend smoke commands
+
+- `WIRE_BACKEND=real WIRE_REAL_EMAIL='<email>' WIRE_REAL_PASSWORD='<password>' ./build/install/wire-cli/bin/wire-cli login --email "$WIRE_REAL_EMAIL" --password "$WIRE_REAL_PASSWORD"`
+- `WIRE_BACKEND=real ./build/install/wire-cli/bin/wire-cli profile`
+- `WIRE_BACKEND=real ./build/install/wire-cli/bin/wire-cli logout`
+- Optional custom backend: include `--server '<staging|production|invite-link-or-config-url>'` on `login`.

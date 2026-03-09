@@ -12,10 +12,17 @@
         pkgs = import nixpkgs {
           inherit system;
         };
+        gradleCmd = pkgs.writeShellScriptBin "gradle" ''
+          if [ -x "./gradlew" ]; then
+            exec ./gradlew "$@"
+          fi
+
+          exec ${pkgs.gradle}/bin/gradle "$@"
+        '';
       in {
         packages.cli = pkgs.writeShellApplication {
           name = "cli";
-          runtimeInputs = with pkgs; [ gradle jdk17 ];
+          runtimeInputs = [ gradleCmd pkgs.jdk17 ];
           text = ''
             export JAVA_HOME="${pkgs.jdk17}"
             if [ $# -eq 0 ]; then
@@ -36,7 +43,7 @@
             git
             just
             jdk17
-            gradle
+            gradleCmd
             kotlin
             bats
             shellcheck

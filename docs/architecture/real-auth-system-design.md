@@ -43,6 +43,20 @@ Support modules:
 - ProfileFormatter + ErrorPresenter
 ```
 
+## Validated Reference Flow
+
+The canonical Wire auth flow has been verified against local examples in `.local/kalium/sample/cli` and should be treated as source-of-truth behavior:
+
+1. Resolve versioned auth scope from server config.
+2. Execute login.
+3. Handle 2FA branches (`Missing2FA`, `Invalid2FA`) with retry guidance.
+4. Persist authenticated account via `addAuthenticatedAccount(...)`.
+5. Resolve user session scope.
+6. Ensure/register client (`client.getOrRegister(...)`).
+7. Start sync for session liveness (`keepSyncAlwaysOn()`) when needed by follow-up operations.
+
+Login is not complete until account persistence and session bootstrap succeed.
+
 ## Component Design
 
 ### 1) Command Layer (`commands/*`)
@@ -108,6 +122,17 @@ Support modules:
 - Missing/invalid 2FA -> dedicated branch and retry guidance.
 - Suspended/pending account states -> clear account-state errors.
 
+### Branch Mapping Contract
+
+| Kalium branch/category | CLI behavior requirement |
+|---|---|
+| Invalid credentials | `AUTH_FAILED` with concise retry guidance |
+| Missing 2FA | dedicated non-zero branch asking for 2FA code |
+| Invalid 2FA | dedicated non-zero branch with retry guidance |
+| Pending activation / suspended | non-zero account-state message |
+| Client limit / registration failure | non-zero with actionable client cleanup guidance |
+| Network bootstrap/server failure | `NETWORK_ERROR` or `SERVER_ERROR` with short next step |
+
 ### Client Registration
 - Too many clients -> actionable cleanup guidance.
 - Missing auth factors for registration -> retry guidance.
@@ -147,12 +172,23 @@ object ExitCodes {
 - Use atomic writes (temp file + rename).
 - Keep serialized format stable and versioned.
 
+### Path Topology
+- Keep Kalium data root stable across runs (for example `~/.wire/kalium`).
+- Keep CLI active-session marker separately and minimal.
+- Path override precedence for marker file:
+  1. `WIRE_SESSION_FILE`
+  2. `XDG_CONFIG_HOME`
+  3. `HOME`
+
 ## Security Design
 
 ### Credential Input
 - Default to hidden interactive prompt for password.
 - Support `--password-stdin` for automation.
 - Avoid plain `--password` as primary path.
+
+Current state note:
+- Current implementation still supports `--password` directly; treat secure input modes as required hardening before production real-auth default.
 
 ### Secret Handling
 - Never log password/token/session secrets.
@@ -192,6 +228,7 @@ object ExitCodes {
 ### Phase 1: Real Auth Core
 - Introduce real auth/profile clients and wire runtime selection.
 - Implement canonical login sequence and profile fetch.
+- Ensure profile path waits for sync liveness before fetching self user where required by SDK behavior.
 
 ### Phase 2: Hardening
 - Enforce secure input/storage/redaction.
@@ -202,7 +239,7 @@ object ExitCodes {
 - Add supportability commands and richer diagnostics.
 
 ## Open Design Decisions
-- Final policy for soft vs hard logout default.
+- Whether to expose soft logout as a user-selectable mode (current implementation defaults to hard logout behavior).
 - Final session file schema/versioning strategy.
 - Explicit handling policy for multi-account active-session selection.
 

@@ -1,11 +1,15 @@
 package wirecli.profile
 
+import com.wire.kalium.logic.CoreLogic
+import com.wire.kalium.logic.data.user.SelfUser
+import com.wire.kalium.logic.data.user.UserId
+import com.wire.kalium.logic.featureFlags.KaliumConfigs
+import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
-import wirecli.auth.EnvironmentKaliumAuthRuntime
 
-internal class RealProfileApiClient(
+internal class RealKaliumProfileApiClient(
     private val runtime: RealKaliumProfileRuntime
 ) : ProfileApiClient {
     override fun fetchProfile(session: AuthSession): ProfileResult {
@@ -56,71 +60,90 @@ internal enum class ProfileFailureCategory {
     UNKNOWN
 }
 
-internal class EnvironmentKaliumProfileRuntime(
+internal class SdkKaliumProfileRuntime(
     private val environment: Map<String, String>
 ) : RealKaliumProfileRuntime {
-    private val mode = environment[EnvironmentKaliumAuthRuntime.ENV_REAL_MODE]?.trim().orEmpty()
-
-    override fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope> {
-        val failure = failureForStep("session")
-        if (failure != null) return failure
-
-        return ProfileStepResult.Success(
-            KaliumProfileSessionScope(
-                userId = session.userId,
-                server = session.server
-            )
+    private val coreLogic: CoreLogic by lazy {
+        CoreLogic(
+            rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
+            kaliumConfigs = KaliumConfigs(),
+            userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}"
         )
     }
 
+    override fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope> {
+        val qualifiedId = session.userId.toQualifiedIdOrNull()
+            ?: return ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
+
+        return runBlocking {
+            try {
+                coreLogic.sessionScope(qualifiedId) {
+                    syncExecutor.request { waitUntilLiveOrFailure() }
+                }
+                ProfileStepResult.Success(
+                    KaliumProfileSessionScope(
+                        userId = session.userId,
+                        server = session.server
+                    )
+                )
+            } catch (error: Throwable) {
+                ProfileStepResult.Failure(categoryFromThrowable(error))
+            }
+        }
+    }
+
     override fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser> {
-        val failure = failureForStep("self_user")
-        if (failure != null) return failure
+        val qualifiedId = sessionScope.userId.toQualifiedIdOrNull()
+            ?: return ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
 
-        val profile = when (mode) {
-            "profile_missing_optional" -> KaliumSelfUser(
-                name = null,
-                email = null,
-                handle = null
-            )
-
-            else -> KaliumSelfUser(
-                name = "Real ${sessionScope.userId}",
-                email = "${sessionScope.userId}@wire.test",
-                handle = sessionScope.userId
-            )
-        }
-
-        return ProfileStepResult.Success(profile)
-    }
-
-    private fun failureForStep(step: String): ProfileStepResult.Failure? {
-        val explicit = environment[EnvironmentKaliumAuthRuntime.ENV_REAL_FAIL_STEP]?.trim()?.lowercase()
-        if (explicit == step) {
-            return categoryForMode(mode)
-        }
-
-        if (mode == "profile_$step") {
-            return ProfileStepResult.Failure(ProfileFailureCategory.SERVER)
-        }
-
-        return when (mode) {
-            "network", "network_error" -> ProfileStepResult.Failure(ProfileFailureCategory.NETWORK)
-            "server", "server_error" -> ProfileStepResult.Failure(ProfileFailureCategory.SERVER)
-            "unauthorized" -> ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
-            "unknown" -> ProfileStepResult.Failure(ProfileFailureCategory.UNKNOWN)
-            else -> null
+        return runBlocking {
+            try {
+                val selfUser: SelfUser? = coreLogic.sessionScope(qualifiedId) {
+                    users.getSelfUser()
+                }
+                if (selfUser == null) {
+                    ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
+                } else {
+                    ProfileStepResult.Success(
+                        KaliumSelfUser(
+                            name = selfUser.name,
+                            email = selfUser.email,
+                            handle = selfUser.handle
+                        )
+                    )
+                }
+            } catch (error: Throwable) {
+                ProfileStepResult.Failure(categoryFromThrowable(error))
+            }
         }
     }
 
-    private fun categoryForMode(rawMode: String): ProfileStepResult.Failure {
-        return when (rawMode) {
-            "network", "network_error" -> ProfileStepResult.Failure(ProfileFailureCategory.NETWORK)
-            "unauthorized" -> ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
-            "unknown" -> ProfileStepResult.Failure(ProfileFailureCategory.UNKNOWN)
-            else -> ProfileStepResult.Failure(ProfileFailureCategory.SERVER)
+    private fun categoryFromThrowable(error: Throwable): ProfileFailureCategory {
+        val message = error.message.orEmpty()
+        return when {
+            message.contains("network", ignoreCase = true) -> ProfileFailureCategory.NETWORK
+            message.contains("unauthorized", ignoreCase = true) -> ProfileFailureCategory.UNAUTHORIZED
+            message.contains("auth", ignoreCase = true) -> ProfileFailureCategory.UNAUTHORIZED
+            message.isNotEmpty() -> ProfileFailureCategory.SERVER
+            else -> ProfileFailureCategory.UNKNOWN
         }
     }
+
+    private fun resolveHomeDirectory(env: Map<String, String>): String {
+        val home = env["HOME"]?.trim()
+        if (!home.isNullOrEmpty()) return home
+        return System.getProperty("user.home")
+    }
+}
+
+private fun String.toQualifiedIdOrNull(): UserId? {
+    val trimmed = trim()
+    val atIndex = trimmed.lastIndexOf('@')
+    if (atIndex <= 0 || atIndex == trimmed.lastIndex) return null
+    val value = trimmed.substring(0, atIndex)
+    val domain = trimmed.substring(atIndex + 1)
+    if (value.isBlank() || domain.isBlank()) return null
+    return UserId(value = value, domain = domain)
 }
 
 private fun ProfileStepResult.Failure.toProfileFailure(): ProfileResult.Failure {

@@ -3,11 +3,11 @@ package wirecli.profile
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.user.SelfUser
 import com.wire.kalium.logic.data.user.UserId
-import com.wire.kalium.logic.featureFlags.KaliumConfigs
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import wirecli.runtime.kaliumCliConfigs
 
 internal class RealKaliumProfileApiClient(
     private val runtime: RealKaliumProfileRuntime
@@ -66,7 +66,7 @@ internal class SdkKaliumProfileRuntime(
     private val coreLogic: CoreLogic by lazy {
         CoreLogic(
             rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
-            kaliumConfigs = KaliumConfigs(),
+            kaliumConfigs = kaliumCliConfigs(),
             userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}"
         )
     }

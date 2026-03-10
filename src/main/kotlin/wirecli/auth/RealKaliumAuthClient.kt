@@ -15,8 +15,8 @@ import com.wire.kalium.logic.feature.auth.autoVersioningAuth.AutoVersionAuthScop
 import com.wire.kalium.logic.feature.client.RegisterClientParam
 import com.wire.kalium.logic.feature.client.RegisterClientResult
 import com.wire.kalium.logic.feature.server.GetServerConfigResult
-import com.wire.kalium.logic.featureFlags.KaliumConfigs
 import kotlinx.coroutines.runBlocking
+import wirecli.runtime.kaliumCliConfigs
 
 internal class RealKaliumAuthClient(
     private val runtime: RealKaliumAuthRuntime
@@ -161,7 +161,7 @@ internal class SdkKaliumAuthRuntime(
     private val coreLogic: CoreLogic by lazy {
         CoreLogic(
             rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
-            kaliumConfigs = KaliumConfigs(),
+            kaliumConfigs = kaliumCliConfigs(),
             userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}"
         )
     }

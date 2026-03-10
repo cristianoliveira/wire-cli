@@ -1,4 +1,7 @@
 import org.gradle.jvm.application.tasks.CreateStartScripts
+import java.time.Duration
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.TimeUnit
 
 plugins {
     kotlin("jvm") version "2.3.0"
@@ -23,15 +26,26 @@ application {
     mainClass.set("wirecli.MainKt")
 }
 
+// Optional debug props for binary-search runs
+val batsFilter = providers.gradleProperty("batsFilter").orNull
+val batsPath = providers.gradleProperty("batsPath").orNull ?: "test/bats"
+
 val batsTest by tasks.registering(Exec::class) {
     group = "verification"
     description = "Runs bash integration tests with Bats"
     dependsOn(tasks.named("installDist"))
-    commandLine("bash", "${project.rootDir}/test/bats/run.sh")
-    environment(
-        "WIRE_BIN",
-        layout.buildDirectory.file("install/${project.name}/bin/${project.name}").get().asFile.absolutePath
-    )
+
+    // Run bats directly via bash -lc to avoid Gradle Exec process handling issues
+    // that cause stalls after test 14 in full suite runs
+    val cmd = mutableListOf("bats", "--print-output-on-failure")
+    if (!batsFilter.isNullOrBlank()) {
+        cmd += listOf("--filter", batsFilter)
+    }
+    cmd += batsPath
+
+    commandLine("bash", "-lc", cmd.joinToString(" ") { it.replace("\"", "\\\"").let { "\"$it\"" } })
+    environment("WIRE_BIN", layout.buildDirectory.file("install/${project.name}/bin/${project.name}").get().asFile.absolutePath)
+    timeout.set(Duration.ofMinutes(20))
 }
 
 tasks.named("check") {

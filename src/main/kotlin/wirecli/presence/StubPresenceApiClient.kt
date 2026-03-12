@@ -46,4 +46,36 @@ class StubPresenceApiClient(
                 )
         }
     }
+
+    override fun updatePresence(
+        session: AuthSession,
+        state: WritablePresenceState,
+    ): PresenceResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "presence_set_network_error", "presence_network_error" ->
+                PresenceResult.Failure(
+                    message = PresenceMessages.SET_NETWORK_FAILURE,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            "presence_set_server_error", "presence_server_error" ->
+                PresenceResult.Failure(
+                    message = PresenceMessages.SET_SERVER_FAILURE,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            "presence_set_unauthorized", "presence_unauthorized" ->
+                PresenceResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            else ->
+                PresenceResult.Success(
+                    presence = PresenceView(PresenceNormalizer.normalize(state.value)),
+                )
+        }
+    }
 }

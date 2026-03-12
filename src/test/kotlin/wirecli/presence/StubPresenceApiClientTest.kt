@@ -73,4 +73,53 @@ class StubPresenceApiClientTest {
         )
         assertEquals(ExitCodes.SERVER_ERROR, failure.exitCode)
     }
+
+    @Test
+    fun `returns applied state for set by default`() {
+        val client = StubPresenceApiClient(emptyMap())
+
+        val result = client.updatePresence(session, WritablePresenceState.BUSY)
+
+        val success = assertIs<PresenceResult.Success>(result)
+        assertEquals(PresenceState.BUSY, success.presence.state)
+    }
+
+    @Test
+    fun `returns unauthorized failure for set in unauthorized mode`() {
+        val client = StubPresenceApiClient(mapOf("WIRE_STUB_MODE" to "presence_set_unauthorized"))
+
+        val result = client.updatePresence(session, WritablePresenceState.ONLINE)
+
+        val failure = assertIs<PresenceResult.Failure>(result)
+        assertEquals(AuthMessages.invalidOrExpiredSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `returns network failure for set in network mode`() {
+        val client = StubPresenceApiClient(mapOf("WIRE_STUB_MODE" to "presence_set_network_error"))
+
+        val result = client.updatePresence(session, WritablePresenceState.AWAY)
+
+        val failure = assertIs<PresenceResult.Failure>(result)
+        assertEquals(
+            "Presence update failed: network is unreachable. Check your connection and retry.",
+            failure.message,
+        )
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `returns server failure for set in server mode`() {
+        val client = StubPresenceApiClient(mapOf("WIRE_STUB_MODE" to "presence_set_server_error"))
+
+        val result = client.updatePresence(session, WritablePresenceState.AWAY)
+
+        val failure = assertIs<PresenceResult.Failure>(result)
+        assertEquals(
+            "Presence update could not be completed. Retry later or check server settings.",
+            failure.message,
+        )
+        assertEquals(ExitCodes.SERVER_ERROR, failure.exitCode)
+    }
 }

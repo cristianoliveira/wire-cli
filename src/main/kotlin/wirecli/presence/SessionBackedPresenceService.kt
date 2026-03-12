@@ -19,4 +19,15 @@ class SessionBackedPresenceService(
 
         return apiClient.fetchPresence(session)
     }
+
+    override fun setCurrentPresence(state: WritablePresenceState): PresenceResult {
+        val session =
+            sessionStore.readActiveSession()
+                ?: return PresenceResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+        return apiClient.updatePresence(session, state)
+    }
 }

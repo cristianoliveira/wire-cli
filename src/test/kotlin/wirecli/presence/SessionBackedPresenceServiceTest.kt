@@ -48,6 +48,46 @@ class SessionBackedPresenceServiceTest {
         assertEquals(PresenceState.BUSY, success.presence.state)
     }
 
+    @Test
+    fun `returns unauthorized for set when no session is persisted`() {
+        val service =
+            SessionBackedPresenceService(
+                sessionStore = FakeSessionStore(activeSession = null),
+                apiClient = FakePresenceApiClient(PresenceResult.Success(PresenceView(PresenceState.ONLINE))),
+            )
+
+        val result = service.setCurrentPresence(WritablePresenceState.AWAY)
+
+        val failure = assertIs<PresenceResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `delegates set to backend for persisted session`() {
+        val expected: PresenceResult = PresenceResult.Success(PresenceView(PresenceState.AWAY))
+        val apiClient = FakePresenceApiClient(expected)
+        val service =
+            SessionBackedPresenceService(
+                sessionStore =
+                    FakeSessionStore(
+                        activeSession =
+                            AuthSession(
+                                userId = "jane@example.com",
+                                accessToken = "token",
+                                server = null,
+                            ),
+                    ),
+                apiClient = apiClient,
+            )
+
+        val result = service.setCurrentPresence(WritablePresenceState.AWAY)
+
+        val success = assertIs<PresenceResult.Success>(result)
+        assertEquals(PresenceState.AWAY, success.presence.state)
+        assertEquals(WritablePresenceState.AWAY, apiClient.lastSetState)
+    }
+
     private class FakeSessionStore(private val activeSession: AuthSession?) : AuthSessionStore {
         override fun readActiveSession(): AuthSession? = activeSession
 
@@ -66,6 +106,16 @@ class SessionBackedPresenceServiceTest {
     }
 
     private class FakePresenceApiClient(private val result: PresenceResult) : PresenceApiClient {
+        var lastSetState: WritablePresenceState? = null
+
         override fun fetchPresence(session: AuthSession): PresenceResult = result
+
+        override fun updatePresence(
+            session: AuthSession,
+            state: WritablePresenceState,
+        ): PresenceResult {
+            lastSetState = state
+            return result
+        }
     }
 }

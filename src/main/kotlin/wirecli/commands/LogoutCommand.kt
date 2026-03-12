@@ -1,12 +1,12 @@
 package wirecli.commands
 
-import wirecli.auth.AuthResult
-import wirecli.auth.AuthSessionService
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import wirecli.auth.AuthResult
+import wirecli.auth.AuthSessionService
 
 class LogoutCommand(
-    private val authSessionService: AuthSessionService
+    private val authSessionService: AuthSessionService,
 ) : CliktCommand(name = "logout", help = "Remove local authenticated session.") {
     override fun run() {
         when (val result = authSessionService.logout()) {

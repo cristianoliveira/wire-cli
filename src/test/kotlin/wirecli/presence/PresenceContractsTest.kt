@@ -7,10 +7,11 @@ import kotlin.test.assertIs
 class PresenceContractsTest {
     @Test
     fun `failure exposes exit code payload`() {
-        val result: PresenceResult = PresenceResult.Failure(
-            message = "network unavailable",
-            exitCode = 12
-        )
+        val result: PresenceResult =
+            PresenceResult.Failure(
+                message = "network unavailable",
+                exitCode = 12,
+            )
 
         val failure = assertIs<PresenceResult.Failure>(result)
         assertEquals("network unavailable", failure.message)

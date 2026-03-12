@@ -87,3 +87,27 @@ gradle check
 ```
 
 Test files live under `test/bats/` and are written in BDD style.
+
+## Quality checks
+
+Quick local guardrails:
+
+```bash
+make all
+```
+
+Individual commands:
+
+```bash
+make format
+make format-check
+make lint
+make test
+```
+
+Optional git hooks via pre-commit:
+
+```bash
+pre-commit install --hook-type pre-commit --hook-type pre-push
+pre-commit run --all-files
+```

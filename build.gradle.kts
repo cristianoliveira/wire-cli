@@ -3,9 +3,9 @@ import java.time.Duration
 
 plugins {
     kotlin("jvm") version "2.3.0"
-    application
-    id("org.jlleitschuh.gradle.ktlint") version "12.2.0"
+    id("org.jlleitschuh.gradle.ktlint") version "14.1.0"
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
+    application
 }
 
 group = "wirecli"
@@ -53,7 +53,21 @@ val batsTest by tasks.registering(Exec::class) {
 }
 
 tasks.named("check") {
+    dependsOn("ktlintCheck")
+    dependsOn("detekt")
     dependsOn(batsTest)
+}
+
+ktlint {
+    verbose.set(true)
+    outputToConsole.set(true)
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    ignoreFailures = true
+    config.setFrom(files("detekt.yml"))
 }
 
 tasks.named<CreateStartScripts>("startScripts") {

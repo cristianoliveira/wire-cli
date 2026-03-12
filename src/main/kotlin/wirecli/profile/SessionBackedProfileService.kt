@@ -11,22 +11,25 @@ import wirecli.presence.PresenceState
 class SessionBackedProfileService(
     private val sessionStore: AuthSessionStore,
     private val apiClient: ProfileApiClient,
-    private val presenceApiClient: PresenceApiClient
+    private val presenceApiClient: PresenceApiClient,
 ) : ProfileService {
     // TODO: Consider using SessionInventory for more detailed error messages when not guarded by AuthGuardedProfileService.
     override fun getCurrentProfile(): ProfileResult {
-        val session = sessionStore.readActiveSession()
-            ?: return ProfileResult.Failure(
-                message = AuthMessages.noActiveSession(),
-                exitCode = ExitCodes.UNAUTHORIZED
-            )
+        val session =
+            sessionStore.readActiveSession()
+                ?: return ProfileResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
 
         return when (val profileResult = apiClient.fetchProfile(session)) {
-            is ProfileResult.Success -> ProfileResult.Success(
-                profile = profileResult.profile.copy(
-                    presence = resolvePresence(session)
+            is ProfileResult.Success ->
+                ProfileResult.Success(
+                    profile =
+                        profileResult.profile.copy(
+                            presence = resolvePresence(session),
+                        ),
                 )
-            )
 
             is ProfileResult.Failure -> profileResult
         }

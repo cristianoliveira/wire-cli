@@ -13,15 +13,23 @@ enum class PresenceState(val value: String) {
     override fun toString(): String = value
 }
 
-object PresenceNormalizer {
-    fun normalize(rawState: String?): PresenceState {
-        val value =
-            rawState?.trim()?.lowercase()
-                ?: return PresenceState.UNKNOWN
+enum class WritablePresenceState(val value: String) {
+    ONLINE("online"),
+    BUSY("busy"),
+    AWAY("away"),
+    OFFLINE("offline"),
+    ;
 
-        if (value.isBlank()) {
-            return PresenceState.UNKNOWN
-        }
+    override fun toString(): String = value
+}
+
+object PresenceStatusContract {
+    val writableValues: Set<String> = WritablePresenceState.entries.map { it.value }.toSet()
+    val normalizedValues: Set<String> = PresenceState.entries.map { it.value }.toSet()
+
+    fun normalize(rawState: String?): PresenceState {
+        val value = rawState?.trim()?.lowercase() ?: return PresenceState.UNKNOWN
+        if (value.isBlank()) return PresenceState.UNKNOWN
 
         return when (value) {
             "online" -> PresenceState.ONLINE
@@ -30,6 +38,25 @@ object PresenceNormalizer {
             "offline" -> PresenceState.OFFLINE
             else -> PresenceState.UNKNOWN
         }
+    }
+
+    fun parseWritable(rawState: String?): WritablePresenceState? {
+        val value = rawState?.trim()?.lowercase() ?: return null
+        if (value.isBlank()) return null
+
+        return when (value) {
+            "online" -> WritablePresenceState.ONLINE
+            "busy" -> WritablePresenceState.BUSY
+            "away" -> WritablePresenceState.AWAY
+            "offline" -> WritablePresenceState.OFFLINE
+            else -> null
+        }
+    }
+}
+
+object PresenceNormalizer {
+    fun normalize(rawState: String?): PresenceState {
+        return PresenceStatusContract.normalize(rawState)
     }
 }
 

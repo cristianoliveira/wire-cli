@@ -6,6 +6,18 @@ import kotlin.test.assertIs
 
 class PresenceContractsTest {
     @Test
+    fun `exposes normalized and writable domains from one contract api`() {
+        assertEquals(
+            setOf("online", "busy", "away", "offline", "unknown"),
+            PresenceStatusContract.normalizedValues,
+        )
+        assertEquals(
+            setOf("online", "busy", "away", "offline"),
+            PresenceStatusContract.writableValues,
+        )
+    }
+
+    @Test
     fun `failure exposes exit code payload`() {
         val result: PresenceResult =
             PresenceResult.Failure(

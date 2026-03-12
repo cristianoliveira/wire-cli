@@ -15,6 +15,7 @@ import com.wire.kalium.logic.feature.auth.autoVersioningAuth.AutoVersionAuthScop
 import com.wire.kalium.logic.feature.client.RegisterClientParam
 import com.wire.kalium.logic.feature.client.RegisterClientResult
 import com.wire.kalium.logic.feature.server.GetServerConfigResult
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import wirecli.runtime.kaliumCliConfigs
 
@@ -104,6 +105,7 @@ internal interface RealKaliumAuthRuntime {
     fun resolveSessionScope(userId: String): AuthStepResult<KaliumSessionScope>
     fun ensureClient(sessionScope: KaliumSessionScope, password: String): AuthStepResult<Unit>
     fun logout(session: AuthSession): AuthStepResult<Unit>
+    fun shutdown()
 }
 
 internal interface KaliumAuthScope {
@@ -158,13 +160,16 @@ internal enum class AuthFailureCategory {
 internal class SdkKaliumAuthRuntime(
     private val environment: Map<String, String>
 ) : RealKaliumAuthRuntime {
-    private val coreLogic: CoreLogic by lazy {
+    private val activeSessionUserIds = mutableSetOf<UserId>()
+
+    private val coreLogicLazy = lazy {
         CoreLogic(
             rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
             kaliumConfigs = kaliumCliConfigs(),
             userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}"
         )
     }
+    private val coreLogic: CoreLogic by coreLogicLazy
 
     override fun resolveAuthScope(server: String?): AuthStepResult<KaliumAuthScope> {
         return runBlocking {
@@ -238,6 +243,7 @@ internal class SdkKaliumAuthRuntime(
     override fun ensureClient(sessionScope: KaliumSessionScope, password: String): AuthStepResult<Unit> {
         val userId = sessionScope.userId.toQualifiedIdOrNull()
             ?: return AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+        activeSessionUserIds += userId
 
         return runBlocking {
             try {
@@ -266,6 +272,7 @@ internal class SdkKaliumAuthRuntime(
     override fun logout(session: AuthSession): AuthStepResult<Unit> {
         val userId = session.userId.toQualifiedIdOrNull()
             ?: return AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+        activeSessionUserIds += userId
 
         return runBlocking {
             try {
@@ -277,6 +284,17 @@ internal class SdkKaliumAuthRuntime(
                 AuthStepResult.Failure(categoryFromThrowable(error))
             }
         }
+    }
+
+    override fun shutdown() {
+        if (!coreLogicLazy.isInitialized()) return
+
+        runBlocking {
+            activeSessionUserIds.forEach { userId ->
+                coreLogic.sessionScope(userId) { cancel() }
+            }
+        }
+        coreLogic.getGlobalScope().cancel()
     }
 
     private suspend fun resolveServerLinks(server: String?): AuthStepResult<ServerConfig.Links> {

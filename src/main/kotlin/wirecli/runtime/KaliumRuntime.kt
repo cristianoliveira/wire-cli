@@ -19,6 +19,7 @@ import wirecli.profile.StubProfileApiClient
 interface KaliumRuntime {
     val authSessionService: AuthSessionService
     val profileService: ProfileService
+    fun shutdown()
 }
 
 object KaliumRuntimeBootstrap {
@@ -44,9 +45,10 @@ private class DefaultKaliumRuntime(
     backendFactory: RuntimeBackendFactory
 ) : KaliumRuntime {
     private val sessionStore = FileAuthSessionStore()
+    private val backend = backendFactory.create(environment)
 
     override val authSessionService: AuthSessionService = AuthSessionServiceImpl(
-        apiClient = backendFactory.createAuthApiClient(environment),
+        apiClient = backend.authApiClient,
         sessionStore = sessionStore
     )
 
@@ -54,9 +56,13 @@ private class DefaultKaliumRuntime(
         authSessionService = authSessionService,
         delegate = SessionBackedProfileService(
             sessionStore = sessionStore,
-            apiClient = backendFactory.createProfileApiClient(environment)
+            apiClient = backend.profileApiClient
         )
     )
+
+    override fun shutdown() {
+        backend.shutdown()
+    }
 }
 
 private enum class RuntimeBackendSelector(val factory: RuntimeBackendFactory) {
@@ -84,26 +90,41 @@ private enum class RuntimeBackendSelector(val factory: RuntimeBackendFactory) {
 }
 
 private interface RuntimeBackendFactory {
-    fun createAuthApiClient(environment: Map<String, String>): AuthApiClient
-    fun createProfileApiClient(environment: Map<String, String>): ProfileApiClient
+    fun create(environment: Map<String, String>): RuntimeBackend
+}
+
+private interface RuntimeBackend {
+    val authApiClient: AuthApiClient
+    val profileApiClient: ProfileApiClient
+    fun shutdown()
 }
 
 private object StubRuntimeBackendFactory : RuntimeBackendFactory {
-    override fun createAuthApiClient(environment: Map<String, String>): AuthApiClient {
-        return StubAuthApiClient(environment)
-    }
+    override fun create(environment: Map<String, String>): RuntimeBackend {
+        return object : RuntimeBackend {
+            override val authApiClient: AuthApiClient = StubAuthApiClient(environment)
+            override val profileApiClient: ProfileApiClient = StubProfileApiClient(environment)
 
-    override fun createProfileApiClient(environment: Map<String, String>): ProfileApiClient {
-        return StubProfileApiClient(environment)
+            override fun shutdown() {
+                // No background resources in stub backend.
+            }
+        }
     }
 }
 
 private object RealRuntimeBackendFactory : RuntimeBackendFactory {
-    override fun createAuthApiClient(environment: Map<String, String>): AuthApiClient {
-        return RealKaliumAuthClient(SdkKaliumAuthRuntime(environment))
-    }
+    override fun create(environment: Map<String, String>): RuntimeBackend {
+        return object : RuntimeBackend {
+            private val authRuntime = SdkKaliumAuthRuntime(environment)
+            private val profileRuntime = SdkKaliumProfileRuntime(environment)
 
-    override fun createProfileApiClient(environment: Map<String, String>): ProfileApiClient {
-        return RealKaliumProfileApiClient(SdkKaliumProfileRuntime(environment))
+            override val authApiClient: AuthApiClient = RealKaliumAuthClient(authRuntime)
+            override val profileApiClient: ProfileApiClient = RealKaliumProfileApiClient(profileRuntime)
+
+            override fun shutdown() {
+                authRuntime.shutdown()
+                profileRuntime.shutdown()
+            }
+        }
     }
 }

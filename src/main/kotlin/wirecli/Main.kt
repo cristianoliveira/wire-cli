@@ -6,15 +6,26 @@ import wirecli.commands.RootCommand
 import wirecli.commands.ProfileCommand
 import wirecli.runtime.KaliumRuntimeBootstrap
 import com.github.ajalt.clikt.core.subcommands
+import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
     val runtime = KaliumRuntimeBootstrap.create()
+    var completed = false
 
-    RootCommand()
-        .subcommands(
-            LoginCommand(runtime.authSessionService),
-            LogoutCommand(runtime.authSessionService),
-            ProfileCommand(runtime.profileService)
-        )
-        .main(args)
+    try {
+        RootCommand()
+            .subcommands(
+                LoginCommand(runtime.authSessionService),
+                LogoutCommand(runtime.authSessionService),
+                ProfileCommand(runtime.profileService)
+            )
+            .main(args)
+        completed = true
+    } finally {
+        runCatching { runtime.shutdown() }
+
+        if (completed) {
+            exitProcess(0)
+        }
+    }
 }

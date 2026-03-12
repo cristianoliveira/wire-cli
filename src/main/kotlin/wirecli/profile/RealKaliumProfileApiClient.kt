@@ -3,6 +3,7 @@ package wirecli.profile
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.user.SelfUser
 import com.wire.kalium.logic.data.user.UserId
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
@@ -35,6 +36,7 @@ internal class RealKaliumProfileApiClient(
 internal interface RealKaliumProfileRuntime {
     fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope>
     fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser>
+    fun shutdown()
 }
 
 internal data class KaliumProfileSessionScope(
@@ -63,17 +65,21 @@ internal enum class ProfileFailureCategory {
 internal class SdkKaliumProfileRuntime(
     private val environment: Map<String, String>
 ) : RealKaliumProfileRuntime {
-    private val coreLogic: CoreLogic by lazy {
+    private val activeSessionUserIds = mutableSetOf<UserId>()
+
+    private val coreLogicLazy = lazy {
         CoreLogic(
             rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
             kaliumConfigs = kaliumCliConfigs(),
             userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}"
         )
     }
+    private val coreLogic: CoreLogic by coreLogicLazy
 
     override fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope> {
         val qualifiedId = session.userId.toQualifiedIdOrNull()
             ?: return ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
+        activeSessionUserIds += qualifiedId
 
         return runBlocking {
             try {
@@ -90,6 +96,17 @@ internal class SdkKaliumProfileRuntime(
                 ProfileStepResult.Failure(categoryFromThrowable(error))
             }
         }
+    }
+
+    override fun shutdown() {
+        if (!coreLogicLazy.isInitialized()) return
+
+        runBlocking {
+            activeSessionUserIds.forEach { userId ->
+                coreLogic.sessionScope(userId) { cancel() }
+            }
+        }
+        coreLogic.getGlobalScope().cancel()
     }
 
     override fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser> {

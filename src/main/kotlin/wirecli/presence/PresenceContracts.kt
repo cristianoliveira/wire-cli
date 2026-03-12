@@ -45,3 +45,9 @@ interface PresenceApiClient {
 interface PresenceService {
     fun getCurrentPresence(): PresenceResult
 }
+
+internal object PresenceMessages {
+    const val NETWORK_FAILURE = "Presence fetch failed: network is unreachable. Check your connection and retry."
+    const val SERVER_FAILURE = "Presence service is unavailable. Retry later or check server settings."
+    const val UNKNOWN_FAILURE = "Presence fetch failed unexpectedly. Retry and check your setup."
+}

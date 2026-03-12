@@ -95,6 +95,7 @@
             kotlin
             bats
             shellcheck
+            prek
           ];
 
           shellHook = ''

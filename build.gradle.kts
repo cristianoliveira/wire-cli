@@ -1,11 +1,11 @@
 import org.gradle.jvm.application.tasks.CreateStartScripts
 import java.time.Duration
-import java.io.ByteArrayOutputStream
-import java.util.concurrent.TimeUnit
 
 plugins {
     kotlin("jvm") version "2.3.0"
     application
+    id("org.jlleitschuh.gradle.ktlint") version "12.2.0"
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
 }
 
 group = "wirecli"
@@ -22,6 +22,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     runtimeOnly("org.slf4j:slf4j-nop:2.0.17")
     testImplementation(kotlin("test"))
+
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
 }
 
 application {
@@ -57,12 +59,24 @@ tasks.named("check") {
 tasks.named<CreateStartScripts>("startScripts") {
     doLast {
         val unixScriptFile = unixScript
-        val patched = unixScriptFile.readText().replace(
-            Regex("^CLASSPATH=(.*)$", RegexOption.MULTILINE),
-            "CLASSPATH=\"$1\""
-        )
+        val patched =
+            unixScriptFile.readText().replace(
+                Regex("^CLASSPATH=(.*)$", RegexOption.MULTILINE),
+                "CLASSPATH=\"$1\"",
+            )
         unixScriptFile.writeText(patched)
     }
+}
+
+ktlint {
+    version.set("1.2.1")
+    baseline.set(file("config/ktlint/baseline.xml"))
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(files("$rootDir/detekt.yml"))
+    ignoreFailures = true
 }
 
 kotlin {

@@ -21,6 +21,7 @@ dependencies {
     implementation("com.wire:logic")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     runtimeOnly("org.slf4j:slf4j-nop:2.0.17")
+    testImplementation(kotlin("test"))
 }
 
 application {

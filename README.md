@@ -39,6 +39,20 @@ Show current profile (requires an active session):
 gradle run --args='profile'
 ```
 
+Get current presence (requires an active session):
+
+```bash
+gradle run --args='presence get'
+```
+
+Set current presence (requires an active session):
+
+```bash
+gradle run --args='presence set busy'
+```
+
+Compatibility alias: `gradle run --args='presence'` behaves like `presence get`.
+
 Logout and clear local session:
 
 ```bash

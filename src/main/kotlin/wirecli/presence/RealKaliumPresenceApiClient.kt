@@ -71,13 +71,13 @@ internal class SdkKaliumPresenceRuntime(
     override fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope> {
         val qualifiedId = session.userId.toQualifiedIdOrNull()
             ?: return PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
-        activeSessionUserIds += qualifiedId
 
         return runBlocking {
             try {
                 coreLogic.sessionScope(qualifiedId) {
                     syncExecutor.request { waitUntilLiveOrFailure() }
                 }
+                activeSessionUserIds += qualifiedId
                 PresenceStepResult.Success(
                     KaliumPresenceSessionScope(
                         userId = session.userId,
@@ -124,6 +124,7 @@ internal class SdkKaliumPresenceRuntime(
         coreLogic.getGlobalScope().cancel()
     }
 
+    // TODO: Consider more robust error categorization (e.g., using exception types)
     private fun categoryFromThrowable(error: Throwable): PresenceFailureCategory {
         val message = error.message.orEmpty()
         return when {

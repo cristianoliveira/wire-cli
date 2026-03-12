@@ -74,7 +74,20 @@ write_session_inventory() {
   assert_status 0
   [[ "${output}" == *"Name: Jane Doe"* ]]
   [[ "${output}" == *"Email: jane@example.com"* ]]
+  [[ "${output}" == *"Presence: online"* ]]
   [[ "${output}" != *"Run wire login"* ]]
+}
+
+@test "Given profile success and presence fetch failure, when profile runs, then output falls back to unknown and exits zero" {
+  export WIRE_STUB_MODE="login_ok"
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 0
+
+  export WIRE_STUB_MODE="presence_network_error"
+  run_wire profile
+  assert_status 0
+  [[ "${output}" == *"Name: Jane Doe"* ]]
+  [[ "${output}" == *"Presence: unknown"* ]]
 }
 
 @test "Given multiple persisted valid sessions, when profile runs, then active account selection is deterministic" {
@@ -164,6 +177,10 @@ write_session_inventory() {
   assert_status 11
   [[ "${output}" == *"Session is invalid or expired"* ]]
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
+  [[ "${output}" != *"Name:"* ]]
+  [[ "${output}" != *"Email:"* ]]
+  [[ "${output}" != *"Handle:"* ]]
+  [[ "${output}" != *"Presence:"* ]]
 }
 
 @test "Given only invalid persisted sessions, when profile runs, then unauthorized diagnostics include recovery guidance" {
@@ -232,6 +249,7 @@ write_session_inventory() {
   [[ "${output}" == *"Name:"* ]]
   [[ "${output}" == *"Email:"* ]]
   [[ "${output}" == *"Handle:"* ]]
+  [[ "${output}" == *"Presence:"* ]]
 
   run_wire logout
   assert_status 0

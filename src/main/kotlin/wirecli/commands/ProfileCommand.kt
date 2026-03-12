@@ -14,6 +14,7 @@ class ProfileCommand(
                 echo("Name: ${result.profile.name ?: "-"}")
                 echo("Email: ${result.profile.email ?: "-"}")
                 echo("Handle: ${result.profile.handle ?: "-"}")
+                echo("Presence: ${result.profile.presence}")
             }
 
             is ProfileResult.Failure -> {

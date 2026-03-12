@@ -15,6 +15,10 @@ import wirecli.profile.SdkKaliumProfileRuntime
 import wirecli.profile.ProfileService
 import wirecli.profile.SessionBackedProfileService
 import wirecli.profile.StubProfileApiClient
+import wirecli.presence.PresenceApiClient
+import wirecli.presence.RealKaliumPresenceApiClient
+import wirecli.presence.SdkKaliumPresenceRuntime
+import wirecli.presence.StubPresenceApiClient
 
 interface KaliumRuntime {
     val authSessionService: AuthSessionService
@@ -56,7 +60,8 @@ private class DefaultKaliumRuntime(
         authSessionService = authSessionService,
         delegate = SessionBackedProfileService(
             sessionStore = sessionStore,
-            apiClient = backend.profileApiClient
+            apiClient = backend.profileApiClient,
+            presenceApiClient = backend.presenceApiClient
         )
     )
 
@@ -96,6 +101,7 @@ private interface RuntimeBackendFactory {
 private interface RuntimeBackend {
     val authApiClient: AuthApiClient
     val profileApiClient: ProfileApiClient
+    val presenceApiClient: PresenceApiClient
     fun shutdown()
 }
 
@@ -104,6 +110,7 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
         return object : RuntimeBackend {
             override val authApiClient: AuthApiClient = StubAuthApiClient(environment)
             override val profileApiClient: ProfileApiClient = StubProfileApiClient(environment)
+            override val presenceApiClient: PresenceApiClient = StubPresenceApiClient(environment)
 
             override fun shutdown() {
                 // No background resources in stub backend.
@@ -117,13 +124,16 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
         return object : RuntimeBackend {
             private val authRuntime = SdkKaliumAuthRuntime(environment)
             private val profileRuntime = SdkKaliumProfileRuntime(environment)
+            private val presenceRuntime = SdkKaliumPresenceRuntime(environment)
 
             override val authApiClient: AuthApiClient = RealKaliumAuthClient(authRuntime)
             override val profileApiClient: ProfileApiClient = RealKaliumProfileApiClient(profileRuntime)
+            override val presenceApiClient: PresenceApiClient = RealKaliumPresenceApiClient(presenceRuntime)
 
             override fun shutdown() {
                 authRuntime.shutdown()
                 profileRuntime.shutdown()
+                presenceRuntime.shutdown()
             }
         }
     }

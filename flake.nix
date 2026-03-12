@@ -4,10 +4,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    kalium = {
-      url = "git+file:./.local/kalium";
-      flake = false;
-    };
     self.submodules = true;
   };
 
@@ -15,7 +11,6 @@
     self,
     nixpkgs,
     flake-utils,
-    kalium,
   }:
     flake-utils.lib.eachDefaultSystem (system:
       let
@@ -23,7 +18,6 @@
           inherit system;
         };
         jdk = pkgs.jdk17;
-        kaliumSrc = kalium;
         gradleCmd = pkgs.writeShellScriptBin "gradle" ''
           if [ -x "./gradlew" ]; then
             exec ./gradlew "$@"
@@ -60,14 +54,15 @@
             git add .
             git commit -m "Initial commit for build"
 
-            mkdir -p .local
-            cp -R "${kaliumSrc}" .local/kalium
-            chmod -R u+w .local/kalium
+            if [ ! -d vendor/kalium ]; then
+              echo "Missing vendor/kalium submodule. Run: git submodule update --init --recursive"
+              exit 1
+            fi
 
             ./gradlew --no-daemon --console=plain --stacktrace \
               -Duser.home="$TMPDIR" \
               -Dorg.gradle.jvmargs="-Xmx2g -XX:+UseParallelGC" \
-              -Pkalium.dir=.local/kalium \
+              -Pkalium.dir=vendor/kalium \
               installDist
           '';
 
@@ -95,6 +90,7 @@
             kotlin
             bats
             shellcheck
+            prek
           ];
 
           shellHook = ''

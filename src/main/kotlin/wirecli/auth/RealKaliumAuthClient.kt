@@ -7,6 +7,7 @@ import com.wire.kalium.logic.configuration.server.ServerConfig
 import com.wire.kalium.logic.data.auth.AccountTokens
 import com.wire.kalium.logic.data.auth.login.ProxyCredentials
 import com.wire.kalium.logic.data.logout.LogoutReason
+import com.wire.kalium.logic.data.session.StoreSessionParam
 import com.wire.kalium.logic.data.user.SsoId
 import com.wire.kalium.logic.data.user.SsoManagedBy
 import com.wire.kalium.logic.data.user.UserId
@@ -210,12 +211,14 @@ internal class SdkKaliumAuthRuntime(
             when (
                 val result = coreLogic.globalScope {
                     addAuthenticatedAccount(
-                        serverConfigId = account.serverConfigId,
-                        ssoId = account.ssoId,
-                        authTokens = authTokens,
-                        proxyCredentials = account.proxyCredentials,
-                        isPersistentWebSocketEnabled = false,
-                        managedBy = account.managedBy,
+                        session = StoreSessionParam(
+                            serverConfigId = account.serverConfigId,
+                            ssoId = account.ssoId,
+                            accountTokens = authTokens,
+                            proxyCredentials = account.proxyCredentials,
+                            isPersistentWebSocketEnabled = false,
+                            managedBy = account.managedBy
+                        ),
                         replace = true
                     )
                 }

@@ -6,7 +6,7 @@ import wirecli.presence.PresenceResult
 import wirecli.presence.PresenceService
 
 class PresenceCommand(
-    private val presenceService: PresenceService
+    private val presenceService: PresenceService,
 ) : CliktCommand(name = "presence", help = "Show current user presence.") {
     override fun run() {
         when (val result = presenceService.getCurrentPresence()) {

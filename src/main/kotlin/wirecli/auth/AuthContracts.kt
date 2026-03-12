@@ -4,47 +4,55 @@ package wirecli.auth
 data class LoginInput(
     val email: String,
     val password: String,
-    val server: String?
+    val server: String?,
 )
 
 data class AuthSession(
     val userId: String,
     val accessToken: String,
-    val server: String?
+    val server: String?,
 )
 
 data class SessionInventory(
     val activeSession: AuthSession?,
     val validSessions: Int,
     val invalidSessions: Int,
-    val diagnosticMessage: String? = null
+    val diagnosticMessage: String? = null,
 )
 
 sealed interface AuthResult {
     data class Success(val message: String) : AuthResult
+
     data class Failure(val message: String, val exitCode: Int) : AuthResult
 }
 
 interface AuthApiClient {
     fun login(input: LoginInput): AuthApiResult
+
     fun logout(session: AuthSession): AuthApiResult
 }
 
 sealed interface AuthApiResult {
     data class Success(val session: AuthSession) : AuthApiResult
+
     data class Failure(val message: String, val exitCode: Int) : AuthApiResult
 }
 
 interface AuthSessionStore {
     fun readActiveSession(): AuthSession?
+
     fun readSessionInventory(): SessionInventory
+
     fun writeActiveSession(session: AuthSession)
+
     fun clearActiveSession()
 }
 
 interface AuthSessionService {
     fun login(input: LoginInput): AuthResult
+
     fun logout(): AuthResult
+
     fun requireActiveSession(): AuthResult
 }
 

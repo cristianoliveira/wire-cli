@@ -10,7 +10,7 @@ import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
 
 class FileAuthSessionStore(
-    private val sessionFile: File = defaultSessionFile()
+    private val sessionFile: File = defaultSessionFile(),
 ) : AuthSessionStore {
     override fun readActiveSession(): AuthSession? {
         return readSessionInventory().activeSession
@@ -23,14 +23,15 @@ class FileAuthSessionStore(
 
         val parsedData = parseStoredSessions(sessionFile.readLines())
         if (parsedData.format == SessionFileFormat.LEGACY) {
-            val migrated = runCatching {
-                val serialized = serializeVersionedSessions(parsedData.rawPayloadLines)
-                writeAtomically(serialized)
-            }
+            val migrated =
+                runCatching {
+                    val serialized = serializeVersionedSessions(parsedData.rawPayloadLines)
+                    writeAtomically(serialized)
+                }
 
             if (migrated.isFailure) {
                 return parsedData.inventory.copy(
-                    diagnosticMessage = AuthMessages.legacySessionMigrationFailed()
+                    diagnosticMessage = AuthMessages.legacySessionMigrationFailed(),
                 )
             }
         }
@@ -66,7 +67,7 @@ class FileAuthSessionStore(
                     tempFile,
                     path,
                     StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING
+                    StandardCopyOption.REPLACE_EXISTING,
                 )
             } catch (_: AtomicMoveNotSupportedException) {
                 Files.move(tempFile, path, StandardCopyOption.REPLACE_EXISTING)

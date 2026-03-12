@@ -2,7 +2,7 @@ package wirecli.auth
 
 class AuthSessionServiceImpl(
     private val apiClient: AuthApiClient,
-    private val sessionStore: AuthSessionStore
+    private val sessionStore: AuthSessionStore,
 ) : AuthSessionService {
     override fun login(input: LoginInput): AuthResult {
         return when (val loginResult = apiClient.login(input)) {
@@ -13,7 +13,7 @@ class AuthSessionServiceImpl(
                 } catch (_: RuntimeException) {
                     AuthResult.Failure(
                         message = "Login succeeded, but local session could not be saved. Try again.",
-                        exitCode = ExitCodes.SERVER_ERROR
+                        exitCode = ExitCodes.SERVER_ERROR,
                     )
                 }
             }
@@ -24,11 +24,12 @@ class AuthSessionServiceImpl(
 
     override fun logout(): AuthResult {
         val inventory = sessionStore.readSessionInventory()
-        val session = inventory.activeSession
-            ?: return AuthResult.Failure(
-                message = missingSessionMessage(inventory),
-                exitCode = ExitCodes.UNAUTHORIZED
-            )
+        val session =
+            inventory.activeSession
+                ?: return AuthResult.Failure(
+                    message = missingSessionMessage(inventory),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
 
         return when (val logoutResult = apiClient.logout(session)) {
             is AuthApiResult.Success -> {
@@ -38,7 +39,7 @@ class AuthSessionServiceImpl(
                 } catch (_: RuntimeException) {
                     AuthResult.Failure(
                         message = "Logout completed remotely, but local session cleanup failed.",
-                        exitCode = ExitCodes.SERVER_ERROR
+                        exitCode = ExitCodes.SERVER_ERROR,
                     )
                 }
             }
@@ -53,7 +54,7 @@ class AuthSessionServiceImpl(
         return if (inventory.activeSession == null) {
             AuthResult.Failure(
                 message = missingSessionMessage(inventory),
-                exitCode = ExitCodes.UNAUTHORIZED
+                exitCode = ExitCodes.UNAUTHORIZED,
             )
         } else {
             AuthResult.Success("Active session available.")
@@ -71,34 +72,39 @@ class AuthSessionServiceImpl(
 }
 
 class StubAuthApiClient(
-    private val environment: Map<String, String>
+    private val environment: Map<String, String>,
 ) : AuthApiClient {
     override fun login(input: LoginInput): AuthApiResult {
         val mode = environment["WIRE_STUB_MODE"]
 
         return when (mode) {
-            "login_ok" -> AuthApiResult.Success(
-                session = AuthSession(
-                    userId = "user-jane",
-                    accessToken = "stub-token",
-                    server = input.server
+            "login_ok" ->
+                AuthApiResult.Success(
+                    session =
+                        AuthSession(
+                            userId = "user-jane",
+                            accessToken = "stub-token",
+                            server = input.server,
+                        ),
                 )
-            )
 
-            "login_invalid" -> AuthApiResult.Failure(
-                message = AuthMessages.invalidCredentials(),
-                exitCode = ExitCodes.AUTH_FAILED
-            )
+            "login_invalid" ->
+                AuthApiResult.Failure(
+                    message = AuthMessages.invalidCredentials(),
+                    exitCode = ExitCodes.AUTH_FAILED,
+                )
 
-            "login_network_error" -> AuthApiResult.Failure(
-                message = AuthMessages.networkFailure("Authentication"),
-                exitCode = ExitCodes.NETWORK_ERROR
-            )
+            "login_network_error" ->
+                AuthApiResult.Failure(
+                    message = AuthMessages.networkFailure("Authentication"),
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
 
-            else -> AuthApiResult.Failure(
-                message = AuthMessages.authServiceUnavailable(),
-                exitCode = ExitCodes.SERVER_ERROR
-            )
+            else ->
+                AuthApiResult.Failure(
+                    message = AuthMessages.authServiceUnavailable(),
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
         }
     }
 

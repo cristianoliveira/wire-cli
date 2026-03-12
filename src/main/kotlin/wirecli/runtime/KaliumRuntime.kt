@@ -1,32 +1,33 @@
 package wirecli.runtime
 
-import java.util.Locale
 import wirecli.auth.AuthApiClient
-import wirecli.auth.RealKaliumAuthClient
-import wirecli.auth.SdkKaliumAuthRuntime
 import wirecli.auth.AuthSessionService
 import wirecli.auth.AuthSessionServiceImpl
 import wirecli.auth.FileAuthSessionStore
+import wirecli.auth.RealKaliumAuthClient
+import wirecli.auth.SdkKaliumAuthRuntime
 import wirecli.auth.StubAuthApiClient
-import wirecli.profile.AuthGuardedProfileService
-import wirecli.profile.ProfileApiClient
-import wirecli.profile.RealKaliumProfileApiClient
-import wirecli.profile.SdkKaliumProfileRuntime
-import wirecli.profile.ProfileService
-import wirecli.profile.SessionBackedProfileService
-import wirecli.profile.StubProfileApiClient
+import wirecli.presence.AuthGuardedPresenceService
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceService
-import wirecli.presence.AuthGuardedPresenceService
 import wirecli.presence.RealKaliumPresenceApiClient
-import wirecli.presence.SessionBackedPresenceService
 import wirecli.presence.SdkKaliumPresenceRuntime
+import wirecli.presence.SessionBackedPresenceService
 import wirecli.presence.StubPresenceApiClient
+import wirecli.profile.AuthGuardedProfileService
+import wirecli.profile.ProfileApiClient
+import wirecli.profile.ProfileService
+import wirecli.profile.RealKaliumProfileApiClient
+import wirecli.profile.SdkKaliumProfileRuntime
+import wirecli.profile.SessionBackedProfileService
+import wirecli.profile.StubProfileApiClient
+import java.util.Locale
 
 interface KaliumRuntime {
     val authSessionService: AuthSessionService
     val profileService: ProfileService
     val presenceService: PresenceService
+
     fun shutdown()
 }
 
@@ -37,45 +38,51 @@ object KaliumRuntimeBootstrap {
 
     fun create(): KaliumRuntime {
         val environment = System.getenv()
-        val backend = RuntimeBackendSelector.resolve(
-            configBackend = System.getProperty(PROPERTY_BACKEND_SELECTOR),
-            environmentBackend = environment[ENV_BACKEND_SELECTOR]
-        )
+        val backend =
+            RuntimeBackendSelector.resolve(
+                configBackend = System.getProperty(PROPERTY_BACKEND_SELECTOR),
+                environmentBackend = environment[ENV_BACKEND_SELECTOR],
+            )
         return DefaultKaliumRuntime(
             environment = environment,
-            backendFactory = backend.factory
+            backendFactory = backend.factory,
         )
     }
 }
 
 private class DefaultKaliumRuntime(
     environment: Map<String, String>,
-    backendFactory: RuntimeBackendFactory
+    backendFactory: RuntimeBackendFactory,
 ) : KaliumRuntime {
     private val sessionStore = FileAuthSessionStore()
     private val backend = backendFactory.create(environment)
 
-    override val authSessionService: AuthSessionService = AuthSessionServiceImpl(
-        apiClient = backend.authApiClient,
-        sessionStore = sessionStore
-    )
-
-    override val profileService: ProfileService = AuthGuardedProfileService(
-        authSessionService = authSessionService,
-        delegate = SessionBackedProfileService(
+    override val authSessionService: AuthSessionService =
+        AuthSessionServiceImpl(
+            apiClient = backend.authApiClient,
             sessionStore = sessionStore,
-            apiClient = backend.profileApiClient,
-            presenceApiClient = backend.presenceApiClient
         )
-    )
 
-    override val presenceService: PresenceService = AuthGuardedPresenceService(
-        authSessionService = authSessionService,
-        delegate = SessionBackedPresenceService(
-            sessionStore = sessionStore,
-            apiClient = backend.presenceApiClient
+    override val profileService: ProfileService =
+        AuthGuardedProfileService(
+            authSessionService = authSessionService,
+            delegate =
+                SessionBackedProfileService(
+                    sessionStore = sessionStore,
+                    apiClient = backend.profileApiClient,
+                    presenceApiClient = backend.presenceApiClient,
+                ),
         )
-    )
+
+    override val presenceService: PresenceService =
+        AuthGuardedPresenceService(
+            authSessionService = authSessionService,
+            delegate =
+                SessionBackedPresenceService(
+                    sessionStore = sessionStore,
+                    apiClient = backend.presenceApiClient,
+                ),
+        )
 
     override fun shutdown() {
         backend.shutdown()
@@ -84,13 +91,17 @@ private class DefaultKaliumRuntime(
 
 private enum class RuntimeBackendSelector(val factory: RuntimeBackendFactory) {
     STUB(StubRuntimeBackendFactory),
-    REAL(RealRuntimeBackendFactory);
+    REAL(RealRuntimeBackendFactory),
+    ;
 
     companion object {
         // Deterministic default for local and test execution.
         private val default = STUB
 
-        fun resolve(configBackend: String?, environmentBackend: String?): RuntimeBackendSelector {
+        fun resolve(
+            configBackend: String?,
+            environmentBackend: String?,
+        ): RuntimeBackendSelector {
             return parse(configBackend)
                 ?: parse(environmentBackend)
                 ?: default
@@ -114,6 +125,7 @@ private interface RuntimeBackend {
     val authApiClient: AuthApiClient
     val profileApiClient: ProfileApiClient
     val presenceApiClient: PresenceApiClient
+
     fun shutdown()
 }
 

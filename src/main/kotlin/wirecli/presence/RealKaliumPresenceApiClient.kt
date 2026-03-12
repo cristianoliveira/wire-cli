@@ -32,12 +32,37 @@ internal class RealKaliumPresenceApiClient(
             is PresenceStepResult.Failure -> status.toPresenceFailure()
         }
     }
+
+    override fun updatePresence(
+        session: AuthSession,
+        state: WritablePresenceState,
+    ): PresenceResult {
+        val sessionScope =
+            when (val scope = runtime.resolveSessionScope(session)) {
+                is PresenceStepResult.Success -> scope.value
+                is PresenceStepResult.Failure -> return scope.toSetPresenceFailure()
+            }
+
+        return when (val result = runtime.setSelfAvailabilityStatus(sessionScope, state.toKaliumAvailabilityStatus())) {
+            is PresenceStepResult.Success ->
+                PresenceResult.Success(
+                    presence = PresenceView(state = PresenceNormalizer.normalize(state.value)),
+                )
+
+            is PresenceStepResult.Failure -> result.toSetPresenceFailure()
+        }
+    }
 }
 
 internal interface RealKaliumPresenceRuntime {
     fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope>
 
     fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus?>
+
+    fun setSelfAvailabilityStatus(
+        sessionScope: KaliumPresenceSessionScope,
+        status: UserAvailabilityStatus,
+    ): PresenceStepResult<Unit>
 
     fun shutdown()
 }
@@ -121,6 +146,26 @@ internal class SdkKaliumPresenceRuntime(
         }
     }
 
+    override fun setSelfAvailabilityStatus(
+        sessionScope: KaliumPresenceSessionScope,
+        status: UserAvailabilityStatus,
+    ): PresenceStepResult<Unit> {
+        val qualifiedId =
+            sessionScope.userId.toQualifiedIdOrNull()
+                ?: return PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
+
+        return runBlocking {
+            try {
+                coreLogic.sessionScope(qualifiedId) {
+                    users.updateSelfAvailabilityStatus(status)
+                }
+                PresenceStepResult.Success(Unit)
+            } catch (error: Throwable) {
+                PresenceStepResult.Failure(categoryFromThrowable(error))
+            }
+        }
+    }
+
     override fun shutdown() {
         if (!coreLogicLazy.isInitialized()) return
 
@@ -161,6 +206,15 @@ private fun UserAvailabilityStatus?.toWirePresenceRawValue(): String? {
     }
 }
 
+private fun WritablePresenceState.toKaliumAvailabilityStatus(): UserAvailabilityStatus {
+    return when (this) {
+        WritablePresenceState.ONLINE -> UserAvailabilityStatus.AVAILABLE
+        WritablePresenceState.BUSY -> UserAvailabilityStatus.BUSY
+        WritablePresenceState.AWAY -> UserAvailabilityStatus.AWAY
+        WritablePresenceState.OFFLINE -> UserAvailabilityStatus.NONE
+    }
+}
+
 private fun String.toQualifiedIdOrNull(): UserId? {
     val trimmed = trim()
     val atIndex = trimmed.lastIndexOf('@')
@@ -178,6 +232,26 @@ private fun PresenceStepResult.Failure.toPresenceFailure(): PresenceResult.Failu
             PresenceFailureCategory.SERVER -> PresenceMessages.SERVER_FAILURE
             PresenceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
             PresenceFailureCategory.UNKNOWN -> PresenceMessages.UNKNOWN_FAILURE
+        }
+
+    val exitCode =
+        when (category) {
+            PresenceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
+            PresenceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
+            PresenceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            PresenceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
+        }
+
+    return PresenceResult.Failure(message = message, exitCode = exitCode)
+}
+
+private fun PresenceStepResult.Failure.toSetPresenceFailure(): PresenceResult.Failure {
+    val message =
+        when (category) {
+            PresenceFailureCategory.NETWORK -> PresenceMessages.SET_NETWORK_FAILURE
+            PresenceFailureCategory.SERVER -> PresenceMessages.SET_SERVER_FAILURE
+            PresenceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            PresenceFailureCategory.UNKNOWN -> PresenceMessages.SET_UNKNOWN_FAILURE
         }
 
     val exitCode =

@@ -70,14 +70,25 @@ sealed interface PresenceResult {
 
 interface PresenceApiClient {
     fun fetchPresence(session: AuthSession): PresenceResult
+
+    fun updatePresence(
+        session: AuthSession,
+        state: WritablePresenceState,
+    ): PresenceResult
 }
 
 interface PresenceService {
     fun getCurrentPresence(): PresenceResult
+
+    fun setCurrentPresence(state: WritablePresenceState): PresenceResult
 }
 
 internal object PresenceMessages {
     const val NETWORK_FAILURE = "Presence fetch failed: network is unreachable. Check your connection and retry."
     const val SERVER_FAILURE = "Presence service is unavailable. Retry later or check server settings."
     const val UNKNOWN_FAILURE = "Presence fetch failed unexpectedly. Retry and check your setup."
+
+    const val SET_NETWORK_FAILURE = "Presence update failed: network is unreachable. Check your connection and retry."
+    const val SET_SERVER_FAILURE = "Presence update could not be completed. Retry later or check server settings."
+    const val SET_UNKNOWN_FAILURE = "Presence update failed unexpectedly. Retry and check your setup."
 }

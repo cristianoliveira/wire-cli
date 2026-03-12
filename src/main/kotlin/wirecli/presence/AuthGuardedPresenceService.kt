@@ -17,4 +17,15 @@ class AuthGuardedPresenceService(
                 )
         }
     }
+
+    override fun setCurrentPresence(state: WritablePresenceState): PresenceResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.setCurrentPresence(state)
+            is AuthResult.Failure ->
+                PresenceResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
 }

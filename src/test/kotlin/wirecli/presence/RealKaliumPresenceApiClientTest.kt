@@ -115,16 +115,101 @@ class RealKaliumPresenceApiClientTest {
         assertEquals(ExitCodes.SERVER_ERROR, failure.exitCode)
     }
 
+    @Test
+    fun `updates availability status when set succeeds`() {
+        val runtime =
+            FakeRuntime(
+                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                statusResult = PresenceStepResult.Success(UserAvailabilityStatus.AWAY),
+                setResult = PresenceStepResult.Success(Unit),
+            )
+        val client = RealKaliumPresenceApiClient(runtime)
+
+        val result = client.updatePresence(session, WritablePresenceState.BUSY)
+
+        val success = assertIs<PresenceResult.Success>(result)
+        assertEquals(PresenceState.BUSY, success.presence.state)
+        assertEquals(UserAvailabilityStatus.BUSY, runtime.lastSetStatus)
+    }
+
+    @Test
+    fun `maps unauthorized failure for set to auth semantics`() {
+        val runtime =
+            FakeRuntime(
+                sessionScopeResult = PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED),
+                statusResult = PresenceStepResult.Success(UserAvailabilityStatus.AWAY),
+                setResult = PresenceStepResult.Success(Unit),
+            )
+        val client = RealKaliumPresenceApiClient(runtime)
+
+        val result = client.updatePresence(session, WritablePresenceState.ONLINE)
+
+        val failure = assertIs<PresenceResult.Failure>(result)
+        assertEquals(AuthMessages.invalidOrExpiredSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `maps network failure for set to retry semantics`() {
+        val runtime =
+            FakeRuntime(
+                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                statusResult = PresenceStepResult.Success(UserAvailabilityStatus.AWAY),
+                setResult = PresenceStepResult.Failure(PresenceFailureCategory.NETWORK),
+            )
+        val client = RealKaliumPresenceApiClient(runtime)
+
+        val result = client.updatePresence(session, WritablePresenceState.AWAY)
+
+        val failure = assertIs<PresenceResult.Failure>(result)
+        assertEquals(
+            "Presence update failed: network is unreachable. Check your connection and retry.",
+            failure.message,
+        )
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `maps server failure for set to server semantics`() {
+        val runtime =
+            FakeRuntime(
+                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                statusResult = PresenceStepResult.Success(UserAvailabilityStatus.AWAY),
+                setResult = PresenceStepResult.Failure(PresenceFailureCategory.SERVER),
+            )
+        val client = RealKaliumPresenceApiClient(runtime)
+
+        val result = client.updatePresence(session, WritablePresenceState.OFFLINE)
+
+        val failure = assertIs<PresenceResult.Failure>(result)
+        assertEquals(
+            "Presence update could not be completed. Retry later or check server settings.",
+            failure.message,
+        )
+        assertEquals(ExitCodes.SERVER_ERROR, failure.exitCode)
+    }
+
     private class FakeRuntime(
         private val sessionScopeResult: PresenceStepResult<KaliumPresenceSessionScope>,
         private val statusResult: PresenceStepResult<UserAvailabilityStatus?>,
+        private val setResult: PresenceStepResult<Unit> = PresenceStepResult.Success(Unit),
     ) : RealKaliumPresenceRuntime {
+        var lastSetStatus: UserAvailabilityStatus? = null
+
         override fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope> {
             return sessionScopeResult
         }
 
         override fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus?> {
             return statusResult
+        }
+
+        override fun setSelfAvailabilityStatus(
+            sessionScope: KaliumPresenceSessionScope,
+            status: UserAvailabilityStatus,
+        ): PresenceStepResult<Unit> {
+            lastSetStatus = status
+            return setResult
         }
 
         override fun shutdown() {

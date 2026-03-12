@@ -2,6 +2,7 @@ package wirecli
 
 import wirecli.commands.LoginCommand
 import wirecli.commands.LogoutCommand
+import wirecli.commands.PresenceCommand
 import wirecli.commands.RootCommand
 import wirecli.commands.ProfileCommand
 import wirecli.runtime.KaliumRuntimeBootstrap
@@ -17,7 +18,8 @@ fun main(args: Array<String>) {
             .subcommands(
                 LoginCommand(runtime.authSessionService),
                 LogoutCommand(runtime.authSessionService),
-                ProfileCommand(runtime.profileService)
+                ProfileCommand(runtime.profileService),
+                PresenceCommand(runtime.presenceService)
             )
             .main(args)
         completed = true

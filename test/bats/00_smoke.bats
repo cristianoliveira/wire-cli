@@ -22,4 +22,5 @@ teardown() {
 
   assert_status 0
   [[ "${output}" == *"Usage:"* ]]
+  [[ "${output}" == *"presence"* ]]
 }

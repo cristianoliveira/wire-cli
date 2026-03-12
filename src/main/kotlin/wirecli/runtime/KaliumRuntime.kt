@@ -16,13 +16,17 @@ import wirecli.profile.ProfileService
 import wirecli.profile.SessionBackedProfileService
 import wirecli.profile.StubProfileApiClient
 import wirecli.presence.PresenceApiClient
+import wirecli.presence.PresenceService
+import wirecli.presence.AuthGuardedPresenceService
 import wirecli.presence.RealKaliumPresenceApiClient
+import wirecli.presence.SessionBackedPresenceService
 import wirecli.presence.SdkKaliumPresenceRuntime
 import wirecli.presence.StubPresenceApiClient
 
 interface KaliumRuntime {
     val authSessionService: AuthSessionService
     val profileService: ProfileService
+    val presenceService: PresenceService
     fun shutdown()
 }
 
@@ -62,6 +66,14 @@ private class DefaultKaliumRuntime(
             sessionStore = sessionStore,
             apiClient = backend.profileApiClient,
             presenceApiClient = backend.presenceApiClient
+        )
+    )
+
+    override val presenceService: PresenceService = AuthGuardedPresenceService(
+        authSessionService = authSessionService,
+        delegate = SessionBackedPresenceService(
+            sessionStore = sessionStore,
+            apiClient = backend.presenceApiClient
         )
     )
 

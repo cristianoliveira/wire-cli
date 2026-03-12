@@ -8,13 +8,13 @@ private const val LINES_PER_RECORD = 3
 internal enum class SessionFileFormat {
     VERSIONED,
     LEGACY,
-    UNSUPPORTED_VERSION
+    UNSUPPORTED_VERSION,
 }
 
 internal data class ParsedSessionData(
     val inventory: SessionInventory,
     val format: SessionFileFormat,
-    val rawPayloadLines: List<String>
+    val rawPayloadLines: List<String>,
 )
 
 internal fun parseStoredSessions(lines: List<String>): ParsedSessionData {
@@ -22,7 +22,7 @@ internal fun parseStoredSessions(lines: List<String>): ParsedSessionData {
         return ParsedSessionData(
             inventory = SessionInventory(activeSession = null, validSessions = 0, invalidSessions = 0),
             format = SessionFileFormat.VERSIONED,
-            rawPayloadLines = emptyList()
+            rawPayloadLines = emptyList(),
         )
     }
 
@@ -33,7 +33,7 @@ internal fun parseStoredSessions(lines: List<String>): ParsedSessionData {
         ParsedSessionData(
             inventory = parseSessionRecords(lines),
             format = SessionFileFormat.LEGACY,
-            rawPayloadLines = lines
+            rawPayloadLines = lines,
         )
     }
 }
@@ -46,7 +46,7 @@ internal fun serializeVersionedSessions(payloadLines: List<String>): String {
 internal fun serializeSingleSession(session: AuthSession): String {
     val serverLine = session.server.orEmpty()
     return serializeVersionedSessions(
-        payloadLines = listOf(session.userId, session.accessToken, serverLine)
+        payloadLines = listOf(session.userId, session.accessToken, serverLine),
     )
 }
 
@@ -56,14 +56,15 @@ private fun parseVersionedSessions(lines: List<String>): ParsedSessionData {
     if (version != SESSION_SCHEMA_VERSION) {
         val message = AuthMessages.unsupportedSessionSchema(version)
         return ParsedSessionData(
-            inventory = SessionInventory(
-                activeSession = null,
-                validSessions = 0,
-                invalidSessions = 1,
-                diagnosticMessage = message
-            ),
+            inventory =
+                SessionInventory(
+                    activeSession = null,
+                    validSessions = 0,
+                    invalidSessions = 1,
+                    diagnosticMessage = message,
+                ),
             format = SessionFileFormat.UNSUPPORTED_VERSION,
-            rawPayloadLines = emptyList()
+            rawPayloadLines = emptyList(),
         )
     }
 
@@ -71,7 +72,7 @@ private fun parseVersionedSessions(lines: List<String>): ParsedSessionData {
     return ParsedSessionData(
         inventory = parseSessionRecords(payload),
         format = SessionFileFormat.VERSIONED,
-        rawPayloadLines = payload
+        rawPayloadLines = payload,
     )
 }
 
@@ -99,13 +100,14 @@ private fun parseSessionRecords(lines: List<String>): SessionInventory {
         index += LINES_PER_RECORD
     }
 
-    val activeSession = candidates
-        .sortedWith(compareBy<AuthSession> { it.userId }.thenBy { it.server.orEmpty() }.thenBy { it.accessToken })
-        .firstOrNull()
+    val activeSession =
+        candidates
+            .sortedWith(compareBy<AuthSession> { it.userId }.thenBy { it.server.orEmpty() }.thenBy { it.accessToken })
+            .firstOrNull()
 
     return SessionInventory(
         activeSession = activeSession,
         validSessions = candidates.size,
-        invalidSessions = invalidSessions
+        invalidSessions = invalidSessions,
     )
 }

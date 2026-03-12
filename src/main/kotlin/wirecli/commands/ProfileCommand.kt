@@ -1,12 +1,12 @@
 package wirecli.commands
 
-import wirecli.profile.ProfileResult
-import wirecli.profile.ProfileService
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import wirecli.profile.ProfileResult
+import wirecli.profile.ProfileService
 
 class ProfileCommand(
-    private val profileService: ProfileService
+    private val profileService: ProfileService,
 ) : CliktCommand(name = "profile", help = "Show current user profile.") {
     override fun run() {
         when (val result = profileService.getCurrentProfile()) {

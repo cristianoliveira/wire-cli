@@ -1,18 +1,19 @@
 package wirecli.presence
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class StubPresenceApiClientTest {
-    private val session = AuthSession(
-        userId = "jane@example.com",
-        accessToken = "token",
-        server = null
-    )
+    private val session =
+        AuthSession(
+            userId = "jane@example.com",
+            accessToken = "token",
+            server = null,
+        )
 
     @Test
     fun `returns normalized online presence by default`() {
@@ -54,7 +55,7 @@ class StubPresenceApiClientTest {
         val failure = assertIs<PresenceResult.Failure>(result)
         assertEquals(
             "Presence fetch failed: network is unreachable. Check your connection and retry.",
-            failure.message
+            failure.message,
         )
         assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
     }
@@ -68,7 +69,7 @@ class StubPresenceApiClientTest {
         val failure = assertIs<PresenceResult.Failure>(result)
         assertEquals(
             "Presence service is unavailable. Retry later or check server settings.",
-            failure.message
+            failure.message,
         )
         assertEquals(ExitCodes.SERVER_ERROR, failure.exitCode)
     }

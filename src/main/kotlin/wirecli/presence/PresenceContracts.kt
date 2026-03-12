@@ -7,15 +7,17 @@ enum class PresenceState(val value: String) {
     BUSY("busy"),
     AWAY("away"),
     OFFLINE("offline"),
-    UNKNOWN("unknown");
+    UNKNOWN("unknown"),
+    ;
 
     override fun toString(): String = value
 }
 
 object PresenceNormalizer {
     fun normalize(rawState: String?): PresenceState {
-        val value = rawState?.trim()?.lowercase()
-            ?: return PresenceState.UNKNOWN
+        val value =
+            rawState?.trim()?.lowercase()
+                ?: return PresenceState.UNKNOWN
 
         if (value.isBlank()) {
             return PresenceState.UNKNOWN
@@ -35,6 +37,7 @@ data class PresenceView(val state: PresenceState)
 
 sealed interface PresenceResult {
     data class Success(val presence: PresenceView) : PresenceResult
+
     data class Failure(val message: String, val exitCode: Int) : PresenceResult
 }
 

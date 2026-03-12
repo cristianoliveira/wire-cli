@@ -18,24 +18,17 @@ object AuthMessages {
 
     fun invalidOrExpiredSession(): String = "Session is invalid or expired. $RELOGIN_GUIDANCE"
 
-    fun invalidCredentials(): String =
-        "Invalid email or password. Verify credentials and try again."
+    fun invalidCredentials(): String = "Invalid email or password. Verify credentials and try again."
 
-    fun networkFailure(action: String): String =
-        "$action failed: network is unreachable. Check your connection and retry."
+    fun networkFailure(action: String): String = "$action failed: network is unreachable. Check your connection and retry."
 
-    fun authServiceUnavailable(): String =
-        "Authentication service is unavailable. Retry later or check server settings."
+    fun authServiceUnavailable(): String = "Authentication service is unavailable. Retry later or check server settings."
 
-    fun unauthorizedAction(action: String): String =
-        "$action failed: account is unauthorized or session expired. $RELOGIN_GUIDANCE"
+    fun unauthorizedAction(action: String): String = "$action failed: account is unauthorized or session expired. $RELOGIN_GUIDANCE"
 
-    fun localSessionPersistenceFailed(): String =
-        "Authentication succeeded, but account state could not be persisted. Retry login."
+    fun localSessionPersistenceFailed(): String = "Authentication succeeded, but account state could not be persisted. Retry login."
 
-    fun sessionBootstrapFailed(): String =
-        "Authentication succeeded, but session bootstrap failed. Retry login."
+    fun sessionBootstrapFailed(): String = "Authentication succeeded, but session bootstrap failed. Retry login."
 
-    fun clientRegistrationFailed(): String =
-        "Authentication succeeded, but client registration failed. Retry login."
+    fun clientRegistrationFailed(): String = "Authentication succeeded, but client registration failed. Retry login."
 }

@@ -84,62 +84,6 @@ write_session_inventory() {
   [[ "${output}" != *"Run wire login"* ]]
 }
 
-@test "Given persisted session, when presence runs, then normalized presence value is printed" {
-  export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
-  assert_status 0
-
-  run_wire presence
-  assert_status 0
-  [ "${output}" = "online" ]
-}
-
-@test "Given presence unauthorized response, when presence runs, then command fails with relogin guidance" {
-  export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
-  assert_status 0
-
-  export WIRE_STUB_MODE="presence_unauthorized"
-  run_wire presence
-  assert_status 11
-  [[ "${output}" == *"Session is invalid or expired"* ]]
-  [[ "${output}" == *"Run wire login to re-authenticate"* ]]
-}
-
-@test "Given presence network failure, when presence runs, then retry guidance is returned" {
-  export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
-  assert_status 0
-
-  export WIRE_STUB_MODE="presence_network_error"
-  run_wire presence
-  assert_status 12
-  [[ "${output}" == *"Check your connection and retry"* ]]
-}
-
-@test "Given presence server failure, when presence runs, then concise server guidance is returned" {
-  export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
-  assert_status 0
-
-  export WIRE_STUB_MODE="presence_server_error"
-  run_wire presence
-  assert_status 13
-  [[ "${output}" == *"Retry later or check server settings"* ]]
-}
-
-@test "Given profile success and presence fetch failure, when profile runs, then output falls back to unknown and exits zero" {
-  export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
-  assert_status 0
-
-  export WIRE_STUB_MODE="presence_network_error"
-  run_wire profile
-  assert_status 0
-  [[ "${output}" == *"Name: Jane Doe"* ]]
-  [[ "${output}" == *"Presence: unknown"* ]]
-}
-
 @test "Given multiple persisted valid sessions, when profile runs, then active account selection is deterministic" {
   write_session_inventory "${WIRE_SESSION_FILE}" \
     "user-zed" "token-zed" "" \

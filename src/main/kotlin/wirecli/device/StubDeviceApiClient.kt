@@ -47,7 +47,7 @@ class StubDeviceApiClient(
             "not_found" ->
                 DeviceListResult.Failure(
                     message = DeviceMessages.DEVICE_NOT_FOUND,
-                    exitCode = DeviceExitCodes.DEVICE_NOT_FOUND,
+                    exitCode = DeviceExitCodes.NOT_FOUND,
                 )
 
             "server_error" ->
@@ -89,7 +89,7 @@ class StubDeviceApiClient(
             "not_found" ->
                 DeviceListResult.Failure(
                     message = DeviceMessages.DEVICE_NOT_FOUND,
-                    exitCode = DeviceExitCodes.DEVICE_NOT_FOUND,
+                    exitCode = DeviceExitCodes.NOT_FOUND,
                 )
 
             "server_error" ->
@@ -121,7 +121,7 @@ class StubDeviceApiClient(
             "not_found" ->
                 DeviceDetailResult.Failure(
                     message = DeviceMessages.DEVICE_NOT_FOUND,
-                    exitCode = DeviceExitCodes.DEVICE_NOT_FOUND,
+                    exitCode = DeviceExitCodes.NOT_FOUND,
                 )
 
             "server_error" ->
@@ -141,7 +141,7 @@ class StubDeviceApiClient(
                     defaultDevices.find { it.id == deviceId }
                         ?: return DeviceDetailResult.Failure(
                             message = DeviceMessages.DEVICE_NOT_FOUND,
-                            exitCode = DeviceExitCodes.DEVICE_NOT_FOUND,
+                            exitCode = DeviceExitCodes.NOT_FOUND,
                         )
 
                 DeviceDetailResult.Success(
@@ -165,7 +165,7 @@ class StubDeviceApiClient(
             "not_found" ->
                 DeviceDeleteResult.Failure(
                     message = DeviceMessages.DEVICE_NOT_FOUND,
-                    exitCode = DeviceExitCodes.DEVICE_NOT_FOUND,
+                    exitCode = DeviceExitCodes.NOT_FOUND,
                 )
 
             "server_error" ->

@@ -100,6 +100,12 @@ class StubAuthApiClient(
                     exitCode = ExitCodes.NETWORK_ERROR,
                 )
 
+            "login_secret_failure" ->
+                AuthApiResult.Failure(
+                    message = "Authentication failed: token=abc123 password=super-secret",
+                    exitCode = ExitCodes.AUTH_FAILED,
+                )
+
             else ->
                 AuthApiResult.Failure(
                     message = AuthMessages.authServiceUnavailable(),

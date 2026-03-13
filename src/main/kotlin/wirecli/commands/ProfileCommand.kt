@@ -2,6 +2,7 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import wirecli.auth.AuthRedactor
 import wirecli.profile.ProfileResult
 import wirecli.profile.ProfileService
 
@@ -18,7 +19,7 @@ class ProfileCommand(
             }
 
             is ProfileResult.Failure -> {
-                echo(result.message, err = true)
+                echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }
         }

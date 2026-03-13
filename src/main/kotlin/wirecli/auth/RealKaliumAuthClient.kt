@@ -491,7 +491,7 @@ private fun AuthStepResult.Failure.toAuthFailure(
         }
 
     return AuthApiResult.Failure(
-        message = resolvedMessage,
+        message = AuthRedactor.redact(resolvedMessage),
         exitCode = exitCode,
     )
 }

@@ -2,6 +2,7 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import wirecli.auth.AuthRedactor
 import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
 
@@ -12,7 +13,7 @@ class LogoutCommand(
         when (val result = authSessionService.logout()) {
             is AuthResult.Success -> echo(result.message)
             is AuthResult.Failure -> {
-                echo(result.message, err = true)
+                echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }
         }

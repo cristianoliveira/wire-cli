@@ -51,6 +51,33 @@ write_session_inventory() {
   [ ! -f "${WIRE_SESSION_FILE}" ]
 }
 
+@test "Given password from stdin, when login runs, then session is persisted without password arg" {
+  export WIRE_STUB_MODE="login_ok"
+  run bash -lc "printf '%s\\n' 'correct-horse' | \"${WIRE_BIN}\" login --email 'jane@example.com' --password-stdin"
+  assert_status 0
+  [[ "${output}" == *"Login successful"* ]]
+  [[ "${output}" != *"deprecated"* ]]
+  [ -f "${WIRE_SESSION_FILE}" ]
+}
+
+@test "Given incompatible password flags, when login runs, then validation error is returned" {
+  export WIRE_STUB_MODE="login_ok"
+  run bash -lc "printf '%s\\n' 'correct-horse' | \"${WIRE_BIN}\" login --email 'jane@example.com' --password 'correct-horse' --password-stdin"
+  assert_status 14
+  [[ "${output}" == *"Use either --password or --password-stdin"* ]]
+  [ ! -f "${WIRE_SESSION_FILE}" ]
+}
+
+@test "Given sensitive auth failure details, when login fails, then secrets are redacted" {
+  export WIRE_STUB_MODE="login_secret_failure"
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 10
+  [[ "${output}" == *"token=<redacted>"* ]]
+  [[ "${output}" == *"password=<redacted>"* ]]
+  [[ "${output}" != *"abc123"* ]]
+  [[ "${output}" != *"super-secret"* ]]
+}
+
 @test "Given valid credentials, when login runs, then session is persisted" {
   export WIRE_STUB_MODE="login_ok"
   run_wire login --email "jane@example.com" --password "correct-horse"

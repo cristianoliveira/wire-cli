@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
+import wirecli.auth.AuthRedactor
 import wirecli.auth.ExitCodes
 import wirecli.presence.PresenceResult
 import wirecli.presence.PresenceService
@@ -33,7 +34,7 @@ class PresenceCommand(
         when (result) {
             is PresenceResult.Success -> echo(result.presence.state.value)
             is PresenceResult.Failure -> {
-                echo(result.message, err = true)
+                echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }
         }
@@ -47,7 +48,7 @@ private class PresenceGetCommand(
         when (val result = presenceService.getCurrentPresence()) {
             is PresenceResult.Success -> echo(result.presence.state.value)
             is PresenceResult.Failure -> {
-                echo(result.message, err = true)
+                echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }
         }
@@ -72,7 +73,7 @@ private class PresenceSetCommand(
         when (val result = presenceService.setCurrentPresence(writableState)) {
             is PresenceResult.Success -> echo(result.presence.state.value)
             is PresenceResult.Failure -> {
-                echo(result.message, err = true)
+                echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }
         }

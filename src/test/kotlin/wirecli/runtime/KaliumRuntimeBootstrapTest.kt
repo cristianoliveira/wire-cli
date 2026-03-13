@@ -5,10 +5,10 @@ import kotlin.test.assertEquals
 
 class KaliumRuntimeBootstrapTest {
     @Test
-    fun `defaults to stub backend when selector is absent`() {
+    fun `defaults to real backend when selector is absent`() {
         val selected = KaliumRuntimeBootstrap.resolveBackendForTests(environmentBackend = null)
 
-        assertEquals("STUB", selected)
+        assertEquals("REAL", selected)
     }
 
     @Test
@@ -26,9 +26,9 @@ class KaliumRuntimeBootstrapTest {
     }
 
     @Test
-    fun `falls back to stub backend for invalid selector`() {
+    fun `falls back to real backend for invalid selector`() {
         val selected = KaliumRuntimeBootstrap.resolveBackendForTests(environmentBackend = "not-a-backend")
 
-        assertEquals("STUB", selected)
+        assertEquals("REAL", selected)
     }
 }

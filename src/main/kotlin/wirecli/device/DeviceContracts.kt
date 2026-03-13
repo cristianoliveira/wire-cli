@@ -59,6 +59,11 @@ sealed interface DeviceDeleteResult {
 interface DeviceApiClient {
     fun listDevices(session: AuthSession): DeviceListResult
 
+    fun listDevicesForUser(
+        session: AuthSession,
+        userId: String,
+    ): DeviceListResult
+
     fun getDeviceDetail(
         session: AuthSession,
         deviceId: String,
@@ -72,6 +77,8 @@ interface DeviceApiClient {
 
 interface DeviceService {
     fun listCurrentDevices(): DeviceListResult
+
+    fun listDevicesForUser(userId: String): DeviceListResult
 
     fun getDetail(deviceId: String): DeviceDetailResult
 

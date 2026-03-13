@@ -19,6 +19,17 @@ class SessionBackedDeviceService(
         return apiClient.listDevices(session)
     }
 
+    override fun listDevicesForUser(userId: String): DeviceListResult {
+        val session =
+            sessionStore.readActiveSession()
+                ?: return DeviceListResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+        return apiClient.listDevicesForUser(session, userId)
+    }
+
     override fun getDetail(deviceId: String): DeviceDetailResult {
         val session =
             sessionStore.readActiveSession()

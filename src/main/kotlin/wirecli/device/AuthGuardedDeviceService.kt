@@ -18,6 +18,17 @@ class AuthGuardedDeviceService(
         }
     }
 
+    override fun listDevicesForUser(userId: String): DeviceListResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.listDevicesForUser(userId)
+            is AuthResult.Failure ->
+                DeviceListResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
+
     override fun getDetail(deviceId: String): DeviceDetailResult {
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.getDetail(deviceId)

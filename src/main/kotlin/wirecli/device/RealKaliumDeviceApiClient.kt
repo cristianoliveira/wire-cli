@@ -41,3 +41,11 @@ internal interface RealKaliumDeviceRuntime {
     // TODO: Add device runtime methods
     fun shutdown()
 }
+
+internal class SdkKaliumDeviceRuntime(
+    private val environment: Map<String, String>,
+) : RealKaliumDeviceRuntime {
+    override fun shutdown() {
+        // No background resources in device runtime stub.
+    }
+}

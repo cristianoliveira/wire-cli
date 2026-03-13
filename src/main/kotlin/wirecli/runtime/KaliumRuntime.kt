@@ -7,6 +7,13 @@ import wirecli.auth.FileAuthSessionStore
 import wirecli.auth.RealKaliumAuthClient
 import wirecli.auth.SdkKaliumAuthRuntime
 import wirecli.auth.StubAuthApiClient
+import wirecli.device.AuthGuardedDeviceService
+import wirecli.device.DeviceApiClient
+import wirecli.device.DeviceService
+import wirecli.device.RealKaliumDeviceApiClient
+import wirecli.device.SessionBackedDeviceService
+import wirecli.device.SdkKaliumDeviceRuntime
+import wirecli.device.StubDeviceApiClient
 import wirecli.presence.AuthGuardedPresenceService
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceService
@@ -27,6 +34,7 @@ interface KaliumRuntime : AutoCloseable {
     val authSessionService: AuthSessionService
     val profileService: ProfileService
     val presenceService: PresenceService
+    val deviceService: DeviceService
 
     fun shutdown()
 
@@ -101,6 +109,17 @@ private class DefaultKaliumRuntime(
         )
     }
 
+    override val deviceService: DeviceService by lazy {
+        AuthGuardedDeviceService(
+            authSessionService = authSessionService,
+            delegate =
+                SessionBackedDeviceService(
+                    sessionStore = sessionStore,
+                    apiClient = backend.deviceApiClient,
+                ),
+        )
+    }
+
     override fun shutdown() {
         if (!backendLazy.isInitialized()) return
         backend.shutdown()
@@ -139,6 +158,7 @@ internal interface RuntimeBackend {
     val authApiClient: AuthApiClient
     val profileApiClient: ProfileApiClient
     val presenceApiClient: PresenceApiClient
+    val deviceApiClient: DeviceApiClient
 
     fun shutdown()
 }
@@ -149,6 +169,7 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
             override val authApiClient: AuthApiClient = StubAuthApiClient(environment)
             override val profileApiClient: ProfileApiClient = StubProfileApiClient(environment)
             override val presenceApiClient: PresenceApiClient = StubPresenceApiClient(environment)
+            override val deviceApiClient: DeviceApiClient = StubDeviceApiClient(environment)
 
             override fun shutdown() {
                 // No background resources in stub backend.
@@ -163,19 +184,23 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             private val authRuntimeLazy = lazy { SdkKaliumAuthRuntime(environment) }
             private val profileRuntimeLazy = lazy { SdkKaliumProfileRuntime(environment) }
             private val presenceRuntimeLazy = lazy { SdkKaliumPresenceRuntime(environment) }
+            private val deviceRuntimeLazy = lazy { SdkKaliumDeviceRuntime(environment) }
 
             private val authRuntime by authRuntimeLazy
             private val profileRuntime by profileRuntimeLazy
             private val presenceRuntime by presenceRuntimeLazy
+            private val deviceRuntime by deviceRuntimeLazy
 
             override val authApiClient: AuthApiClient by lazy { RealKaliumAuthClient(authRuntime) }
             override val profileApiClient: ProfileApiClient by lazy { RealKaliumProfileApiClient(profileRuntime) }
             override val presenceApiClient: PresenceApiClient by lazy { RealKaliumPresenceApiClient(presenceRuntime) }
+            override val deviceApiClient: DeviceApiClient by lazy { RealKaliumDeviceApiClient(deviceRuntime) }
 
             override fun shutdown() {
                 if (authRuntimeLazy.isInitialized()) authRuntime.close()
                 if (profileRuntimeLazy.isInitialized()) profileRuntime.close()
                 if (presenceRuntimeLazy.isInitialized()) presenceRuntime.close()
+                if (deviceRuntimeLazy.isInitialized()) deviceRuntime.shutdown()
             }
         }
     }

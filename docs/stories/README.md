@@ -1,6 +1,7 @@
 # Stories by Topic
 
 This folder reorganizes MVP stories by topic while preserving story numbers, status markers, and acceptance criteria.
+Presence core stories are done, and any non-blocking follow-ups are tracked in topic files as `[Planned]`.
 
 ## Status legend
 

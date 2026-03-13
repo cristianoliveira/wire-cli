@@ -9,7 +9,7 @@
 - `wire presence` remains a compatibility alias for `wire presence get`.
 - Backend values that are missing, undefined, empty, or not recognized map to `unknown`.
 
-### 8) Presence: `wire presence get` retrieves current status `[Implemented] [Must]`
+### 8) Presence: `wire presence get` retrieves current status `[Done] [Must]`
 As an authenticated user, I want `wire presence get` so I can check my current presence status.
 
 Acceptance criteria:
@@ -18,7 +18,7 @@ Acceptance criteria:
 - Given I am not authenticated or my session is invalid, when I run `wire presence get`, then access is denied with a login prompt and non-zero exit.
 - Given a timeout, network failure, or server error, when I run `wire presence get`, then I see a clear failure message and a non-zero exit.
 
-### 9) Presence: `wire presence set <status>` updates current status `[Implemented] [Must]`
+### 9) Presence: `wire presence set <status>` updates current status `[Done] [Must]`
 As an authenticated user, I want `wire presence set <status>` so I can change my current presence.
 
 Acceptance criteria:
@@ -27,7 +27,7 @@ Acceptance criteria:
 - Given I am not authenticated or my session is invalid, when I run `wire presence set <status>`, then access is denied with a login prompt and non-zero exit.
 - Given a timeout, network failure, or server error, when I run `wire presence set <status>`, then I see a clear failure message and a non-zero exit.
 
-### 10) Presence: display in `wire profile` output `[Implemented] [Must]`
+### 10) Presence: display in `wire profile` output `[Done] [Must]`
 As an authenticated user, I want presence shown in `wire profile` output so profile and status are visible together.
 
 Acceptance criteria:
@@ -35,7 +35,7 @@ Acceptance criteria:
 - Given presence cannot be fetched due to backend failure, when I run `wire profile`, then profile output remains readable and presence is shown as `unknown`.
 - Given I am unauthorized, when I run `wire profile`, then the command reports unauthorized and does not expose protected profile or presence data.
 
-### 11) Presence: normalize backend status values `[Implemented] [Must]`
+### 11) Presence: normalize backend status values `[Done] [Must]`
 As a developer, I want one normalization rule for presence values so `wire presence get` and `wire profile` are predictable.
 
 Acceptance criteria:
@@ -45,10 +45,20 @@ Acceptance criteria:
 - Given backend value `offline`, when normalized, then output is `offline`.
 - Given backend value is missing, undefined, null, empty, or unknown, when normalized, then output is `unknown`.
 
-### 12) Presence: graceful failure and auth handling across commands `[Implemented] [Should]`
+### 12) Presence: graceful failure and auth handling across commands `[Done] [Should]`
 As a user, I want presence command errors handled consistently so I know whether to retry, log in, or continue.
 
 Acceptance criteria:
 - Given `wire presence get` or `wire presence set <status>` returns unauthorized, when output is rendered, then I see an auth recovery message and the command exits non-zero.
 - Given `wire presence get` or `wire presence set <status>` fails due to timeout/network/server error, when output is rendered, then I see a concise retry-oriented message and the command exits non-zero.
 - Given `wire profile` cannot fetch presence due to timeout/network/server error, when output is rendered, then profile remains readable and presence is `unknown`.
+
+## Planned Follow-ups
+
+These follow-ups are not blockers for current presence MVP behavior.
+
+### 13) Presence: credential/input hardening and secret redaction guardrails `[Planned] [Should]`
+As a maintainer, I want stricter credential/input handling and redaction guardrails so logs/errors avoid leaking sensitive data while preserving debuggability.
+
+### 14) Presence: advanced lifecycle/performance hardening for real backend mode `[Planned] [Should]`
+As a maintainer, I want optional lifecycle and performance hardening in real backend mode so long-running and repeated presence operations stay robust under load.

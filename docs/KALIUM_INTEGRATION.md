@@ -59,5 +59,6 @@ includeBuild(kaliumDirFile) {
 ## Architecture Notes
 
 - No source exclusion or reflection fallback is used for Kalium wiring
-- Real mode uses concrete SDK runtimes (`SdkKaliumAuthRuntime`, `SdkKaliumProfileRuntime`)
+- Real mode uses concrete SDK runtimes (`SdkKaliumAuthRuntime`, `SdkKaliumProfileRuntime`, `SdkKaliumPresenceRuntime`)
+- Runtime services and SDK clients are initialized lazily; `login` avoids profile/presence startup work unless those commands are invoked
 - Stub mode remains available for deterministic local tests

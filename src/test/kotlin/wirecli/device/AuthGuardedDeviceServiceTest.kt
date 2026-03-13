@@ -171,6 +171,8 @@ class AuthGuardedDeviceServiceTest {
     ) : DeviceService {
         override fun listCurrentDevices(): DeviceListResult = listResult
 
+        override fun listDevicesForUser(userId: String): DeviceListResult = listResult
+
         override fun getDetail(deviceId: String): DeviceDetailResult = detailResult
 
         override fun remove(deviceId: String): DeviceDeleteResult = deleteResult

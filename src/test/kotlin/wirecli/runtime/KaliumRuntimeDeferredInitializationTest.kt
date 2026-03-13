@@ -138,6 +138,13 @@ private object NoopDeviceApiClient : DeviceApiClient {
         return DeviceListResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 
+    override fun listDevicesForUser(
+        session: AuthSession,
+        userId: String,
+    ): DeviceListResult {
+        return DeviceListResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
     override fun getDeviceDetail(
         session: AuthSession,
         deviceId: String,

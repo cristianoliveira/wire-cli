@@ -2,6 +2,8 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
@@ -10,12 +12,20 @@ import wirecli.device.DeviceService
 
 class ClientListCommand(
     private val deviceServiceProvider: () -> DeviceService,
-) : CliktCommand(name = "list", help = "List all devices.") {
+) : CliktCommand(name = "list", help = "List devices. Optionally specify a user ID to list their devices.") {
+    private val userId by argument(name = "user-id", help = "Optional user ID to list their devices").optional()
     private val json by option("--json", help = "Output as JSON").flag(default = false)
 
     override fun run() {
         val deviceService = deviceServiceProvider()
-        when (val result = deviceService.listCurrentDevices()) {
+        val result =
+            if (userId != null) {
+                deviceService.listDevicesForUser(userId!!)
+            } else {
+                deviceService.listCurrentDevices()
+            }
+
+        when (result) {
             is DeviceListResult.Success -> {
                 if (json) {
                     outputAsJson(result)

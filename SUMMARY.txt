@@ -1,0 +1,195 @@
+WIRE-CLI DEVICE FEATURE EXPLORATION - SUMMARY REPORT
+====================================================
+
+FINDINGS:
+---------
+1. Device Feature Status: NOT IMPLEMENTED in wire-cli
+2. Architecture Support: FULLY AVAILABLE in Kalium SDK
+3. Implementation Feasibility: HIGH (follows proven patterns from Presence/Profile)
+4. Data Availability: COMPLETE (all fields available from server, no stubs needed)
+
+CREATED DOCUMENTATION:
+----------------------
+1. DEVICE_FEATURE_ANALYSIS.md (Comprehensive Analysis)
+   - Current architecture overview
+   - Kalium ClientRepository capabilities
+   - ClientApi network endpoints
+   - Comparison with Presence feature
+   - Real vs. placeholder data analysis
+   - Available use cases in ClientScope
+   - Sync vs Device feature differences
+   - Implementation roadmap
+   - Key findings summary
+   - Expected output examples
+
+2. DEVICE_FEATURE_TECHNICAL_GUIDE.md (Implementation Code)
+   - DeviceContracts.kt (complete code)
+   - RealKaliumDeviceApiClient.kt (full Kalium integration)
+   - DeviceCommand.kt (CLI command structure)
+   - Kalium methods usage mapping
+   - Error handling strategies
+   - Testing strategy
+   - Integration points
+   - Next steps for full implementation
+
+KEY KALIUM REPOSITORIES & APIS DISCOVERED:
+-------------------------------------------
+
+ClientRepository (Logic Layer):
+- Location: kalium/logic/src/commonMain/kotlin/com/wire/kalium/logic/data/client/ClientRepository.kt
+- Methods: selfListOfClients(), getClientsByUserId(), updateClientProteusVerificationStatus()
+- MLS Support: registerMLSClient(), hasRegisteredMLSClient()
+
+ClientApi (Network Layer):
+- Location: kalium/data/network/src/commonMain/kotlin/com/wire/kalium/network/api/base/authenticated/client/ClientApi.kt
+- Endpoints: registerClient(), fetchSelfUserClient(), deleteClient(), fetchClientInfo()
+- Capabilities: MLS public keys, capabilities updates, push token management
+
+ClientScope (Feature Access):
+- Location: kalium/logic/src/commonMain/kotlin/com/wire/kalium/logic/feature/client/ClientScope.kt
+- Public Use Cases:
+  * fetchSelfClients
+  * fetchUsersClients
+  * getOtherUserClients
+  * observeClientDetailsUseCase
+  * deleteClient
+  * getProteusFingerprint
+  * remoteClientFingerPrint
+  * updateClientVerificationStatus
+
+CURRENT WIRE-CLI ARCHITECTURE:
+------------------------------
+
+Existing Features (3 modules following same pattern):
+1. Presence (User availability status)
+2. Profile (User profile information)
+3. Auth (Authentication management)
+
+Architecture Pattern for Each Feature:
+├── FeatureContracts.kt           # Data models & interfaces
+├── RealKaliumFeatureApiClient.kt # Kalium SDK integration
+├── StubFeatureApiClient.kt       # Mock implementation
+├── SessionBackedFeatureService.kt # Business logic wrapper
+├── AuthGuardedFeatureService.kt   # Auth enforcement
+└── FeatureCommand.kt             # CLI command integration
+
+Source Structure:
+src/main/kotlin/wirecli/
+├── auth/                          # Authentication module
+├── commands/                      # CLI commands (root, login, logout, presence, profile)
+├── presence/                      # Presence feature implementation
+├── profile/                       # Profile feature implementation
+├── runtime/                       # Kalium runtime management
+└── Main.kt                        # Entry point
+
+DEVICE FEATURE WOULD FOLLOW SAME PATTERN:
+------------------------------------------
+
+Expected structure:
+src/main/kotlin/wirecli/device/
+├── DeviceContracts.kt
+├── RealKaliumDeviceApiClient.kt
+├── StubDeviceApiClient.kt
+├── SessionBackedDeviceService.kt
+├── AuthGuardedDeviceService.kt
+└── (command would be added to commands/)
+
+REAL DATA AVAILABLE FROM SERVER:
+--------------------------------
+✓ clientId / id
+✓ label (device name)
+✓ type (DESKTOP, MOBILE, TABLET)
+✓ model
+✓ location
+✓ lastActive (timestamp)
+✓ isVerified
+✓ capabilities (PROTEUS, MLS)
+✓ mlsPublicKeysBundle
+✓ cookieLabel (session)
+
+NO HARDCODED/PLACEHOLDER VALUES NEEDED
+
+DEVICE COMMANDS THAT COULD BE IMPLEMENTED:
+-------------------------------------------
+wire device list                    # List self devices
+wire device list <user-id>          # List user's devices
+wire device info <device-id>        # Get device details
+wire device delete <device-id>      # Delete device
+wire device verify <user-id> <id>   # Mark device as trusted
+wire device rename <device-id> <name> # Rename device
+wire device fingerprint             # Get self fingerprint
+wire device fingerprint <user-id> <id> # Get other's fingerprint
+
+COMPARISON: SYNC vs DEVICE:
+----------------------------
+
+Sync Feature (Not in wire-cli):
+- Related APIs: NomadDeviceSyncApi
+- Purpose: Message sync across devices
+- Data: Encrypted messages, crypto state
+
+Device Feature (Not in wire-cli):
+- Related APIs: ClientApi
+- Purpose: Device registration, verification, listing
+- Data: Device metadata, fingerprints, capabilities
+
+-> They are SEPARATE and COMPLEMENTARY features
+
+IMPLEMENTATION READINESS:
+-------------------------
+Backend Support:        ✓ COMPLETE
+Architecture Pattern:   ✓ PROVEN (Presence/Profile)
+Use Cases Available:    ✓ 8 PUBLIC USE CASES
+Error Handling:         ✓ ESTABLISHED PATTERNS
+Testing Framework:      ✓ STUB IMPLEMENTATION READY
+Documentation:          ✓ COMPREHENSIVE
+
+Effort Estimate:
+- DeviceContracts.kt:              2-4 hours
+- RealKaliumDeviceApiClient.kt:    4-6 hours
+- Services & Guards:               3-4 hours
+- DeviceCommand.kt:                4-6 hours
+- Tests & Integration:             8-10 hours
+- Documentation:                   2-3 hours
+TOTAL:                            ~25-35 hours
+
+FILE LOCATIONS REFERENCED:
+--------------------------
+
+Wire-CLI Source Files:
+- src/main/kotlin/wirecli/presence/PresenceContracts.kt
+- src/main/kotlin/wirecli/presence/RealKaliumPresenceApiClient.kt
+- src/main/kotlin/wirecli/commands/PresenceCommand.kt
+- src/main/kotlin/wirecli/commands/ProfileCommand.kt
+
+Kalium Client Files:
+- .local/kalium/logic/src/commonMain/kotlin/com/wire/kalium/logic/data/client/ClientRepository.kt
+- .local/kalium/data/network/src/commonMain/kotlin/com/wire/kalium/network/api/base/authenticated/client/ClientApi.kt
+- .local/kalium/logic/src/commonMain/kotlin/com/wire/kalium/logic/feature/client/ClientScope.kt
+- .local/kalium/logic/src/commonMain/kotlin/com/wire/kalium/logic/feature/client/DeleteClientUseCase.kt
+- .local/kalium/logic/src/commonMain/kotlin/com/wire/kalium/logic/feature/client/FetchSelfClientsFromRemoteUseCase.kt
+- .local/kalium/logic/src/commonMain/kotlin/com/wire/kalium/logic/feature/client/FetchUsersClientsFromRemoteUseCase.kt
+- .local/kalium/logic/src/commonMain/kotlin/com/wire/kalium/logic/feature/client/ObserveClientsByUserIdUseCase.kt
+- .local/kalium/logic/src/commonMain/kotlin/com/wire/kalium/logic/feature/client/UpdateClientVerificationStatusUseCase.kt
+
+CONCLUSION:
+-----------
+
+The device feature is FEASIBLE AND STRAIGHTFORWARD to implement in wire-cli. The Kalium 
+SDK provides complete backend support with all necessary repositories, APIs, and use cases.
+
+The implementation would follow the well-established pattern from Presence/Profile modules 
+and would provide users with comprehensive device management capabilities including:
+- Listing own and other users' devices
+- Device details and fingerprints
+- Device verification and trust management
+- Device deletion
+- Capability inspection
+
+No placeholder data or stubs would be needed as the Wire server provides all required 
+device information in real-time through the ClientApi.
+
+======================================
+Generated: 2026-03-14
+Report Location: /Users/cristianoliveira/other/wire-cli/.gwt/adev/
+======================================

@@ -69,6 +69,48 @@ class StubDeviceApiClient(
         }
     }
 
+    override fun listDevicesForUser(
+        session: AuthSession,
+        userId: String,
+    ): DeviceListResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "list_empty" ->
+                DeviceListResult.Success(
+                    view = DeviceListView(devices = emptyList()),
+                )
+
+            "list_ok" ->
+                DeviceListResult.Success(
+                    view = DeviceListView(devices = defaultDevices),
+                )
+
+            "not_found" ->
+                DeviceListResult.Failure(
+                    message = DeviceMessages.DEVICE_NOT_FOUND,
+                    exitCode = DeviceExitCodes.DEVICE_NOT_FOUND,
+                )
+
+            "server_error" ->
+                DeviceListResult.Failure(
+                    message = DeviceMessages.SERVER_FAILURE,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            "unauthorized" ->
+                DeviceListResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            else ->
+                DeviceListResult.Success(
+                    view = DeviceListView(devices = defaultDevices),
+                )
+        }
+    }
+
     override fun getDeviceDetail(
         session: AuthSession,
         deviceId: String,

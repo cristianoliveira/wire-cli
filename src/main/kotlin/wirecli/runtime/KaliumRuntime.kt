@@ -11,8 +11,8 @@ import wirecli.device.AuthGuardedDeviceService
 import wirecli.device.DeviceApiClient
 import wirecli.device.DeviceService
 import wirecli.device.RealKaliumDeviceApiClient
-import wirecli.device.SessionBackedDeviceService
 import wirecli.device.SdkKaliumDeviceRuntime
+import wirecli.device.SessionBackedDeviceService
 import wirecli.device.StubDeviceApiClient
 import wirecli.presence.AuthGuardedPresenceService
 import wirecli.presence.PresenceApiClient
@@ -28,6 +28,13 @@ import wirecli.profile.RealKaliumProfileApiClient
 import wirecli.profile.SdkKaliumProfileRuntime
 import wirecli.profile.SessionBackedProfileService
 import wirecli.profile.StubProfileApiClient
+import wirecli.sync.AuthGuardedSyncService
+import wirecli.sync.RealKaliumSyncApiClient
+import wirecli.sync.SdkKaliumSyncRuntime
+import wirecli.sync.SessionBackedSyncService
+import wirecli.sync.StubSyncApiClient
+import wirecli.sync.SyncApiClient
+import wirecli.sync.SyncService
 import java.util.Locale
 
 interface KaliumRuntime : AutoCloseable {
@@ -35,6 +42,7 @@ interface KaliumRuntime : AutoCloseable {
     val profileService: ProfileService
     val presenceService: PresenceService
     val deviceService: DeviceService
+    val syncService: SyncService
 
     fun shutdown()
 
@@ -120,6 +128,17 @@ private class DefaultKaliumRuntime(
         )
     }
 
+    override val syncService: SyncService by lazy {
+        AuthGuardedSyncService(
+            authSessionService = authSessionService,
+            delegate =
+                SessionBackedSyncService(
+                    sessionStore = sessionStore,
+                    apiClient = backend.syncApiClient,
+                ),
+        )
+    }
+
     override fun shutdown() {
         if (!backendLazy.isInitialized()) return
         backend.shutdown()
@@ -159,6 +178,7 @@ internal interface RuntimeBackend {
     val profileApiClient: ProfileApiClient
     val presenceApiClient: PresenceApiClient
     val deviceApiClient: DeviceApiClient
+    val syncApiClient: SyncApiClient
 
     fun shutdown()
 }
@@ -170,6 +190,7 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
             override val profileApiClient: ProfileApiClient = StubProfileApiClient(environment)
             override val presenceApiClient: PresenceApiClient = StubPresenceApiClient(environment)
             override val deviceApiClient: DeviceApiClient = StubDeviceApiClient(environment)
+            override val syncApiClient: SyncApiClient = StubSyncApiClient(environment)
 
             override fun shutdown() {
                 // No background resources in stub backend.
@@ -185,22 +206,26 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             private val profileRuntimeLazy = lazy { SdkKaliumProfileRuntime(environment) }
             private val presenceRuntimeLazy = lazy { SdkKaliumPresenceRuntime(environment) }
             private val deviceRuntimeLazy = lazy { SdkKaliumDeviceRuntime(environment) }
+            private val syncRuntimeLazy = lazy { SdkKaliumSyncRuntime(environment) }
 
             private val authRuntime by authRuntimeLazy
             private val profileRuntime by profileRuntimeLazy
             private val presenceRuntime by presenceRuntimeLazy
             private val deviceRuntime by deviceRuntimeLazy
+            private val syncRuntime by syncRuntimeLazy
 
             override val authApiClient: AuthApiClient by lazy { RealKaliumAuthClient(authRuntime) }
             override val profileApiClient: ProfileApiClient by lazy { RealKaliumProfileApiClient(profileRuntime) }
             override val presenceApiClient: PresenceApiClient by lazy { RealKaliumPresenceApiClient(presenceRuntime) }
             override val deviceApiClient: DeviceApiClient by lazy { RealKaliumDeviceApiClient(deviceRuntime) }
+            override val syncApiClient: SyncApiClient by lazy { RealKaliumSyncApiClient(syncRuntime) }
 
             override fun shutdown() {
                 if (authRuntimeLazy.isInitialized()) authRuntime.close()
                 if (profileRuntimeLazy.isInitialized()) profileRuntime.close()
                 if (presenceRuntimeLazy.isInitialized()) presenceRuntime.close()
                 if (deviceRuntimeLazy.isInitialized()) deviceRuntime.shutdown()
+                if (syncRuntimeLazy.isInitialized()) syncRuntime.shutdown()
             }
         }
     }

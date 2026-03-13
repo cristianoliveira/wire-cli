@@ -3,6 +3,7 @@ import java.time.Duration
 
 plugins {
     kotlin("jvm") version "2.3.0"
+    kotlin("plugin.serialization") version "2.3.0"
     id("org.jlleitschuh.gradle.ktlint") version "14.1.0"
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
     application
@@ -20,6 +21,7 @@ dependencies {
     implementation("com.github.ajalt.clikt:clikt:4.4.0")
     implementation("com.wire:logic")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
     runtimeOnly("org.slf4j:slf4j-nop:2.0.17")
     testImplementation(kotlin("test"))
 

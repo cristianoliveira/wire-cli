@@ -25,9 +25,15 @@ data class Check(
     val details: String,
 )
 
+data class RecoveryHint(
+    val description: String,
+    val command: String,
+)
+
 data class DiagnosticsReport(
     val checks: List<Check>,
     val summary: String,
+    val recoveryHints: List<RecoveryHint> = emptyList(),
 )
 
 data class SyncStatusView(

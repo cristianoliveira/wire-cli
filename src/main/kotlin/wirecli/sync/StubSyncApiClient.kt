@@ -143,6 +143,7 @@ class StubSyncApiClient(
                                     ),
                                 ),
                             summary = "All systems operational",
+                            recoveryHints = emptyList(),
                         ),
                 )
 
@@ -179,6 +180,13 @@ class StubSyncApiClient(
                                     ),
                                 ),
                             summary = "System is initializing",
+                            recoveryHints =
+                                listOf(
+                                    RecoveryHint(
+                                        description = "Wait for system initialization to complete",
+                                        command = "wire sync status --verbose",
+                                    ),
+                                ),
                         ),
                 )
 
@@ -215,6 +223,17 @@ class StubSyncApiClient(
                                     ),
                                 ),
                             summary = "System is degraded, operation continues but performance is reduced",
+                            recoveryHints =
+                                listOf(
+                                    RecoveryHint(
+                                        description = "Clear event backlog",
+                                        command = "wire sync reset --mode=queue",
+                                    ),
+                                    RecoveryHint(
+                                        description = "Refresh key packages",
+                                        command = "wire sync reset --mode=keys",
+                                    ),
+                                ),
                         ),
                 )
 
@@ -251,6 +270,21 @@ class StubSyncApiClient(
                                     ),
                                 ),
                             summary = "System encountered critical errors, immediate action required",
+                            recoveryHints =
+                                listOf(
+                                    RecoveryHint(
+                                        description = "Check your network connection",
+                                        command = "ping api.wire.com",
+                                    ),
+                                    RecoveryHint(
+                                        description = "Reset sync engine to recover",
+                                        command = "wire sync reset",
+                                    ),
+                                    RecoveryHint(
+                                        description = "Check logs for more details",
+                                        command = "wire debug logs --tail=100",
+                                    ),
+                                ),
                         ),
                 )
 
@@ -305,6 +339,7 @@ class StubSyncApiClient(
                                     ),
                                 ),
                             summary = "All systems operational",
+                            recoveryHints = emptyList(),
                         ),
                 )
         }

@@ -7,9 +7,10 @@ import wirecli.profile.ProfileResult
 import wirecli.profile.ProfileService
 
 class ProfileCommand(
-    private val profileService: ProfileService,
+    private val profileServiceProvider: () -> ProfileService,
 ) : CliktCommand(name = "profile", help = "Show current user profile.") {
     override fun run() {
+        val profileService = profileServiceProvider()
         when (val result = profileService.getCurrentProfile()) {
             is ProfileResult.Success -> {
                 echo("Name: ${result.profile.name ?: "-"}")

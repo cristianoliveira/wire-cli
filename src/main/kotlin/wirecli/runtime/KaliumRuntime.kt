@@ -23,12 +23,16 @@ import wirecli.profile.SessionBackedProfileService
 import wirecli.profile.StubProfileApiClient
 import java.util.Locale
 
-interface KaliumRuntime {
+interface KaliumRuntime : AutoCloseable {
     val authSessionService: AuthSessionService
     val profileService: ProfileService
     val presenceService: PresenceService
 
     fun shutdown()
+
+    override fun close() {
+        shutdown()
+    }
 }
 
 object KaliumRuntimeBootstrap {
@@ -41,9 +45,16 @@ object KaliumRuntimeBootstrap {
             RuntimeBackendSelector.resolve(
                 environmentBackend = environment[ENV_BACKEND_SELECTOR],
             )
+        return createWithBackend(environment, backend.factory)
+    }
+
+    internal fun createWithBackend(
+        environment: Map<String, String>,
+        backendFactory: RuntimeBackendFactory,
+    ): KaliumRuntime {
         return DefaultKaliumRuntime(
             environment = environment,
-            backendFactory = backend.factory,
+            backendFactory = backendFactory,
         )
     }
 
@@ -53,19 +64,21 @@ object KaliumRuntimeBootstrap {
 }
 
 private class DefaultKaliumRuntime(
-    environment: Map<String, String>,
+    private val environment: Map<String, String>,
     backendFactory: RuntimeBackendFactory,
 ) : KaliumRuntime {
     private val sessionStore = FileAuthSessionStore()
-    private val backend = backendFactory.create(environment)
+    private val backendLazy = lazy { backendFactory.create(environment) }
+    private val backend by backendLazy
 
-    override val authSessionService: AuthSessionService =
+    override val authSessionService: AuthSessionService by lazy {
         AuthSessionServiceImpl(
             apiClient = backend.authApiClient,
             sessionStore = sessionStore,
         )
+    }
 
-    override val profileService: ProfileService =
+    override val profileService: ProfileService by lazy {
         AuthGuardedProfileService(
             authSessionService = authSessionService,
             delegate =
@@ -75,8 +88,9 @@ private class DefaultKaliumRuntime(
                     presenceApiClient = backend.presenceApiClient,
                 ),
         )
+    }
 
-    override val presenceService: PresenceService =
+    override val presenceService: PresenceService by lazy {
         AuthGuardedPresenceService(
             authSessionService = authSessionService,
             delegate =
@@ -85,8 +99,10 @@ private class DefaultKaliumRuntime(
                     apiClient = backend.presenceApiClient,
                 ),
         )
+    }
 
     override fun shutdown() {
+        if (!backendLazy.isInitialized()) return
         backend.shutdown()
     }
 }
@@ -115,11 +131,11 @@ private enum class RuntimeBackendSelector(val factory: RuntimeBackendFactory) {
     }
 }
 
-private interface RuntimeBackendFactory {
+internal interface RuntimeBackendFactory {
     fun create(environment: Map<String, String>): RuntimeBackend
 }
 
-private interface RuntimeBackend {
+internal interface RuntimeBackend {
     val authApiClient: AuthApiClient
     val profileApiClient: ProfileApiClient
     val presenceApiClient: PresenceApiClient
@@ -144,18 +160,22 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
 private object RealRuntimeBackendFactory : RuntimeBackendFactory {
     override fun create(environment: Map<String, String>): RuntimeBackend {
         return object : RuntimeBackend {
-            private val authRuntime = SdkKaliumAuthRuntime(environment)
-            private val profileRuntime = SdkKaliumProfileRuntime(environment)
-            private val presenceRuntime = SdkKaliumPresenceRuntime(environment)
+            private val authRuntimeLazy = lazy { SdkKaliumAuthRuntime(environment) }
+            private val profileRuntimeLazy = lazy { SdkKaliumProfileRuntime(environment) }
+            private val presenceRuntimeLazy = lazy { SdkKaliumPresenceRuntime(environment) }
 
-            override val authApiClient: AuthApiClient = RealKaliumAuthClient(authRuntime)
-            override val profileApiClient: ProfileApiClient = RealKaliumProfileApiClient(profileRuntime)
-            override val presenceApiClient: PresenceApiClient = RealKaliumPresenceApiClient(presenceRuntime)
+            private val authRuntime by authRuntimeLazy
+            private val profileRuntime by profileRuntimeLazy
+            private val presenceRuntime by presenceRuntimeLazy
+
+            override val authApiClient: AuthApiClient by lazy { RealKaliumAuthClient(authRuntime) }
+            override val profileApiClient: ProfileApiClient by lazy { RealKaliumProfileApiClient(profileRuntime) }
+            override val presenceApiClient: PresenceApiClient by lazy { RealKaliumPresenceApiClient(presenceRuntime) }
 
             override fun shutdown() {
-                authRuntime.shutdown()
-                profileRuntime.shutdown()
-                presenceRuntime.shutdown()
+                if (authRuntimeLazy.isInitialized()) authRuntime.close()
+                if (profileRuntimeLazy.isInitialized()) profileRuntime.close()
+                if (presenceRuntimeLazy.isInitialized()) presenceRuntime.close()
             }
         }
     }

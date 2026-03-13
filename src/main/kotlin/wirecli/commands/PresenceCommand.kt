@@ -11,7 +11,7 @@ import wirecli.presence.PresenceService
 import wirecli.presence.PresenceStatusContract
 
 class PresenceCommand(
-    private val presenceService: PresenceService,
+    private val presenceServiceProvider: () -> PresenceService,
 ) : CliktCommand(
         name = "presence",
         help = "Get or set current user presence.",
@@ -19,13 +19,14 @@ class PresenceCommand(
     ) {
     init {
         subcommands(
-            PresenceGetCommand(presenceService),
-            PresenceSetCommand(presenceService),
+            PresenceGetCommand(presenceServiceProvider),
+            PresenceSetCommand(presenceServiceProvider),
         )
     }
 
     override fun run() {
         if (currentContext.invokedSubcommand == null) {
+            val presenceService = presenceServiceProvider()
             outputPresenceResult(presenceService.getCurrentPresence())
         }
     }
@@ -42,9 +43,10 @@ class PresenceCommand(
 }
 
 private class PresenceGetCommand(
-    private val presenceService: PresenceService,
+    private val presenceServiceProvider: () -> PresenceService,
 ) : CliktCommand(name = "get", help = "Get current user presence.") {
     override fun run() {
+        val presenceService = presenceServiceProvider()
         when (val result = presenceService.getCurrentPresence()) {
             is PresenceResult.Success -> echo(result.presence.state.value)
             is PresenceResult.Failure -> {
@@ -56,11 +58,12 @@ private class PresenceGetCommand(
 }
 
 private class PresenceSetCommand(
-    private val presenceService: PresenceService,
+    private val presenceServiceProvider: () -> PresenceService,
 ) : CliktCommand(name = "set", help = "Set current user presence.") {
     private val status by argument(name = "status", help = "online|busy|away|offline")
 
     override fun run() {
+        val presenceService = presenceServiceProvider()
         val writableState = PresenceStatusContract.parseWritable(status)
         if (writableState == null) {
             echo(

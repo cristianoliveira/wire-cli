@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 
 internal class RealKaliumPresenceApiClient(
@@ -64,6 +65,10 @@ internal interface RealKaliumPresenceRuntime {
         status: UserAvailabilityStatus,
     ): PresenceStepResult<Unit>
 
+    fun close() {
+        shutdown()
+    }
+
     fun shutdown()
 }
 
@@ -87,6 +92,7 @@ internal enum class PresenceFailureCategory {
 
 internal class SdkKaliumPresenceRuntime(
     private val environment: Map<String, String>,
+    private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
 ) : RealKaliumPresenceRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
@@ -94,7 +100,7 @@ internal class SdkKaliumPresenceRuntime(
         lazy {
             CoreLogic(
                 rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
-                kaliumConfigs = kaliumCliConfigs(),
+                kaliumConfigs = kaliumCliConfigs(cliMode),
                 userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}",
             )
         }
@@ -107,8 +113,10 @@ internal class SdkKaliumPresenceRuntime(
 
         return runBlocking {
             try {
-                coreLogic.sessionScope(qualifiedId) {
-                    syncExecutor.request { waitUntilLiveOrFailure() }
+                if (!cliMode.disableSessionSyncWait) {
+                    coreLogic.sessionScope(qualifiedId) {
+                        syncExecutor.request { waitUntilLiveOrFailure() }
+                    }
                 }
                 activeSessionUserIds += qualifiedId
                 PresenceStepResult.Success(

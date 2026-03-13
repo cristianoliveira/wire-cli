@@ -18,6 +18,7 @@ import com.wire.kalium.logic.feature.client.RegisterClientResult
 import com.wire.kalium.logic.feature.server.GetServerConfigResult
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
+import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 
 internal class RealKaliumAuthClient(
@@ -126,6 +127,10 @@ internal interface RealKaliumAuthRuntime {
 
     fun logout(session: AuthSession): AuthStepResult<Unit>
 
+    fun close() {
+        shutdown()
+    }
+
     fun shutdown()
 }
 
@@ -184,6 +189,7 @@ internal enum class AuthFailureCategory {
 
 internal class SdkKaliumAuthRuntime(
     private val environment: Map<String, String>,
+    private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
 ) : RealKaliumAuthRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
@@ -191,7 +197,7 @@ internal class SdkKaliumAuthRuntime(
         lazy {
             CoreLogic(
                 rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
-                kaliumConfigs = kaliumCliConfigs(),
+                kaliumConfigs = kaliumCliConfigs(cliMode),
                 userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}",
             )
         }

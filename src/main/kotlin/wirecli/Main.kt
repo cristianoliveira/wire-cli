@@ -18,13 +18,13 @@ fun main(args: Array<String>) {
             .subcommands(
                 LoginCommand(runtime.authSessionService),
                 LogoutCommand(runtime.authSessionService),
-                ProfileCommand(runtime.profileService),
-                PresenceCommand(runtime.presenceService),
+                ProfileCommand { runtime.profileService },
+                PresenceCommand { runtime.presenceService },
             )
             .main(args)
         completed = true
     } finally {
-        runCatching { runtime.shutdown() }
+        runCatching { runtime.close() }
 
         if (completed) {
             exitProcess(0)

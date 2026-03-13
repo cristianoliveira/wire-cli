@@ -425,7 +425,7 @@ private fun DeviceStepResult.Failure.toDeviceFailure(): DeviceListResult.Failure
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.DEVICE_NOT_FOUND
+            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
@@ -447,7 +447,7 @@ private fun DeviceStepResult.Failure.toDeviceDetailFailure(): DeviceDetailResult
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.DEVICE_NOT_FOUND
+            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
@@ -469,7 +469,7 @@ private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.DEVICE_NOT_FOUND
+            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 

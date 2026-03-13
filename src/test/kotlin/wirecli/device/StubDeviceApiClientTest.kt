@@ -55,7 +55,7 @@ class StubDeviceApiClientTest {
 
         val failure = assertIs<DeviceListResult.Failure>(result)
         assertEquals(DeviceMessages.DEVICE_NOT_FOUND, failure.message)
-        assertEquals(DeviceExitCodes.DEVICE_NOT_FOUND, failure.exitCode)
+        assertEquals(DeviceExitCodes.NOT_FOUND, failure.exitCode)
     }
 
     @Test
@@ -100,7 +100,7 @@ class StubDeviceApiClientTest {
 
         val failure = assertIs<DeviceDetailResult.Failure>(result)
         assertEquals(DeviceMessages.DEVICE_NOT_FOUND, failure.message)
-        assertEquals(DeviceExitCodes.DEVICE_NOT_FOUND, failure.exitCode)
+        assertEquals(DeviceExitCodes.NOT_FOUND, failure.exitCode)
     }
 
     @Test
@@ -111,7 +111,7 @@ class StubDeviceApiClientTest {
 
         val failure = assertIs<DeviceDetailResult.Failure>(result)
         assertEquals(DeviceMessages.DEVICE_NOT_FOUND, failure.message)
-        assertEquals(DeviceExitCodes.DEVICE_NOT_FOUND, failure.exitCode)
+        assertEquals(DeviceExitCodes.NOT_FOUND, failure.exitCode)
     }
 
     @Test
@@ -154,7 +154,7 @@ class StubDeviceApiClientTest {
 
         val failure = assertIs<DeviceDeleteResult.Failure>(result)
         assertEquals(DeviceMessages.DEVICE_NOT_FOUND, failure.message)
-        assertEquals(DeviceExitCodes.DEVICE_NOT_FOUND, failure.exitCode)
+        assertEquals(DeviceExitCodes.NOT_FOUND, failure.exitCode)
     }
 
     @Test

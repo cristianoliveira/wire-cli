@@ -115,3 +115,84 @@ Outcome: stronger support and SRE-style workflows.
 - `search`: global with sort/output modes
 - `backup`: create/restore/status
 - `convo/groups`: create/manage/membership
+
+## GitHub Benchmark Expansion (Slack/Discord)
+
+We reviewed mature Slack/Discord tools on GitHub to expand this plan with proven CLI patterns.
+
+### Representative repos reviewed
+
+- Slack: `slackapi/slack-cli`, `slackapi/python-slack-sdk`, `slackapi/node-slack-sdk`, `slack-go/slack`, `slackapi/slack-github-action`, `rockymadden/slack-cli`.
+- Discord: `discordjs/discord.js`, `Rapptz/discord.py`, `bwmarrin/discordgo`, `serenity-rs/serenity`, `42wim/matterbridge`, `jackwener/discord-cli`.
+
+### Cross-platform features to add to wire-cli
+
+11. **Global structured output modes (`--output human|json|yaml`)**
+    - Why: scriptability and agent compatibility; common in mature tooling.
+    - Complexity: **M**.
+
+12. **Pagination contract (`--limit`, `--cursor`, `--all`)**
+    - Why: predictable large-list behavior and resumable data fetches.
+    - Complexity: **M**.
+
+13. **Retry/rate-limit controls (`--retry`, backoff metadata in output)**
+    - Why: reliable automation under API pressure.
+    - Complexity: **M**.
+
+14. **Safe mutation rails (`--dry-run`, `--yes`, explicit confirmations)**
+    - Why: prevents destructive mistakes in CI and scripts.
+    - Complexity: **M**.
+
+15. **Idempotency for mutating operations (`--idempotency-key`)**
+    - Why: avoids duplicate side effects on retries/timeouts.
+    - Complexity: **M/L**.
+
+16. **Audit/reason metadata (`--reason`) for admin actions**
+    - Why: traceable operational changes and better handoffs.
+    - Complexity: **S/M**.
+
+17. **Verbose diagnostics (`--verbose`, `--log-level`, redacted `--trace-http`)**
+    - Why: faster troubleshooting without leaking secrets.
+    - Complexity: **M**.
+
+18. **CLI doctor (`wire doctor`) for config/auth/network checks**
+    - Why: shortens incident debugging loops; widely proven pattern.
+    - Complexity: **M**.
+
+19. **Payload file/template support (`--payload-file`)**
+    - Why: easier CI integration for rich structured operations.
+    - Complexity: **S/M**.
+
+20. **Uniform machine-readable error envelope + stable exit taxonomy**
+    - Why: deterministic automation and easier alerting.
+    - Complexity: **M**.
+
+### Updated prioritization from benchmark
+
+#### Now
+
+- `login` hardening (secure input + 2FA)
+- `sessions` + `auth diagnose`
+- `--output` contract + error envelope
+- `wire doctor`
+- `--dry-run` / `--yes`
+
+#### Next
+
+- pagination + search windows
+- retry/rate-limit controls
+- `client` + `sync` diagnostics
+- `--reason` and payload-file support
+
+#### Later
+
+- idempotency keys for all writes
+- backup/restore suite
+- conversation/group operations
+
+### Key cautions from Slack/Discord ecosystems
+
+- Do not make interactive prompts mandatory for automation paths.
+- Do not change JSON schemas between commands without versioning.
+- Do not hide retries/rate-limit behavior; expose metadata.
+- Do not rely on ambiguous human-readable identifiers when stable IDs exist.

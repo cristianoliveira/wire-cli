@@ -256,8 +256,8 @@ run_wire_with_stdin() {
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
-@test "Given unsupported backend selector, when login runs, then stub lane remains deterministic" {
-  export WIRE_BACKEND="not-a-backend"
+@test "Given explicit stub backend selector, when login runs, then stub lane remains deterministic" {
+  export WIRE_BACKEND="stub"
   export WIRE_STUB_MODE="login_ok"
 
   run_wire login --email "jane@example.com" --password "correct-horse"

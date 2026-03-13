@@ -11,7 +11,7 @@ setup_wire_test_env() {
 	export WIRE_SESSION_FILE="${XDG_CONFIG_HOME}/wire/session.json"
 
 	# Keep test processes isolated from inherited shell state.
-	unset WIRE_BACKEND
+	export WIRE_BACKEND="stub"
 	unset WIRE_STUB_MODE
 	unset WIRE_REAL_EMAIL
 	unset WIRE_REAL_PASSWORD

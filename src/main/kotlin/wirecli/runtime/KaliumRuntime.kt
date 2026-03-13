@@ -34,19 +34,21 @@ interface KaliumRuntime {
 object KaliumRuntimeBootstrap {
     // Supported selector values: stub | real
     const val ENV_BACKEND_SELECTOR = "WIRE_BACKEND"
-    const val PROPERTY_BACKEND_SELECTOR = "wire.backend"
 
     fun create(): KaliumRuntime {
         val environment = System.getenv()
         val backend =
             RuntimeBackendSelector.resolve(
-                configBackend = System.getProperty(PROPERTY_BACKEND_SELECTOR),
                 environmentBackend = environment[ENV_BACKEND_SELECTOR],
             )
         return DefaultKaliumRuntime(
             environment = environment,
             backendFactory = backend.factory,
         )
+    }
+
+    internal fun resolveBackendForTests(environmentBackend: String?): String {
+        return RuntimeBackendSelector.resolve(environmentBackend).name
     }
 }
 
@@ -95,15 +97,11 @@ private enum class RuntimeBackendSelector(val factory: RuntimeBackendFactory) {
     ;
 
     companion object {
-        // Deterministic default for local and test execution.
-        private val default = STUB
+        // Real backend is the default; stub mode requires explicit env override.
+        private val default = REAL
 
-        fun resolve(
-            configBackend: String?,
-            environmentBackend: String?,
-        ): RuntimeBackendSelector {
-            return parse(configBackend)
-                ?: parse(environmentBackend)
+        fun resolve(environmentBackend: String?): RuntimeBackendSelector {
+            return parse(environmentBackend)
                 ?: default
         }
 

@@ -49,15 +49,19 @@ Presence values are normalized; unsupported or unavailable backend values are su
 
 ## Backend Modes
 
-- Default mode: local/dev stub backend (no extra setup required)
-- Real backend mode: set `WIRE_BACKEND=real`
+- Default mode: real Wire backend
+- Deterministic stub/fake mode: set `WIRE_BACKEND=stub`
 
 Example:
 
 ```bash
-WIRE_BACKEND=real wire login --email jane@example.com
-WIRE_BACKEND=real wire profile
-WIRE_BACKEND=real wire presence get
+wire login --email jane@example.com
+wire profile
+wire presence get
+
+WIRE_BACKEND=stub wire login --email jane@example.com
+WIRE_BACKEND=stub wire profile
+WIRE_BACKEND=stub wire presence get
 ```
 
 ## Testing

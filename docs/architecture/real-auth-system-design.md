@@ -228,11 +228,11 @@ Current state note:
 
 ### Execution Lanes
 
-- Stub deterministic lane (default in local + CI):
+- Stub deterministic lane (explicit `WIRE_BACKEND=stub` in local + CI):
   - Uses `WIRE_STUB_MODE` branches for repeatable assertions.
   - Verifies message fragments and exact exit codes for auth/profile/presence contracts.
-- Real-auth smoke lane (credential-gated):
-  - Requires `WIRE_BACKEND=real`, `WIRE_REAL_EMAIL`, and `WIRE_REAL_PASSWORD`.
+- Real-auth smoke lane (default backend, credential-gated):
+  - Requires `WIRE_REAL_EMAIL` and `WIRE_REAL_PASSWORD`.
   - Uses `--password-stdin` for login to avoid process-arg secret exposure.
   - Intended for live contract validation, not deterministic fixture assertions.
 

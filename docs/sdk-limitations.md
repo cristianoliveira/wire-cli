@@ -34,7 +34,7 @@ This document summarizes the current Kalium constraints and gaps that affect `wi
 
 - **API-version gates matter**: feature availability depends on backend/API version support, so command gating is required.
 - **Composite-build coupling**: `wire-cli` tracks local Kalium composite build, which can introduce branch-drift behavior differences.
-- **Stub-vs-real runtime gap**: stub default can hide real-backend issues unless real-backend validation is mandatory.
+- **Stub-vs-real runtime gap**: optional stub mode can hide real-backend issues unless real-backend validation is mandatory.
 - **Platform limits**: calling/media paths remain riskier on current CLI JVM setup.
 
 ## Practical Impact on wire-cli Planning

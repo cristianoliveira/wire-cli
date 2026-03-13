@@ -51,6 +51,6 @@ Acceptance criteria:
 
 ## Test lane notes
 
-- Stub lane (deterministic): default backend, no `WIRE_BACKEND` env var required.
-- Real-auth lane (live): `WIRE_BACKEND=real` with `WIRE_REAL_EMAIL`/`WIRE_REAL_PASSWORD`.
+- Real-auth lane (live, default): no backend selector required; provide valid credentials.
+- Stub lane (deterministic): set `WIRE_BACKEND=stub` and use `WIRE_STUB_MODE` toggles.
 - Real-auth smoke should use `--password-stdin` to avoid credential exposure in process args.

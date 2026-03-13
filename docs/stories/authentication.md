@@ -31,3 +31,26 @@ Acceptance criteria:
 - Given authentication fails, when the command returns, then I see a concise, actionable error message.
 - Given authentication fails, when the command exits, then it returns a non-zero status code.
 - Given auth data is missing or expired, when a protected command runs, then it asks me to log in again.
+
+## Current CLI Contract (Auth)
+
+### `wire login`
+
+- Required option: `--email <email>`
+- Password input options:
+  - Preferred: interactive prompt (default when no password flags are provided)
+  - Preferred for automation: `--password-stdin`
+  - Supported with warning: `--password <secret>` (deprecated due to shell/process exposure risk)
+- Optional server override: `--server <staging|production|invite-link-or-config-url>`
+- Validation guardrail: using `--password` with `--password-stdin` returns exit code `14`.
+
+### `wire logout`
+
+- On success prints `Logged out.` and clears the local active session marker.
+- If no valid session exists, returns unauthorized guidance and exit code `11`.
+
+## Test lane notes
+
+- Stub lane (deterministic): default backend, no `WIRE_BACKEND` env var required.
+- Real-auth lane (live): `WIRE_BACKEND=real` with `WIRE_REAL_EMAIL`/`WIRE_REAL_PASSWORD`.
+- Real-auth smoke should use `--password-stdin` to avoid credential exposure in process args.

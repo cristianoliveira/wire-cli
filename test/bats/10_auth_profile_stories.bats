@@ -23,6 +23,12 @@ write_session_inventory() {
   printf '%s\n' "$@" >"${file_path}"
 }
 
+run_wire_with_stdin() {
+  local stdin_payload="$1"
+  shift
+  run "${WIRE_BIN}" "$@" <<<"${stdin_payload}"
+}
+
 @test "Given no session, when profile runs, then access is denied" {
   run_wire profile
   assert_status 11
@@ -53,16 +59,16 @@ write_session_inventory() {
 
 @test "Given password from stdin, when login runs, then session is persisted without password arg" {
   export WIRE_STUB_MODE="login_ok"
-  run bash -lc "printf '%s\\n' 'correct-horse' | \"${WIRE_BIN}\" login --email 'jane@example.com' --password-stdin"
+  run_wire_with_stdin "correct-horse" login --email "jane@example.com" --password-stdin
   assert_status 0
-  [[ "${output}" == *"Login successful"* ]]
+  [ "${output}" = "Login successful." ]
   [[ "${output}" != *"deprecated"* ]]
   [ -f "${WIRE_SESSION_FILE}" ]
 }
 
 @test "Given incompatible password flags, when login runs, then validation error is returned" {
   export WIRE_STUB_MODE="login_ok"
-  run bash -lc "printf '%s\\n' 'correct-horse' | \"${WIRE_BIN}\" login --email 'jane@example.com' --password 'correct-horse' --password-stdin"
+  run_wire_with_stdin "correct-horse" login --email "jane@example.com" --password "correct-horse" --password-stdin
   assert_status 14
   [[ "${output}" == *"Use either --password or --password-stdin"* ]]
   [ ! -f "${WIRE_SESSION_FILE}" ]
@@ -82,7 +88,7 @@ write_session_inventory() {
   export WIRE_STUB_MODE="login_ok"
   run_wire login --email "jane@example.com" --password "correct-horse"
   assert_status 0
-  [[ "${output}" == *"Login successful"* ]]
+  [[ "${output}" == *"Login successful."* ]]
   [ -f "${WIRE_SESSION_FILE}" ]
 }
 
@@ -139,7 +145,8 @@ write_session_inventory() {
   run_wire profile
   assert_status 0
   [[ "${output}" == *"Handle: user-amy"* ]]
-  [[ "$(head -n 1 "${WIRE_SESSION_FILE}")" = "wire-cli-session-store:1" ]]
+  read -r first_line <"${WIRE_SESSION_FILE}"
+  [ "${first_line}" = "wire-cli-session-store:1" ]
 }
 
 @test "Given unsupported session schema version, when profile runs, then actionable guidance is shown" {
@@ -241,12 +248,22 @@ write_session_inventory() {
   export WIRE_STUB_MODE="logout_ok"
   run_wire logout
   assert_status 0
-  [[ "${output}" == *"Logged out"* ]]
+  [ "${output}" = "Logged out." ]
   [ ! -f "${WIRE_SESSION_FILE}" ]
 
   run_wire profile
   assert_status 11
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
+}
+
+@test "Given unsupported backend selector, when login runs, then stub lane remains deterministic" {
+  export WIRE_BACKEND="not-a-backend"
+  export WIRE_STUB_MODE="login_ok"
+
+  run_wire login --email "jane@example.com" --password "correct-horse"
+  assert_status 0
+  [[ "${output}" == *"Login successful."* ]]
+  [ -f "${WIRE_SESSION_FILE}" ]
 }
 
 @test "Given real backend credentials, when login profile logout run, then live Kalium path succeeds" {
@@ -255,14 +272,13 @@ write_session_inventory() {
   fi
 
   export WIRE_BACKEND="real"
-
-  cmd=(login --email "${WIRE_REAL_EMAIL}" --password "${WIRE_REAL_PASSWORD}")
   if [[ -n "${WIRE_REAL_SERVER:-}" ]]; then
-    cmd+=(--server "${WIRE_REAL_SERVER}")
+    run_wire_with_stdin "${WIRE_REAL_PASSWORD}" login --email "${WIRE_REAL_EMAIL}" --password-stdin --server "${WIRE_REAL_SERVER}"
+  else
+    run_wire_with_stdin "${WIRE_REAL_PASSWORD}" login --email "${WIRE_REAL_EMAIL}" --password-stdin
   fi
-  run_wire "${cmd[@]}"
   assert_status 0
-  [[ "${output}" == *"Login successful"* ]]
+  [[ "${output}" == *"Login successful."* ]]
   [ -f "${WIRE_SESSION_FILE}" ]
 
   run_wire profile
@@ -278,6 +294,6 @@ write_session_inventory() {
 
   run_wire logout
   assert_status 0
-  [[ "${output}" == *"Logged out"* ]]
+  [ "${output}" = "Logged out." ]
   [ ! -f "${WIRE_SESSION_FILE}" ]
 }

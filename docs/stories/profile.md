@@ -22,3 +22,14 @@ As a user, I want profile access to require authentication so unauthorized reque
 Acceptance criteria:
 - Given I am not authenticated, when I run the profile command, then access is denied and I am prompted to log in.
 - Given my session is invalid or expired, when I run the profile command, then I receive an unauthorized response and recovery guidance.
+
+## Current CLI Contract (Profile)
+
+- Success output is deterministic and line-oriented:
+  - `Name: <value|->`
+  - `Email: <value|->`
+  - `Handle: <value|->`
+  - `Presence: <online|busy|away|offline|unknown>`
+- Missing optional values render as `-`.
+- Unauthorized/missing sessions return exit code `11` with re-auth guidance.
+- Network and server failures map to exit codes `12` and `13` with actionable retry messages.

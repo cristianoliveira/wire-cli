@@ -185,10 +185,13 @@ object ExitCodes {
 ### Credential Input
 - Default to hidden interactive prompt for password.
 - Support `--password-stdin` for automation.
-- Avoid plain `--password` as primary path.
+- Keep plain `--password` only as compatibility fallback with warning output.
 
 Current state note:
-- Current implementation still supports `--password` directly; treat secure input modes as required hardening before production real-auth default.
+- Current implementation supports all three paths:
+  - interactive prompt (default)
+  - `--password-stdin` (preferred non-interactive path)
+  - `--password` (deprecated compatibility path)
 
 ### Secret Handling
 - Never log password/token/session secrets.
@@ -222,6 +225,16 @@ Current state note:
   - logout invalidation,
   - unauthorized profile behavior.
 - Isolated temp HOME/session per test.
+
+### Execution Lanes
+
+- Stub deterministic lane (default in local + CI):
+  - Uses `WIRE_STUB_MODE` branches for repeatable assertions.
+  - Verifies message fragments and exact exit codes for auth/profile/presence contracts.
+- Real-auth smoke lane (credential-gated):
+  - Requires `WIRE_BACKEND=real`, `WIRE_REAL_EMAIL`, and `WIRE_REAL_PASSWORD`.
+  - Uses `--password-stdin` for login to avoid process-arg secret exposure.
+  - Intended for live contract validation, not deterministic fixture assertions.
 
 ## Rollout Plan
 

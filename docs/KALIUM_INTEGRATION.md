@@ -22,8 +22,10 @@ nix develop -c gradle check
 ### Run with real SDK backend
 
 ```bash
-WIRE_BACKEND=real nix develop -c gradle run --args="login --email <email> --password <password>"
+nix develop -c gradle run --args="login --email <email> --password <password>"
 ```
+
+Real backend is the runtime default. Use `WIRE_BACKEND=stub` only when you need deterministic fake behavior.
 
 ### Override Kalium path
 
@@ -52,7 +54,7 @@ includeBuild(kaliumDirFile) {
 ### build.gradle.kts
 
 - Depends on `com.wire:logic`, resolved by the local composite build
-- Runtime backend switching (`stub` vs `real`) is still controlled by `WIRE_BACKEND`
+- Runtime backend selection defaults to `real`; set `WIRE_BACKEND=stub` for deterministic fake mode
 
 ## Architecture Notes
 

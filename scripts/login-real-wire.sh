@@ -41,8 +41,8 @@ if [[ -n "${WIRE_SERVER:-}" ]]; then
 fi
 
 echo "[info] Attempting login against real Wire backend..."
-if printf '%s\n' "${WIRE_PASSWORD}" | WIRE_BACKEND=real "${wire_bin}" login --email "${WIRE_EMAIL}" --password-stdin "${server_args[@]}"; then
-	echo "[ok] Login succeeded. You can now run: WIRE_BACKEND=real ${wire_bin} profile"
+if printf '%s\n' "${WIRE_PASSWORD}" | "${wire_bin}" login --email "${WIRE_EMAIL}" --password-stdin "${server_args[@]}"; then
+	echo "[ok] Login succeeded. You can now run: ${wire_bin} profile"
 else
 	exit_code=$?
 	echo "[error] Login failed (exit ${exit_code}). Check credentials, backend reachability, or WIRE_SERVER." >&2

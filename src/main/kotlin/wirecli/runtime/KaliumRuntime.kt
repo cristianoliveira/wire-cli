@@ -151,8 +151,8 @@ private enum class RuntimeBackendSelector(val factory: RuntimeBackendFactory) {
     ;
 
     companion object {
-        // Real backend is the default; stub mode requires explicit env override.
-        private val default = REAL
+        // Stub backend is the default; real mode requires explicit env override.
+        private val default = STUB
 
         fun resolve(environmentBackend: String?): RuntimeBackendSelector {
             return parse(environmentBackend)

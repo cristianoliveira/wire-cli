@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 
 internal class RealKaliumProfileApiClient(
@@ -41,6 +42,10 @@ internal interface RealKaliumProfileRuntime {
 
     fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser>
 
+    fun close() {
+        shutdown()
+    }
+
     fun shutdown()
 }
 
@@ -70,6 +75,7 @@ internal enum class ProfileFailureCategory {
 
 internal class SdkKaliumProfileRuntime(
     private val environment: Map<String, String>,
+    private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
 ) : RealKaliumProfileRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
@@ -77,7 +83,7 @@ internal class SdkKaliumProfileRuntime(
         lazy {
             CoreLogic(
                 rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
-                kaliumConfigs = kaliumCliConfigs(),
+                kaliumConfigs = kaliumCliConfigs(cliMode),
                 userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}",
             )
         }
@@ -91,8 +97,10 @@ internal class SdkKaliumProfileRuntime(
 
         return runBlocking {
             try {
-                coreLogic.sessionScope(qualifiedId) {
-                    syncExecutor.request { waitUntilLiveOrFailure() }
+                if (!cliMode.disableSessionSyncWait) {
+                    coreLogic.sessionScope(qualifiedId) {
+                        syncExecutor.request { waitUntilLiveOrFailure() }
+                    }
                 }
                 ProfileStepResult.Success(
                     KaliumProfileSessionScope(

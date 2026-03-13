@@ -23,12 +23,16 @@ import wirecli.profile.SessionBackedProfileService
 import wirecli.profile.StubProfileApiClient
 import java.util.Locale
 
-interface KaliumRuntime {
+interface KaliumRuntime : AutoCloseable {
     val authSessionService: AuthSessionService
     val profileService: ProfileService
     val presenceService: PresenceService
 
     fun shutdown()
+
+    override fun close() {
+        shutdown()
+    }
 }
 
 object KaliumRuntimeBootstrap {
@@ -153,9 +157,9 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             override val presenceApiClient: PresenceApiClient = RealKaliumPresenceApiClient(presenceRuntime)
 
             override fun shutdown() {
-                authRuntime.shutdown()
-                profileRuntime.shutdown()
-                presenceRuntime.shutdown()
+                authRuntime.close()
+                profileRuntime.close()
+                presenceRuntime.close()
             }
         }
     }

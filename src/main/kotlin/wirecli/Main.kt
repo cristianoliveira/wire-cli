@@ -24,7 +24,7 @@ fun main(args: Array<String>) {
             .main(args)
         completed = true
     } finally {
-        runCatching { runtime.shutdown() }
+        runCatching { runtime.close() }
 
         if (completed) {
             exitProcess(0)

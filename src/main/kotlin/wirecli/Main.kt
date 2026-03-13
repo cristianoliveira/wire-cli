@@ -7,6 +7,7 @@ import wirecli.commands.LogoutCommand
 import wirecli.commands.PresenceCommand
 import wirecli.commands.ProfileCommand
 import wirecli.commands.RootCommand
+import wirecli.commands.SyncCommand
 import wirecli.runtime.KaliumRuntimeBootstrap
 import kotlin.system.exitProcess
 
@@ -22,6 +23,7 @@ fun main(args: Array<String>) {
                 ProfileCommand { runtime.profileService },
                 PresenceCommand { runtime.presenceService },
                 ClientCommand { runtime.deviceService },
+                SyncCommand { runtime.syncService },
             )
             .main(args)
         completed = true

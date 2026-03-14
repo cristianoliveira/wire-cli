@@ -7,7 +7,6 @@ import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
 import wirecli.conversation.ConversationFormatter
 import wirecli.conversation.ConversationService
-import wirecli.conversation.ConversationType
 import wirecli.conversation.ListConversationsResult
 
 class ConversationListCommand(

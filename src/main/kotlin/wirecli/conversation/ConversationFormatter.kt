@@ -83,7 +83,8 @@ class ConversationFormatter {
             |"memberCount":$memberCount,
             |"createdAt":"$createdAt",
             |"updatedAt":"$updatedAt"
-            |}""".trimMargin().replace("\n", "")
+            |}
+            """.trimMargin().replace("\n", "")
     }
 
     private fun escapeJson(value: String): String {

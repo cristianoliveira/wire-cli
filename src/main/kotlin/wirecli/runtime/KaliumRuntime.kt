@@ -238,6 +238,7 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             override val presenceApiClient: PresenceApiClient by lazy { RealKaliumPresenceApiClient(presenceRuntime) }
             override val deviceApiClient: DeviceApiClient by lazy { RealKaliumDeviceApiClient(deviceRuntime) }
             override val syncApiClient: SyncApiClient by lazy { RealKaliumSyncApiClient(syncRuntime) }
+
             // TODO: wire-cli-q51 (D3) will provide real implementation
             override val conversationApiClient: ConversationApiClient by lazy {
                 StubConversationApiClient(environment)

@@ -20,6 +20,8 @@ object AuthMessages {
 
     fun invalidCredentials(): String = "Invalid email or password. Verify credentials and try again."
 
+    fun passwordRequired(): String = "Password confirmation required."
+
     fun networkFailure(action: String): String = "$action failed: network is unreachable. Check your connection and retry."
 
     fun authServiceUnavailable(): String = "Authentication service is unavailable. Retry later or check server settings."

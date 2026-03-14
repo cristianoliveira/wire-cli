@@ -348,6 +348,38 @@ class RealKaliumDeviceApiClientTest {
         assertEquals(ExitCodes.UNKNOWN_ERROR, failure.exitCode)
     }
 
+    @Test
+    fun `maps password auth required failure for deleteDevice to password required semantics`() {
+        val runtime =
+            FakeRuntime(
+                sessionScopeResult = DeviceStepResult.Success(KaliumDeviceSessionScope(session.userId, session.server)),
+                deleteDeviceResult = DeviceStepResult.Failure(DeviceFailureCategory.PASSWORD_REQUIRED),
+            )
+        val client = RealKaliumDeviceApiClient(runtime)
+
+        val result = client.deleteDevice(session, "device-001")
+
+        val failure = assertIs<DeviceDeleteResult.Failure>(result)
+        assertEquals(DeviceMessages.PASSWORD_REQUIRED, failure.message)
+        assertEquals(DeviceExitCodes.PASSWORD_REQUIRED, failure.exitCode)
+    }
+
+    @Test
+    fun `maps invalid credentials failure for deleteDevice to auth failed semantics`() {
+        val runtime =
+            FakeRuntime(
+                sessionScopeResult = DeviceStepResult.Success(KaliumDeviceSessionScope(session.userId, session.server)),
+                deleteDeviceResult = DeviceStepResult.Failure(DeviceFailureCategory.INVALID_CREDENTIALS),
+            )
+        val client = RealKaliumDeviceApiClient(runtime)
+
+        val result = client.deleteDevice(session, "device-001")
+
+        val failure = assertIs<DeviceDeleteResult.Failure>(result)
+        assertEquals(DeviceMessages.INVALID_CREDENTIALS, failure.message)
+        assertEquals(ExitCodes.AUTH_FAILED, failure.exitCode)
+    }
+
     private class FakeRuntime(
         private val sessionScopeResult: DeviceStepResult<KaliumDeviceSessionScope>,
         private val listDevicesResult: DeviceStepResult<List<Device>> = DeviceStepResult.Success(emptyList()),

@@ -64,5 +64,6 @@ object ExitCodes {
     const val NETWORK_ERROR = 12
     const val SERVER_ERROR = 13
     const val VALIDATION_ERROR = 14
+    const val PASSWORD_REQUIRED = 15
     const val UNKNOWN_ERROR = 1
 }

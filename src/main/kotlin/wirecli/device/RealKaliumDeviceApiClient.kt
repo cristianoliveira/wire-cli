@@ -162,6 +162,8 @@ internal enum class DeviceFailureCategory {
     NETWORK,
     SERVER,
     UNAUTHORIZED,
+    PASSWORD_REQUIRED,
+    INVALID_CREDENTIALS,
     DEVICE_NOT_FOUND,
     UNKNOWN,
 }
@@ -338,10 +340,10 @@ internal class SdkKaliumDeviceRuntime(
                         DeviceStepResult.Success(Unit)
 
                     is DeleteClientResult.Failure.InvalidCredentials ->
-                        DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
+                        DeviceStepResult.Failure(DeviceFailureCategory.INVALID_CREDENTIALS)
 
                     is DeleteClientResult.Failure.PasswordAuthRequired ->
-                        DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
+                        DeviceStepResult.Failure(DeviceFailureCategory.PASSWORD_REQUIRED)
 
                     is DeleteClientResult.Failure.Generic ->
                         DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
@@ -437,6 +439,8 @@ private fun DeviceStepResult.Failure.toDeviceFailure(): DeviceListResult.Failure
             DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
             DeviceFailureCategory.SERVER -> DeviceMessages.SERVER_FAILURE
             DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
+            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> DeviceMessages.UNKNOWN_FAILURE
         }
@@ -446,6 +450,8 @@ private fun DeviceStepResult.Failure.toDeviceFailure(): DeviceListResult.Failure
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
+            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
@@ -459,6 +465,8 @@ private fun DeviceStepResult.Failure.toDeviceDetailFailure(): DeviceDetailResult
             DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
             DeviceFailureCategory.SERVER -> DeviceMessages.SERVER_FAILURE
             DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
+            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> DeviceMessages.UNKNOWN_FAILURE
         }
@@ -468,6 +476,8 @@ private fun DeviceStepResult.Failure.toDeviceDetailFailure(): DeviceDetailResult
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
+            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
@@ -481,6 +491,8 @@ private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult
             DeviceFailureCategory.NETWORK -> DeviceMessages.DELETE_NETWORK_FAILURE
             DeviceFailureCategory.SERVER -> DeviceMessages.DELETE_SERVER_FAILURE
             DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
+            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> DeviceMessages.DELETE_UNKNOWN_FAILURE
         }
@@ -490,6 +502,8 @@ private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
+            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
@@ -503,6 +517,8 @@ private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): DeviceVerifyResult
             DeviceFailureCategory.NETWORK -> DeviceMessages.VERIFY_NETWORK_FAILURE
             DeviceFailureCategory.SERVER -> DeviceMessages.VERIFY_SERVER_FAILURE
             DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
+            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> DeviceMessages.VERIFY_UNKNOWN_FAILURE
         }
@@ -512,6 +528,8 @@ private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): DeviceVerifyResult
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
+            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }

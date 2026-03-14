@@ -110,6 +110,7 @@ interface DeviceService {
 object DeviceExitCodes {
     const val OK = 0
     const val UNAUTHORIZED = 11
+    const val PASSWORD_REQUIRED = 15
     const val PERMISSION_DENIED = 12
     const val NOT_FOUND = 13
     const val INVALID_INPUT = 14
@@ -121,6 +122,8 @@ internal object DeviceMessages {
     const val SERVER_FAILURE = "Device service is unavailable. Retry later or check server settings."
     const val UNKNOWN_FAILURE = "Device operation failed unexpectedly. Retry and check your setup."
     const val UNAUTHORIZED_FAILURE = "Your session is invalid or expired. Please log in again."
+    const val PASSWORD_REQUIRED = "Password confirmation required to delete device."
+    const val INVALID_CREDENTIALS = "Password incorrect. Device deletion cancelled."
     const val DELETE_NETWORK_FAILURE = "Device deletion failed: network is unreachable. Check your connection and retry."
     const val DELETE_SERVER_FAILURE = "Device deletion could not be completed. Retry later or check server settings."
     const val DELETE_UNKNOWN_FAILURE = "Device deletion failed unexpectedly. Retry and check your setup."

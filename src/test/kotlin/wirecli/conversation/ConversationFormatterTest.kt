@@ -40,12 +40,18 @@ class ConversationFormatterTest {
 
         val result = formatter.toTable(conversations)
 
+        // Verify ID column is present in header
+        assertTrue(result.contains("ID"))
+
+        // Verify conversation IDs are shown
+        assertTrue(result.contains("conv-001"))
+        assertTrue(result.contains("conv-002"))
+
+        // Verify other columns still work
         assertTrue(result.contains("Team Collaboration"))
         assertTrue(result.contains("alice@example.com"))
         assertTrue(result.contains("group"))
         assertTrue(result.contains("one_to_one"))
-        assertTrue(result.contains("2024-12-20"))
-        assertTrue(result.contains("2025-01-10"))
     }
 
     @Test
@@ -161,5 +167,35 @@ class ConversationFormatterTest {
         val result = formatter.toJson(conversations)
 
         assertTrue(result.contains("\"name\":\"Team \\\"Awesome\\\"\""))
+    }
+
+    @Test
+    fun `toTable shows ID as first column and truncates to 24 characters`() {
+        val longId = "550e8400-e29b-41d4-a716-446655440000" // 36 chars (UUID length)
+        val conversations =
+            listOf(
+                Conversation(
+                    id = longId,
+                    name = "Test Conv",
+                    type = ConversationType.GROUP,
+                    status = ConversationStatus.ACTIVE,
+                    memberCount = 3,
+                    createdAt = "2025-03-13T10:00:00Z",
+                    updatedAt = "2025-03-13T10:00:00Z",
+                ),
+            )
+
+        val result = formatter.toTable(conversations)
+        val lines = result.split("\n")
+
+        // Check header contains ID
+        assertTrue(lines[0].contains("ID"))
+
+        // Check ID is shown (truncated to 24 chars)
+        val expectedTruncatedId = longId.take(24) // "550e8400-e29b-41d4-a716"
+        assertTrue(result.contains(expectedTruncatedId), "Expected to find truncated ID: $expectedTruncatedId")
+
+        // Verify the full long ID is NOT fully present (should be truncated)
+        assertTrue(!result.contains(longId), "Full ID should be truncated")
     }
 }

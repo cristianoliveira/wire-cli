@@ -14,9 +14,29 @@ import wirecli.auth.ExitCodes
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 
+/**
+ * Real Kalium-backed implementation of the device API client.
+ *
+ * Delegates device management operations to the Kalium SDK through [RealKaliumDeviceRuntime],
+ * handling session resolution, API calls, and error mapping.
+ *
+ * @invariant runtime is never null and properly initialized
+ * @invariant All public methods return non-null Result types
+ */
 internal class RealKaliumDeviceApiClient(
     private val runtime: RealKaliumDeviceRuntime,
 ) : DeviceApiClient {
+    /**
+     * Lists all devices registered to the current user.
+     *
+     * @param session The authenticated session for the current user
+     * @return DeviceListResult with list of devices or error details
+     * @throws Nothing - All errors wrapped in DeviceListResult
+     *
+     * @pre session must be valid and authenticated
+     * @post Result is either Success with Device list or Failure with error code
+     * @post Success result contains zero or more Device objects
+     */
     override fun listDevices(session: AuthSession): DeviceListResult {
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
@@ -34,6 +54,18 @@ internal class RealKaliumDeviceApiClient(
         }
     }
 
+    /**
+     * Lists all devices registered to a specific user.
+     *
+     * @param session The authenticated session (must have permission to view target user)
+     * @param userId The qualified user ID to fetch devices for (format: value@domain)
+     * @return DeviceListResult with list of user's devices or error details
+     * @throws Nothing - All errors wrapped in DeviceListResult
+     *
+     * @pre session must be valid and authenticated
+     * @pre userId must be in qualified format (value@domain)
+     * @post Result is either Success with Device list or Failure with error code
+     */
     override fun listDevicesForUser(
         session: AuthSession,
         userId: String,
@@ -54,6 +86,19 @@ internal class RealKaliumDeviceApiClient(
         }
     }
 
+    /**
+     * Retrieves detailed information for a specific device.
+     *
+     * @param session The authenticated session
+     * @param deviceId The ID of the device to fetch details for
+     * @return DeviceDetailResult with device details and key package status or error
+     * @throws Nothing - All errors wrapped in DeviceDetailResult
+     *
+     * @pre session must be valid and authenticated
+     * @pre deviceId must reference a device owned by session user or publicly queryable
+     * @post Result is either Success with Device details or Failure with error code
+     * @post Success result contains device with fingerprint and type information
+     */
     override fun getDeviceDetail(
         session: AuthSession,
         deviceId: String,
@@ -78,6 +123,21 @@ internal class RealKaliumDeviceApiClient(
         }
     }
 
+    /**
+     * Deletes a device registered to the current user.
+     *
+     * @param session The authenticated session
+     * @param deviceId The ID of the device to delete
+     * @param password Optional password for re-authentication (may be required by server)
+     * @return DeviceDeleteResult with success message or error details
+     * @throws Nothing - All errors wrapped in DeviceDeleteResult
+     *
+     * @pre session must be valid and authenticated
+     * @pre deviceId must reference a device owned by session user
+     * @pre If PASSWORD_REQUIRED, password must match user's current credentials
+     * @post If successful, device is deleted server-side and no longer functional
+     * @post Result indicates success message or specific error requiring action
+     */
     override fun deleteDevice(
         session: AuthSession,
         deviceId: String,
@@ -99,6 +159,18 @@ internal class RealKaliumDeviceApiClient(
         }
     }
 
+    /**
+     * Verifies a device by fetching and displaying its fingerprint.
+     *
+     * @param session The authenticated session
+     * @param deviceId The ID of the device to verify
+     * @return DeviceVerifyResult with success message and fingerprint or error details
+     * @throws Nothing - All errors wrapped in DeviceVerifyResult
+     *
+     * @pre session must be valid and authenticated
+     * @pre deviceId must reference a device owned by session user or publicly queryable
+     * @post Result is either Success with device fingerprint or Failure with error code
+     */
     override fun verifyDevice(
         session: AuthSession,
         deviceId: String,
@@ -121,48 +193,158 @@ internal class RealKaliumDeviceApiClient(
     }
 }
 
+/**
+ * Contract for Kalium SDK device runtime operations.
+ *
+ * This interface abstracts Kalium SDK interactions for device management,
+ * enabling testability and separation between CLI and SDK concerns.
+ *
+ * @invariant All methods return non-null DeviceStepResult
+ * @invariant Shutdown must be called to cleanup resources
+ */
 internal interface RealKaliumDeviceRuntime {
+    /**
+     * Resolves the device session scope for the authenticated user.
+     *
+     * @param session The authenticated session
+     * @param isWriteOperation True if operation requires strict sync validation
+     * @return DeviceStepResult with KaliumDeviceSessionScope or Failure
+     * @throws Nothing - All errors wrapped in DeviceStepResult
+     *
+     * @pre session must be valid and authenticated
+     * @post Result is either Success with functional session scope or Failure
+     */
     fun resolveSessionScope(
         session: AuthSession,
         isWriteOperation: Boolean = false,
     ): DeviceStepResult<KaliumDeviceSessionScope>
 
+    /**
+     * Lists all devices registered to the current user.
+     *
+     * @param sessionScope The session context for the authenticated user
+     * @return DeviceStepResult with list of Device objects or Failure
+     * @throws Nothing - All errors wrapped in DeviceStepResult
+     *
+     * @pre sessionScope must represent a valid authenticated user
+     * @post Result is either Success with Device list or Failure with error category
+     */
     fun listDevices(sessionScope: KaliumDeviceSessionScope): DeviceStepResult<List<Device>>
 
+    /**
+     * Lists all devices registered to a specific user.
+     *
+     * @param sessionScope The session context for the authenticated user
+     * @param userId The qualified user ID to list devices for
+     * @return DeviceStepResult with list of Device objects or Failure
+     * @throws Nothing - All errors wrapped in DeviceStepResult
+     *
+     * @pre sessionScope must represent a valid authenticated user
+     * @pre userId must be in qualified format (value@domain)
+     * @post Result is either Success with Device list or Failure
+     */
     fun listDevicesForUser(
         sessionScope: KaliumDeviceSessionScope,
         userId: String,
     ): DeviceStepResult<List<Device>>
 
+    /**
+     * Retrieves detailed information for a specific device.
+     *
+     * @param sessionScope The session context for the authenticated user
+     * @param deviceId The ID of the device to fetch
+     * @return DeviceStepResult with Device or Failure
+     * @throws Nothing - All errors wrapped in DeviceStepResult
+     *
+     * @pre sessionScope must represent a valid authenticated user
+     * @pre deviceId must be non-null and non-empty
+     * @post Result is either Success with Device or Failure with error category
+     */
     fun getDeviceDetail(
         sessionScope: KaliumDeviceSessionScope,
         deviceId: String,
     ): DeviceStepResult<Device>
 
+    /**
+     * Deletes a device from the current user's device list.
+     *
+     * @param sessionScope The session context for the authenticated user
+     * @param deviceId The ID of the device to delete
+     * @param password Optional password for re-authentication
+     * @return DeviceStepResult with Unit on success or Failure
+     * @throws Nothing - All errors wrapped in DeviceStepResult
+     *
+     * @pre sessionScope must represent a valid authenticated user
+     * @pre deviceId must reference a device owned by session user
+     * @pre If PASSWORD_REQUIRED, password must match user's credentials
+     * @post If successful, device is deleted server-side
+     */
     fun deleteDevice(
         sessionScope: KaliumDeviceSessionScope,
         deviceId: String,
         password: String? = null,
     ): DeviceStepResult<Unit>
 
+    /**
+     * Closes the runtime and releases all resources.
+     * Delegates to shutdown() for implementation.
+     */
     fun close() {
         shutdown()
     }
 
+    /**
+     * Shuts down the Kalium runtime, cleaning up resources and active sessions.
+     */
     fun shutdown()
 }
 
+/**
+ * Scoped context for device operations on a specific authenticated user.
+ *
+ * @invariant userId is in qualified format (value@domain)
+ */
 internal data class KaliumDeviceSessionScope(
     val userId: String,
     val server: String?,
 )
 
+/**
+ * Result type for device operation steps (sealed interface).
+ *
+ * Represents either a successful step result with typed value or a failure
+ * with category for error handling.
+ *
+ * @invariant Each operation returns exactly one sealed subtype
+ */
 internal sealed interface DeviceStepResult<out T> {
+    /**
+     * Successful step result with associated value.
+     *
+     * @param value The result value from the successful step
+     */
     data class Success<T>(val value: T) : DeviceStepResult<T>
 
+    /**
+     * Failed step result with error category.
+     *
+     * @param category The category of failure (determines error message and exit code)
+     */
     data class Failure(val category: DeviceFailureCategory) : DeviceStepResult<Nothing>
 }
 
+/**
+ * Enumeration of possible device operation failure categories.
+ *
+ * Each category maps to specific user-facing messages and exit codes:
+ * NETWORK: Network connectivity issues
+ * SERVER: Server errors (5xx, unavailable)
+ * UNAUTHORIZED: Session invalid or expired
+ * PASSWORD_REQUIRED: Device deletion requires password re-entry
+ * INVALID_CREDENTIALS: Password mismatch
+ * DEVICE_NOT_FOUND: Device ID not found
+ * UNKNOWN: Unexpected/unclassifiable errors
+ */
 internal enum class DeviceFailureCategory {
     NETWORK,
     SERVER,
@@ -173,6 +355,16 @@ internal enum class DeviceFailureCategory {
     UNKNOWN,
 }
 
+/**
+ * Kalium SDK-based implementation of the device runtime.
+ *
+ * This class manages CoreLogic initialization and delegates device operations
+ * to the Kalium SDK, handling error mappings and session lifecycle management.
+ *
+ * @invariant coreLogic is lazily initialized and properly shut down
+ * @invariant activeSessionUserIds tracks all open sessions for cleanup
+ * @invariant All methods return non-null DeviceStepResult
+ */
 internal class SdkKaliumDeviceRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
@@ -189,6 +381,18 @@ internal class SdkKaliumDeviceRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
+    /**
+     * Resolves the device session scope for the authenticated user.
+     *
+     * @param session The authenticated session
+     * @param isWriteOperation True if operation requires strict sync validation (write ops)
+     * @return DeviceStepResult with KaliumDeviceSessionScope or Failure
+     * @throws Nothing - All errors wrapped in DeviceStepResult
+     *
+     * @pre session.userId must be in qualified format (value@domain)
+     * @post Result is either Success with functional scope or Failure
+     * @post activeSessionUserIds is updated to track session for cleanup
+     */
     override fun resolveSessionScope(
         session: AuthSession,
         isWriteOperation: Boolean,

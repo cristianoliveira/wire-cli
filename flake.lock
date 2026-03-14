@@ -43,6 +43,22 @@
         "type": "github"
       }
     },
+    "kalium": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1773411851,
+        "narHash": "sha256-Yuj+gjq7eiCOG+fknmcb1TUf701xokbqTpDGfSseD2g=",
+        "owner": "wireapp",
+        "repo": "kalium",
+        "rev": "decadeea8009f2db85f5a566a44c446e8d08d88c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "wireapp",
+        "repo": "kalium",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1773476965,
@@ -62,6 +78,7 @@
     "root": {
       "inputs": {
         "build-gradle-application": "build-gradle-application",
+        "kalium": "kalium",
         "nixpkgs": "nixpkgs"
       }
     },

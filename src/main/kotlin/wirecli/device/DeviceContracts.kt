@@ -86,6 +86,7 @@ interface DeviceApiClient {
     fun deleteDevice(
         session: AuthSession,
         deviceId: String,
+        password: String? = null,
     ): DeviceDeleteResult
 
     fun verifyDevice(
@@ -101,7 +102,10 @@ interface DeviceService {
 
     fun getDetail(deviceId: String): DeviceDetailResult
 
-    fun remove(deviceId: String): DeviceDeleteResult
+    fun remove(
+        deviceId: String,
+        password: String? = null,
+    ): DeviceDeleteResult
 
     fun verify(deviceId: String): DeviceVerifyResult
 }
@@ -129,6 +133,8 @@ internal object DeviceMessages {
     const val VERIFY_UNKNOWN_FAILURE = "Device verification failed unexpectedly. Retry and check your setup."
     const val PERMISSION_DENIED = "You do not have permission to access this device. Contact your administrator."
     const val INVALID_INPUT = "Invalid device ID or parameters provided."
+    const val PASSWORD_REQUIRED = "Password is required to delete this device. Use --password, --password-stdin, or provide interactively."
+    const val INVALID_PASSWORD = "The password you provided is incorrect. Please try again."
 }
 
 // Device-specific exceptions for error handling

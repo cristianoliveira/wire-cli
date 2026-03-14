@@ -179,6 +179,7 @@ class StubDeviceApiClient(
     override fun deleteDevice(
         session: AuthSession,
         deviceId: String,
+        password: String?,
     ): DeviceDeleteResult {
         val mode = environment["WIRE_STUB_MODE"]
 
@@ -199,6 +200,12 @@ class StubDeviceApiClient(
                 DeviceDeleteResult.Failure(
                     message = AuthMessages.invalidOrExpiredSession(),
                     exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            "password_required" ->
+                DeviceDeleteResult.Failure(
+                    message = DeviceMessages.PASSWORD_REQUIRED,
+                    exitCode = DeviceExitCodes.UNAUTHORIZED,
                 )
 
             else ->

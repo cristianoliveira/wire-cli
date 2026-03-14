@@ -81,6 +81,7 @@ internal class RealKaliumDeviceApiClient(
     override fun deleteDevice(
         session: AuthSession,
         deviceId: String,
+        password: String?,
     ): DeviceDeleteResult {
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = true)) {
@@ -88,7 +89,7 @@ internal class RealKaliumDeviceApiClient(
                 is DeviceStepResult.Failure -> return scope.toDeviceDeleteFailure()
             }
 
-        return when (val result = runtime.deleteDevice(sessionScope, deviceId)) {
+        return when (val result = runtime.deleteDevice(sessionScope, deviceId, password)) {
             is DeviceStepResult.Success ->
                 DeviceDeleteResult.Success(
                     message = "Device deleted successfully.",
@@ -141,6 +142,7 @@ internal interface RealKaliumDeviceRuntime {
     fun deleteDevice(
         sessionScope: KaliumDeviceSessionScope,
         deviceId: String,
+        password: String? = null,
     ): DeviceStepResult<Unit>
 
     fun close() {
@@ -165,6 +167,7 @@ internal enum class DeviceFailureCategory {
     NETWORK,
     SERVER,
     UNAUTHORIZED,
+    PASSWORD_REQUIRED,
     DEVICE_NOT_FOUND,
     UNKNOWN,
 }
@@ -324,6 +327,7 @@ internal class SdkKaliumDeviceRuntime(
     override fun deleteDevice(
         sessionScope: KaliumDeviceSessionScope,
         deviceId: String,
+        password: String?,
     ): DeviceStepResult<Unit> {
         val qualifiedId =
             sessionScope.userId.toQualifiedIdOrNull()
@@ -335,7 +339,7 @@ internal class SdkKaliumDeviceRuntime(
                     coreLogic.sessionScope(qualifiedId) {
                         client.deleteClient(
                             com.wire.kalium.logic.data.client.DeleteClientParam(
-                                password = null,
+                                password = password,
                                 clientId = com.wire.kalium.logic.data.conversation.ClientId(deviceId),
                             ),
                         )
@@ -349,7 +353,7 @@ internal class SdkKaliumDeviceRuntime(
                         DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
 
                     is DeleteClientResult.Failure.PasswordAuthRequired ->
-                        DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
+                        DeviceStepResult.Failure(DeviceFailureCategory.PASSWORD_REQUIRED)
 
                     is DeleteClientResult.Failure.Generic ->
                         DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
@@ -445,6 +449,7 @@ private fun DeviceStepResult.Failure.toDeviceFailure(): DeviceListResult.Failure
             DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
             DeviceFailureCategory.SERVER -> DeviceMessages.SERVER_FAILURE
             DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> DeviceMessages.UNKNOWN_FAILURE
         }
@@ -454,6 +459,7 @@ private fun DeviceStepResult.Failure.toDeviceFailure(): DeviceListResult.Failure
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.UNAUTHORIZED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
@@ -467,6 +473,7 @@ private fun DeviceStepResult.Failure.toDeviceDetailFailure(): DeviceDetailResult
             DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
             DeviceFailureCategory.SERVER -> DeviceMessages.SERVER_FAILURE
             DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> DeviceMessages.UNKNOWN_FAILURE
         }
@@ -476,6 +483,7 @@ private fun DeviceStepResult.Failure.toDeviceDetailFailure(): DeviceDetailResult
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.UNAUTHORIZED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
@@ -489,6 +497,7 @@ private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult
             DeviceFailureCategory.NETWORK -> DeviceMessages.DELETE_NETWORK_FAILURE
             DeviceFailureCategory.SERVER -> DeviceMessages.DELETE_SERVER_FAILURE
             DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> DeviceMessages.DELETE_UNKNOWN_FAILURE
         }
@@ -498,6 +507,7 @@ private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.UNAUTHORIZED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
@@ -511,6 +521,7 @@ private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): DeviceVerifyResult
             DeviceFailureCategory.NETWORK -> DeviceMessages.VERIFY_NETWORK_FAILURE
             DeviceFailureCategory.SERVER -> DeviceMessages.VERIFY_SERVER_FAILURE
             DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> DeviceMessages.VERIFY_UNKNOWN_FAILURE
         }
@@ -520,6 +531,7 @@ private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): DeviceVerifyResult
             DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.UNAUTHORIZED
             DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }

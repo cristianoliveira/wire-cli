@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
+import wirecli.auth.ExitCodes
 import wirecli.device.DeviceDeleteResult
 import wirecli.device.DeviceService
 
@@ -14,6 +15,14 @@ class DeviceDeleteCommand(
 ) : CliktCommand(name = "delete", help = "Delete a device.") {
     private val deviceId by argument(name = "device-id", help = "The device ID to delete")
     private val yes by option("--yes", help = "Skip confirmation prompt").flag(default = false)
+    private val password by
+        option(
+            "--password",
+            help = "Password used for device deletion (deprecated; prefer prompt or --password-stdin).",
+        )
+    private val passwordStdin by
+        option("--password-stdin", help = "Read password from stdin for automation.")
+            .flag(default = false)
 
     override fun run() {
         if (yes != true) {
@@ -25,8 +34,29 @@ class DeviceDeleteCommand(
             }
         }
 
+        // Resolve password from multiple sources
+        val resolvedPassword =
+            when {
+                passwordStdin && password != null -> {
+                    echo("Use either --password or --password-stdin, not both.", err = true)
+                    throw ProgramResult(ExitCodes.VALIDATION_ERROR)
+                }
+
+                password != null -> {
+                    echo(
+                        "Warning: --password is deprecated and may expose secrets in process args. " +
+                            "Prefer prompt input or --password-stdin.",
+                        err = true,
+                    )
+                    password
+                }
+
+                passwordStdin -> readPasswordFromStdin()
+                else -> null // Allow null for devices that don't require password
+            }
+
         val deviceService = deviceServiceProvider()
-        when (val result = deviceService.remove(deviceId)) {
+        when (val result = deviceService.remove(deviceId, resolvedPassword)) {
             is DeviceDeleteResult.Success -> {
                 echo(result.message)
             }
@@ -36,5 +66,12 @@ class DeviceDeleteCommand(
                 throw ProgramResult(result.exitCode)
             }
         }
+    }
+
+    private fun readPasswordFromStdin(): String? {
+        return System.`in`
+            .bufferedReader()
+            .readLine()
+            ?.trimEnd('\r')
     }
 }

@@ -1,102 +1,118 @@
 {
-  description = "Kotlin CLI with Clikt development environment";
+  description = "Wire CLI - A command-line interface for Wire messaging";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
-    self.submodules = true;
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    build-gradle-application = {
+      url = "github:raphiz/buildGradleApplication";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    flake-utils,
-  }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-        };
-        jdk = pkgs.jdk17;
-        gradleCmd = pkgs.writeShellScriptBin "gradle" ''
-          if [ -x "./gradlew" ]; then
-            exec ./gradlew "$@"
-          fi
+  outputs =
+    {
+      self,
+      nixpkgs,
+      build-gradle-application,
+      ...
+    }:
+    let
+      supportedSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
-          exec ${pkgs.gradle}/bin/gradle "$@"
-        '';
-      in {
-        packages.cli = pkgs.stdenvNoCC.mkDerivation {
-          name = "wire-cli";
+      # Gradle version from wrapper properties
+      gradleVersion = "9.1.0";
 
-          src = self;
+      # JDK version based on kotlin { jvmToolchain(17) }
+      jdkVersion = 17;
+    in
+    {
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ build-gradle-application.overlays.default ];
+          };
 
-          nativeBuildInputs = with pkgs; [ git makeBinaryWrapper ];
-          buildInputs = [ jdk ];
+          jdk = pkgs."jdk${toString jdkVersion}";
 
-          buildPhase = ''
-            export HOME="$TMPDIR"
-            export GRADLE_USER_HOME="$TMPDIR/.gradle"
-            mkdir -p "$GRADLE_USER_HOME"
-            export JAVA_HOME="${jdk}"
-            if [ -d "${jdk}/zulu-17.jdk/Contents/Home" ]; then
-              export JAVA_HOME="${jdk}/zulu-17.jdk/Contents/Home"
-            elif [ -d "${jdk}/Contents/Home" ]; then
-              export JAVA_HOME="${jdk}/Contents/Home"
-            fi
-            export PATH="$JAVA_HOME/bin:$PATH"
-            chmod +x gradlew
+          # Use gradleFromWrapper to match the project's gradle version
+          gradle = pkgs.gradleFromWrapper {
+            wrapperPropertiesPath = ./gradle/wrapper/gradle-wrapper.properties;
+            defaultJava = jdk;
+          };
+        in
+        {
+          default = pkgs.buildGradleApplication {
+            pname = "wire-cli";
+            version = "0.1.0";
 
-            # Support Kalium build scripts that expect a git worktree.
-            git init
-            git config user.email "build@nix"
-            git config user.name "Nix Build"
-            git add .
-            git commit -m "Initial commit for build"
+            src = ./.;
 
-            if [ ! -d vendor/kalium ]; then
-              echo "Missing vendor/kalium submodule. Run: git submodule update --init --recursive"
-              exit 1
-            fi
+            inherit gradle;
 
-            ./gradlew --no-daemon --console=plain --stacktrace \
-              -Duser.home="$TMPDIR" \
-              -Dorg.gradle.jvmargs="-Xmx2g -XX:+UseParallelGC" \
-              -Pkalium.dir=vendor/kalium \
-              installDist
-          '';
+            # Repositories must be explicitly specified since this project
+            # does not use centralized repository declaration in settings.gradle.kts
+            # See: https://github.com/raphiz/buildGradleApplication#rule-4-centralized-repository
+            repositories = [
+              "https://repo1.maven.org/maven2/"
+              "https://dl.google.com/android/maven2/"
+              "https://plugins.gradle.org/m2/"
+            ];
 
-          installPhase = ''
-            mkdir -p "$out/bin" "$out/lib"
-            cp build/install/wire-cli/lib/* "$out/lib/"
+            # Java toolchain for the build
+            nativeBuildInputs = [ jdk ];
 
-            makeBinaryWrapper "${jdk}/bin/java" "$out/bin/cli" \
-              --add-flags "-cp $out/lib/*" \
-              --add-flags "wirecli.MainKt"
-          '';
-        };
+            meta = with pkgs.lib; {
+              description = "A command-line interface for Wire messaging";
+              homepage = "https://github.com/wireapp/wire-cli";
+              license = licenses.gpl3Only;
+              maintainers = [ ];
+              mainProgram = "wire-cli";
+              platforms = supportedSystems;
+            };
+          };
+        }
+      );
 
-        apps.cli = {
-          type = "app";
-          program = "${self.packages.${system}.cli}/bin/cli";
-        };
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          jdk = pkgs."jdk${toString jdkVersion}";
+        in
+        {
+          default = pkgs.mkShell {
+            buildInputs = with pkgs; [
+              jdk
+              gradle
+              # Additional development tools
+              nil # Nix LSP
+              nixfmt-rfc-style # Nix formatter
+            ];
 
-        devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            git
-            just
-            jdk17
-            gradleCmd
-            kotlin
-            bats
-            shellcheck
-            prek
-          ];
+            shellHook = ''
+              echo "Wire CLI development environment"
+              echo "Java: $(java --version | head -n1)"
+              echo "Gradle: $(gradle --version | grep 'Gradle' | head -n1)"
+              echo ""
+              echo "To build: gradle build"
+              echo "To run: gradle run"
+              echo ""
+              echo "NOTE: Before building with Nix, generate verification-metadata.xml:"
+              echo "  gradle --refresh-dependencies --write-verification-metadata sha256 --write-locks dependencies"
+            '';
+          };
+        }
+      );
 
-          shellHook = ''
-            echo "Kotlin + Clikt dev shell ready"
-            echo "Run: gradle run --args='--name Kotlin'"
-          '';
-        };
-      });
+      # Formatter for `nix fmt`
+      formatter = forAllSystems (system: (import nixpkgs { inherit system; }).nixfmt-rfc-style);
+    };
 }

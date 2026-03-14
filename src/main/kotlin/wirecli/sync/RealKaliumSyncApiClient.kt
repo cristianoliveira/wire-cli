@@ -188,144 +188,13 @@ internal class SdkKaliumSyncRuntime(
                     }
 
                 val checks = mutableListOf<Check>()
+                checks.add(buildAuthenticationCheck())
+                checks.add(buildSyncEngineCheck(syncState))
+                checks.add(buildEventQueueCheck(syncState))
+                checks.add(buildKeyPackagesCheck(syncState))
+                checks.add(buildNetworkConnectivityCheck(syncState))
 
-                // Auth Check
-                checks.add(
-                    Check(
-                        name = "Authentication",
-                        status = "Pass",
-                        details = "Session authenticated and valid",
-                    ),
-                )
-
-                // Sync Engine Check
-                val syncStatus =
-                    if (syncState != null) {
-                        when (syncState) {
-                            is SyncState.Live -> "Pass"
-                            is SyncState.SlowSync -> "Warn"
-                            is SyncState.GatheringPendingEvents -> "Warn"
-                            is SyncState.Waiting -> "Warn"
-                            is SyncState.Failed -> "Fail"
-                        }
-                    } else {
-                        "Fail"
-                    }
-                val syncDetails =
-                    if (syncState != null) {
-                        "Current sync state: ${syncState::class.simpleName}"
-                    } else {
-                        "Unable to determine sync state"
-                    }
-                checks.add(
-                    Check(
-                        name = "Sync Engine",
-                        status = syncStatus,
-                        details = syncDetails,
-                    ),
-                )
-
-                // Event Queue Check
-                checks.add(
-                    Check(
-                        name = "Event Queue",
-                        status =
-                            if (syncState is SyncState.Live || syncState is SyncState.GatheringPendingEvents) {
-                                "Pass"
-                            } else {
-                                "Warn"
-                            },
-                        details =
-                            "Event processing status: " +
-                                (
-                                    if (syncState is SyncState.Live) {
-                                        "Live - processing real-time events"
-                                    } else {
-                                        "Pending - gathering events"
-                                    }
-                                ),
-                    ),
-                )
-
-                // Key Packages Check (MLS) - based on sync state
-                // Estimated key package availability based on sync state
-                val estimatedKeyPackageCount =
-                    when (syncState) {
-                        is SyncState.Live -> 50 // Live sync: adequate key packages available
-                        is SyncState.SlowSync -> 0 // Initial sync: no key packages yet
-                        is SyncState.GatheringPendingEvents -> 30 // Gathering: accumulating key packages
-                        is SyncState.Waiting -> 5 // Waiting: minimal key packages
-                        is SyncState.Failed -> 0 // Failed: no key package generation
-                        null -> 0 // Unable to determine
-                    }
-
-                val keyPackageStatus =
-                    when {
-                        estimatedKeyPackageCount < 10 -> "Fail"
-                        estimatedKeyPackageCount < 20 -> "Warn"
-                        else -> "Pass"
-                    }
-
-                val keyPackageDetails =
-                    when {
-                        estimatedKeyPackageCount < 10 ->
-                            "Critical: Only $estimatedKeyPackageCount key packages available"
-                        estimatedKeyPackageCount < 20 ->
-                            "Warning: Only $estimatedKeyPackageCount key packages available " +
-                                "(refresh recommended)"
-                        else -> "OK: $estimatedKeyPackageCount key packages available"
-                    }
-
-                checks.add(
-                    Check(
-                        name = "Key Packages",
-                        status = keyPackageStatus,
-                        details = keyPackageDetails,
-                    ),
-                )
-
-                // Network Connectivity Check (Enhanced with metrics)
-                val networkMetrics = networkConnectivityChecker.checkNetworkConnectivity()
-                val lagMs = if (syncState != null) calculateLagMs(syncState) else 30000L
-                val estimatedLatency = networkConnectivityChecker.estimateNetworkLatency(lagMs)
-
-                val networkCheckStatus =
-                    when {
-                        networkMetrics != null && !networkMetrics.connected -> "Fail"
-                        syncState is SyncState.Failed -> "Fail"
-                        networkMetrics != null && networkMetrics.error_rate > 0.3 -> "Warn"
-                        else -> "Pass"
-                    }
-
-                val networkDetails =
-                    buildString {
-                        if (networkMetrics != null) {
-                            append("Network: ${networkMetrics.network_type}, ")
-                            append("Latency: ${estimatedLatency}ms, ")
-                            append("Error Rate: ${String.format("%.1f%%", networkMetrics.error_rate * 100)}")
-                            if (networkMetrics.last_recovery_time_ms != null) {
-                                append(", Last Recovery: ${networkMetrics.last_recovery_time_ms}ms ago")
-                            }
-                        } else {
-                            append("Network connectivity status unavailable")
-                        }
-                    }
-
-                checks.add(
-                    Check(
-                        name = "Network Connectivity",
-                        status = networkCheckStatus,
-                        details = networkDetails,
-                    ),
-                )
-
-                val summary =
-                    when {
-                        checks.all { it.status == "Pass" } -> "All checks passed. Sync is healthy."
-                        checks.any { it.status == "Fail" } -> "Some checks failed. Sync is degraded."
-                        else -> "Some checks have warnings. Sync may be initializing."
-                    }
-
+                val summary = buildDiagnosticsSummary(checks)
                 DiagnosticsResult.Success(
                     DiagnosticsReport(
                         checks = checks,
@@ -375,29 +244,7 @@ internal class SdkKaliumSyncRuntime(
                     )
                 }
 
-                val status = mapSyncStateToStatus(syncState)
-                val lagMs = calculateConversationLagMs(syncState)
-                val networkMetrics =
-                    networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                        estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
-                    )
-                val metrics =
-                    ConversationMetrics(
-                        conversation_id = conversationId,
-                        lag_ms = lagMs,
-                        pending_messages = calculateConversationPendingMessages(syncState),
-                        sync_completeness_pct = calculateSyncCompletenessPercentage(syncState),
-                        timestamp = Instant.now().toString(),
-                        network = networkMetrics,
-                    )
-
-                val view =
-                    ConversationSyncStatus(
-                        conversation_id = conversationId,
-                        status = status,
-                        metrics = metrics,
-                        last_sync_timestamp = Instant.now().toString(),
-                    )
+                val view = buildConversationSyncStatusView(conversationId, syncState)
                 ConversationSyncStatusResult.Success(view)
             } catch (error: Throwable) {
                 ConversationSyncStatusResult.Failure(
@@ -435,96 +282,12 @@ internal class SdkKaliumSyncRuntime(
                     }
 
                 val checks = mutableListOf<Check>()
+                checks.add(buildConversationStateCheck(conversationId))
+                checks.add(buildMessageSyncCheck(syncState))
+                checks.add(buildCompletenessCheck(syncState))
+                checks.add(buildConversationNetworkCheck(syncState))
 
-                // Conversation State Check
-                checks.add(
-                    Check(
-                        name = "Conversation State",
-                        status = "Pass",
-                        details = "Conversation ID: $conversationId",
-                    ),
-                )
-
-                // Message Sync Check
-                val messageSyncStatus =
-                    if (syncState != null) {
-                        when (syncState) {
-                            is SyncState.Live -> "Pass"
-                            is SyncState.SlowSync -> "Warn"
-                            is SyncState.GatheringPendingEvents -> "Warn"
-                            is SyncState.Waiting -> "Warn"
-                            is SyncState.Failed -> "Fail"
-                        }
-                    } else {
-                        "Fail"
-                    }
-                checks.add(
-                    Check(
-                        name = "Message Sync",
-                        status = messageSyncStatus,
-                        details =
-                            if (syncState != null) {
-                                "Message sync state: ${syncState::class.simpleName}"
-                            } else {
-                                "Unable to determine message sync state"
-                            },
-                    ),
-                )
-
-                // Completeness Check
-                val completeness = calculateSyncCompletenessPercentage(syncState)
-                checks.add(
-                    Check(
-                        name = "Sync Completeness",
-                        status =
-                            when {
-                                completeness >= 95 -> "Pass"
-                                completeness >= 70 -> "Warn"
-                                else -> "Fail"
-                            },
-                        details = "Sync completeness: $completeness%",
-                    ),
-                )
-
-                // Conversation-Specific Network Check (Enhanced)
-                val convNetworkMetrics = networkConnectivityChecker.checkNetworkConnectivity()
-                val convLagMs = calculateConversationLagMs(syncState)
-                val convEstimatedLatency = networkConnectivityChecker.estimateNetworkLatency(convLagMs)
-
-                val convNetworkStatus =
-                    when {
-                        convNetworkMetrics != null && !convNetworkMetrics.connected -> "Fail"
-                        syncState is SyncState.Failed -> "Fail"
-                        convNetworkMetrics != null && convNetworkMetrics.error_rate > 0.3 -> "Warn"
-                        else -> "Pass"
-                    }
-
-                val convNetworkDetails =
-                    buildString {
-                        if (convNetworkMetrics != null) {
-                            append("Type: ${convNetworkMetrics.network_type}, ")
-                            append("Latency: ${convEstimatedLatency}ms, ")
-                            append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
-                        } else {
-                            append("Conversation connectivity status unavailable")
-                        }
-                    }
-
-                checks.add(
-                    Check(
-                        name = "Conversation Connectivity",
-                        status = convNetworkStatus,
-                        details = convNetworkDetails,
-                    ),
-                )
-
-                val summary =
-                    when {
-                        checks.all { it.status == "Pass" } -> "Conversation is fully synced and healthy."
-                        checks.any { it.status == "Fail" } -> "Conversation sync has failed. Recovery actions may help."
-                        else -> "Conversation sync is in progress. Check back soon."
-                    }
-
+                val summary = buildConversationSummary(checks)
                 PerConversationDiagnosticsResult.Success(
                     PerConversationDiagnosticsReport(
                         conversation_id = conversationId,
@@ -678,6 +441,236 @@ internal class SdkKaliumSyncRuntime(
         val fourth: D,
         val fifth: E,
     )
+
+    private fun buildConversationSyncStatusView(
+        conversationId: String,
+        syncState: SyncState,
+    ): ConversationSyncStatus {
+        val status = mapSyncStateToStatus(syncState)
+        val lagMs = calculateConversationLagMs(syncState)
+        val networkMetrics =
+            networkConnectivityChecker.checkNetworkConnectivity()?.copy(
+                estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+            )
+        val metrics =
+            ConversationMetrics(
+                conversation_id = conversationId,
+                lag_ms = lagMs,
+                pending_messages = calculateConversationPendingMessages(syncState),
+                sync_completeness_pct = calculateSyncCompletenessPercentage(syncState),
+                timestamp = Instant.now().toString(),
+                network = networkMetrics,
+            )
+
+        return ConversationSyncStatus(
+            conversation_id = conversationId,
+            status = status,
+            metrics = metrics,
+            last_sync_timestamp = Instant.now().toString(),
+        )
+    }
+
+    private fun buildAuthenticationCheck(): Check {
+        return Check(
+            name = "Authentication",
+            status = "Pass",
+            details = "Session authenticated and valid",
+        )
+    }
+
+    private fun buildSyncEngineCheck(syncState: SyncState?): Check {
+        val syncStatus =
+            if (syncState != null) {
+                when (syncState) {
+                    is SyncState.Live -> "Pass"
+                    is SyncState.SlowSync -> "Warn"
+                    is SyncState.GatheringPendingEvents -> "Warn"
+                    is SyncState.Waiting -> "Warn"
+                    is SyncState.Failed -> "Fail"
+                }
+            } else {
+                "Fail"
+            }
+        val syncDetails =
+            if (syncState != null) {
+                "Current sync state: ${syncState::class.simpleName}"
+            } else {
+                "Unable to determine sync state"
+            }
+        return Check(
+            name = "Sync Engine",
+            status = syncStatus,
+            details = syncDetails,
+        )
+    }
+
+    private fun buildEventQueueCheck(syncState: SyncState?): Check {
+        return Check(
+            name = "Event Queue",
+            status =
+                if (syncState is SyncState.Live || syncState is SyncState.GatheringPendingEvents) {
+                    "Pass"
+                } else {
+                    "Warn"
+                },
+            details =
+                "Event processing status: " +
+                    (
+                        if (syncState is SyncState.Live) {
+                            "Live - processing real-time events"
+                        } else {
+                            "Pending - gathering events"
+                        }
+                    ),
+        )
+    }
+
+    private fun buildKeyPackagesCheck(syncState: SyncState?): Check {
+        val estimatedKeyPackageCount =
+            when (syncState) {
+                is SyncState.Live -> 50
+                is SyncState.SlowSync -> 0
+                is SyncState.GatheringPendingEvents -> 30
+                is SyncState.Waiting -> 5
+                is SyncState.Failed -> 0
+                null -> 0
+            }
+
+        val status =
+            when {
+                estimatedKeyPackageCount < 10 -> "Fail"
+                estimatedKeyPackageCount < 20 -> "Warn"
+                else -> "Pass"
+            }
+
+        val details =
+            when {
+                estimatedKeyPackageCount < 10 ->
+                    "Critical: Only $estimatedKeyPackageCount key packages available"
+                estimatedKeyPackageCount < 20 ->
+                    "Warning: Only $estimatedKeyPackageCount key packages available (refresh recommended)"
+                else -> "OK: $estimatedKeyPackageCount key packages available"
+            }
+
+        return Check(name = "Key Packages", status = status, details = details)
+    }
+
+    private fun buildNetworkConnectivityCheck(syncState: SyncState?): Check {
+        val networkMetrics = networkConnectivityChecker.checkNetworkConnectivity()
+        val lagMs = if (syncState != null) calculateLagMs(syncState) else 30000L
+        val estimatedLatency = networkConnectivityChecker.estimateNetworkLatency(lagMs)
+
+        val status =
+            when {
+                networkMetrics != null && !networkMetrics.connected -> "Fail"
+                syncState is SyncState.Failed -> "Fail"
+                networkMetrics != null && networkMetrics.error_rate > 0.3 -> "Warn"
+                else -> "Pass"
+            }
+
+        val details =
+            buildString {
+                if (networkMetrics != null) {
+                    append("Network: ${networkMetrics.network_type}, ")
+                    append("Latency: ${estimatedLatency}ms, ")
+                    append("Error Rate: ${String.format("%.1f%%", networkMetrics.error_rate * 100)}")
+                    if (networkMetrics.last_recovery_time_ms != null) {
+                        append(", Last Recovery: ${networkMetrics.last_recovery_time_ms}ms ago")
+                    }
+                } else {
+                    append("Network connectivity status unavailable")
+                }
+            }
+
+        return Check(name = "Network Connectivity", status = status, details = details)
+    }
+
+    private fun buildDiagnosticsSummary(checks: List<Check>): String {
+        return when {
+            checks.all { it.status == "Pass" } -> "All checks passed. Sync is healthy."
+            checks.any { it.status == "Fail" } -> "Some checks failed. Sync is degraded."
+            else -> "Some checks have warnings. Sync may be initializing."
+        }
+    }
+
+    private fun buildConversationStateCheck(conversationId: String): Check {
+        return Check(
+            name = "Conversation State",
+            status = "Pass",
+            details = "Conversation ID: $conversationId",
+        )
+    }
+
+    private fun buildMessageSyncCheck(syncState: SyncState?): Check {
+        val status =
+            if (syncState != null) {
+                when (syncState) {
+                    is SyncState.Live -> "Pass"
+                    is SyncState.SlowSync -> "Warn"
+                    is SyncState.GatheringPendingEvents -> "Warn"
+                    is SyncState.Waiting -> "Warn"
+                    is SyncState.Failed -> "Fail"
+                }
+            } else {
+                "Fail"
+            }
+        val details =
+            if (syncState != null) {
+                "Message sync state: ${syncState::class.simpleName}"
+            } else {
+                "Unable to determine message sync state"
+            }
+        return Check(name = "Message Sync", status = status, details = details)
+    }
+
+    private fun buildCompletenessCheck(syncState: SyncState?): Check {
+        val completeness = calculateSyncCompletenessPercentage(syncState)
+        return Check(
+            name = "Sync Completeness",
+            status =
+                when {
+                    completeness >= 95 -> "Pass"
+                    completeness >= 70 -> "Warn"
+                    else -> "Fail"
+                },
+            details = "Sync completeness: $completeness%",
+        )
+    }
+
+    private fun buildConversationNetworkCheck(syncState: SyncState?): Check {
+        val convNetworkMetrics = networkConnectivityChecker.checkNetworkConnectivity()
+        val convLagMs = calculateConversationLagMs(syncState)
+        val convEstimatedLatency = networkConnectivityChecker.estimateNetworkLatency(convLagMs)
+
+        val status =
+            when {
+                convNetworkMetrics != null && !convNetworkMetrics.connected -> "Fail"
+                syncState is SyncState.Failed -> "Fail"
+                convNetworkMetrics != null && convNetworkMetrics.error_rate > 0.3 -> "Warn"
+                else -> "Pass"
+            }
+
+        val details =
+            buildString {
+                if (convNetworkMetrics != null) {
+                    append("Type: ${convNetworkMetrics.network_type}, ")
+                    append("Latency: ${convEstimatedLatency}ms, ")
+                    append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
+                } else {
+                    append("Conversation connectivity status unavailable")
+                }
+            }
+
+        return Check(name = "Conversation Connectivity", status = status, details = details)
+    }
+
+    private fun buildConversationSummary(checks: List<Check>): String {
+        return when {
+            checks.all { it.status == "Pass" } -> "Conversation is fully synced and healthy."
+            checks.any { it.status == "Fail" } -> "Conversation sync has failed. Recovery actions may help."
+            else -> "Conversation sync is in progress. Check back soon."
+        }
+    }
 
     private fun generateRecoveryHints(checks: List<Check>): List<RecoveryHint> {
         val hints = mutableListOf<RecoveryHint>()

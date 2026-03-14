@@ -18,6 +18,44 @@ enum class NetworkType(val value: String) {
     override fun toString(): String = value
 }
 
+// ==================== MLS METRICS ====================
+
+/**
+ * Represents the status of MLS key package availability.
+ */
+enum class KeyPackageAvailabilityStatus(val value: String) {
+    AVAILABLE("available"),
+    LOW("low"),
+    EXHAUSTED("exhausted"),
+    UNAVAILABLE("unavailable"),
+    ;
+
+    override fun toString(): String = value
+}
+
+/**
+ * Detailed MLS (Message Layer Security) metrics and status.
+ *
+ * Tracks:
+ * - MLS enrollment status and percentage
+ * - Key package availability
+ * - Key package generation status
+ * - MLS group update status
+ * - Error rates specific to MLS operations
+ */
+data class MLSMetrics(
+    val enrollment_pct: Int,
+    val key_package_available: Int,
+    val key_package_exhausted: Boolean,
+    val key_package_generation_enabled: Boolean,
+    val key_package_refresh_required: Boolean,
+    val mls_group_updates_failed_count: Int,
+    val mls_enrollment_failures_count: Int,
+    val mls_error_rate: Double,
+    val last_key_package_refresh_timestamp: String?,
+    val timestamp: String,
+)
+
 /**
  * Network connectivity and quality metrics.
  *
@@ -52,6 +90,7 @@ data class HealthMetrics(
     val mls_pct: Int,
     val timestamp: String,
     val network: NetworkMetrics? = null,
+    val mls: MLSMetrics? = null,
 )
 
 data class Check(
@@ -121,6 +160,7 @@ data class ConversationMetrics(
     val sync_completeness_pct: Int,
     val timestamp: String,
     val network: NetworkMetrics? = null,
+    val mls: MLSMetrics? = null,
 )
 
 data class ConversationSyncStatus(
@@ -193,4 +233,10 @@ internal object SyncMessages {
     const val CONVERSATION_SYNC_NETWORK_FAILURE = "Failed to fetch conversation sync status: network is unreachable."
     const val CONVERSATION_SYNC_SERVER_FAILURE = "Failed to fetch conversation sync status: server error occurred."
     const val CONVERSATION_SYNC_UNKNOWN_FAILURE = "Failed to fetch conversation sync status unexpectedly."
+
+    // MLS-specific messages for recovery hints
+    const val MLS_LOW_KEY_PACKAGES = "Low on key packages. Refresh key packages to maintain MLS availability."
+    const val MLS_EXHAUSTED_KEY_PACKAGES = "Key packages exhausted. Immediate key package refresh required."
+    const val MLS_ENROLLMENT_FAILURES = "MLS enrollment failures detected. Check network and retry."
+    const val MLS_GROUP_UPDATE_FAILURES = "MLS group update failures detected. May impact group conversations."
 }

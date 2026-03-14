@@ -91,6 +91,10 @@ data class HealthMetrics(
     val timestamp: String,
     val network: NetworkMetrics? = null,
     val mls: MLSMetrics? = null,
+    val last_message_received_ms: Long? = null,
+    val auth_status: String = "ok",
+    val encryption_status: String = "ready",
+    val uptime_ms: Long? = null,
 )
 
 data class Check(
@@ -127,10 +131,21 @@ sealed interface DiagnosticsResult {
     data class Failure(val message: String, val exitCode: Int) : DiagnosticsResult
 }
 
+sealed interface ResetResult {
+    data class Success(val message: String) : ResetResult
+
+    data class Failure(val message: String, val exitCode: Int) : ResetResult
+}
+
 interface SyncApiClient {
     fun getSyncStatus(session: AuthSession): SyncStatusResult
 
     fun getDiagnostics(session: AuthSession): DiagnosticsResult
+
+    fun resetSync(
+        session: AuthSession,
+        force: Boolean = false,
+    ): ResetResult
 
     /**
      * Retrieves sync status for a specific conversation.
@@ -200,6 +215,8 @@ interface SyncService {
 
     fun getDiagnosticsReport(): DiagnosticsResult
 
+    fun resetSync(force: Boolean = false): ResetResult
+
     /**
      * Retrieves sync status for a specific conversation.
      *
@@ -222,6 +239,7 @@ object SyncExitCodes {
     const val DEGRADED = 1
     const val UNAUTHORIZED = 11
     const val SERVER_ERROR = 13
+    const val PERMISSION_ERROR = 15
 }
 
 internal object SyncMessages {

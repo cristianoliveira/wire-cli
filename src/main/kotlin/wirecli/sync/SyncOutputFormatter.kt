@@ -29,6 +29,8 @@ object SyncOutputFormatter {
                 json.encodeToString(
                     StatusJsonOutput.Success(
                         status = result.view.status.value,
+                        auth = result.view.metrics.auth_status,
+                        encryption = result.view.metrics.encryption_status,
                         metrics =
                             MetricsJson(
                                 lag_ms = result.view.metrics.lag_ms,
@@ -36,6 +38,7 @@ object SyncOutputFormatter {
                                 mls_pct = result.view.metrics.mls_pct,
                                 timestamp = result.view.metrics.timestamp,
                             ),
+                        uptime_ms = result.view.metrics.uptime_ms,
                     ),
                 )
             is SyncStatusResult.Failure ->
@@ -89,7 +92,11 @@ object SyncOutputFormatter {
     private fun formatSuccessStatus(view: SyncStatusView): String =
         buildString {
             val statusIcon = getStatusIcon(view.status.value)
-            appendLine("$statusIcon Sync Status: ${view.status}")
+            appendLine("$statusIcon Account Health: ${view.status}")
+            appendLine("")
+            appendLine("  Auth: ${formatAuthStatus(view.metrics.auth_status)}")
+            appendLine("  Encryption: ${formatEncryptionStatus(view.metrics.encryption_status, view.metrics.mls_pct)}")
+            appendLine("")
             appendLine("  Lag: ${view.metrics.lag_ms}ms")
             appendLine("  Pending: ${view.metrics.pending_messages} messages")
             appendLine("  MLS: ${view.metrics.mls_pct}%")
@@ -142,15 +149,44 @@ object SyncOutputFormatter {
                     appendLine("    Command: ${hint.command}")
                 }
             }
+
+            // Add summary message
+            appendLine("")
+            val passedChecks = report.checks.count { it.status in listOf("ok", "healthy", "ready") }
+            val totalChecks = report.checks.size
+            val allPassed = report.checks.all { it.status !in listOf("error", "fail", "degraded") }
+            val summaryIcon = if (allPassed) "✓" else "⚠"
+            if (allPassed) {
+                appendLine("Diagnosis complete: All $totalChecks checks passed $summaryIcon")
+            } else {
+                appendLine("Diagnosis complete: $passedChecks/$totalChecks checks passed, issues detected ⚠")
+            }
         }
 
     private fun getStatusIcon(status: String): String =
         when (status) {
-            "healthy", "ready" -> "✓"
+            "healthy", "ready", "ok" -> "✓"
             "initializing" -> "⟳"
-            "degraded" -> "⚠"
-            "error" -> "✗"
+            "degraded", "warning" -> "⚠"
+            "error", "fail" -> "✗"
             else -> "?"
+        }
+
+    private fun formatAuthStatus(authStatus: String): String =
+        when (authStatus.lowercase()) {
+            "ok", "connected", "authenticated" -> "✓ Connected"
+            "not_authenticated", "disconnected" -> "✗ Not authenticated"
+            else -> "? Unknown ($authStatus)"
+        }
+
+    private fun formatEncryptionStatus(
+        encryptionStatus: String,
+        mlsPct: Int,
+    ): String =
+        when (encryptionStatus.lowercase()) {
+            "ready" -> "✓ Ready"
+            "pending" -> "⟳ Pending ($mlsPct% complete)"
+            else -> "? Unknown ($encryptionStatus)"
         }
 }
 
@@ -160,7 +196,10 @@ sealed class StatusJsonOutput {
     @Serializable
     data class Success(
         val status: String,
+        val auth: String,
+        val encryption: String,
         val metrics: MetricsJson,
+        val uptime_ms: Long? = null,
     ) : StatusJsonOutput()
 
     @Serializable

@@ -616,4 +616,41 @@ class StubSyncApiClient(
                 )
         }
     }
+
+    override fun resetSync(
+        session: AuthSession,
+        force: Boolean,
+    ): ResetResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "reset_success" ->
+                ResetResult.Success(
+                    message = "Sync reset completed successfully",
+                )
+            "reset_forced" ->
+                ResetResult.Success(
+                    message = "Sync reset completed successfully (forced)",
+                )
+            "reset_error", "network_error" ->
+                ResetResult.Failure(
+                    message = SyncMessages.NETWORK_FAILURE,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+            "reset_server_error", "server_error" ->
+                ResetResult.Failure(
+                    message = SyncMessages.SERVER_FAILURE,
+                    exitCode = SyncExitCodes.SERVER_ERROR,
+                )
+            "reset_unauthorized", "unauthorized" ->
+                ResetResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+            else ->
+                ResetResult.Success(
+                    message = "Sync reset completed successfully",
+                )
+        }
+    }
 }

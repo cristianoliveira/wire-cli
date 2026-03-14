@@ -181,6 +181,10 @@ class AuthGuardedSyncServiceTest {
 
         override fun getDiagnosticsReport(): DiagnosticsResult = diagnosticsResult
 
+        override fun resetSync(force: Boolean): ResetResult {
+            return ResetResult.Success("Reset successful (test mode)")
+        }
+
         override fun getConversationSyncStatus(conversationId: String): ConversationSyncStatusResult {
             return ConversationSyncStatusResult.Success(
                 ConversationSyncStatus(

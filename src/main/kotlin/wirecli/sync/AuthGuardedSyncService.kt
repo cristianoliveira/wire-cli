@@ -50,4 +50,15 @@ class AuthGuardedSyncService(
                 )
         }
     }
+
+    override fun resetSync(force: Boolean): ResetResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.resetSync(force)
+            is AuthResult.Failure ->
+                ResetResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
 }

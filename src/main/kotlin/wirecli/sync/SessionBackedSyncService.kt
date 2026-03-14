@@ -51,4 +51,15 @@ class SessionBackedSyncService(
 
         return apiClient.getPerConversationDiagnostics(session, conversationId)
     }
+
+    override fun resetSync(force: Boolean): ResetResult {
+        val session =
+            sessionStore.readActiveSession()
+                ?: return ResetResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+        return apiClient.resetSync(session, force)
+    }
 }

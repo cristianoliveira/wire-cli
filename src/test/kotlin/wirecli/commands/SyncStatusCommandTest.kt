@@ -4,6 +4,7 @@ import wirecli.sync.Check
 import wirecli.sync.DiagnosticsReport
 import wirecli.sync.DiagnosticsResult
 import wirecli.sync.HealthMetrics
+import wirecli.sync.MLSMetrics
 import wirecli.sync.RecoveryHint
 import wirecli.sync.SyncExitCodes
 import wirecli.sync.SyncOutputFormatter
@@ -51,7 +52,10 @@ class SyncStatusCommandTest {
         val output = SyncOutputFormatter.formatStatusHuman(result)
 
         assertTrue(output.contains("✓"), "Should include checkmark for healthy status")
-        assertTrue(output.contains("Sync Status: ready"), "Should include status")
+        assertTrue(output.contains("Account Health:"), "Should include account health label")
+        assertTrue(output.contains("ready"), "Should include status")
+        assertTrue(output.contains("Auth:"), "Should include auth status")
+        assertTrue(output.contains("Encryption:"), "Should include encryption status")
         assertTrue(output.contains("100ms"), "Should include lag metric")
         assertTrue(output.contains("5 messages"), "Should include pending messages")
         assertTrue(output.contains("85%"), "Should include MLS percentage")
@@ -64,7 +68,8 @@ class SyncStatusCommandTest {
         val output = SyncOutputFormatter.formatStatusHuman(result)
 
         assertTrue(output.contains("⚠"), "Should include warning icon for degraded status")
-        assertTrue(output.contains("Sync Status: degraded"), "Should include degraded status")
+        assertTrue(output.contains("Account Health:"), "Should include account health label")
+        assertTrue(output.contains("degraded"), "Should include degraded status")
     }
 
     @Test
@@ -327,5 +332,272 @@ class SyncStatusCommandTest {
         assertTrue(output.contains("✗ Network"), "Should list error check")
         assertTrue(output.contains("Check connection"), "Should list recovery hint")
         assertTrue(output.contains("ping api.wire.com"), "Should list command")
+    }
+
+    // ==================== Enhanced Verbose Output Tests ====================
+
+    @Test
+    fun `formatStatusVerbose includes recovery hints from diagnostics report`() {
+        val hints =
+            listOf(
+                RecoveryHint(
+                    description = "Sync lag is normal (under 1s)",
+                    command = "No action needed",
+                ),
+            )
+        val report =
+            DiagnosticsReport(
+                checks = emptyList(),
+                summary = "All healthy",
+                recoveryHints = hints,
+            )
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(diagnosticsReport = report),
+            )
+
+        val output = SyncOutputFormatter.formatStatusVerbose(result)
+
+        assertTrue(output.contains("Recovery Actions:"), "Should include recovery section")
+        assertTrue(output.contains("Sync lag is normal"), "Should include recovery hint")
+    }
+
+    @Test
+    fun `formatStatusVerbose formats pending messages with last received timestamp`() {
+        val currentTimeMs = System.currentTimeMillis()
+        val lastReceivedMs = currentTimeMs - 15000 // 15 seconds ago
+        val metricsWithTimestamp =
+            healthyMetrics.copy(last_message_received_ms = lastReceivedMs)
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithTimestamp),
+            )
+
+        val output = SyncOutputFormatter.formatStatusVerbose(result)
+
+        assertTrue(output.contains("last received"), "Should include 'last received'")
+        assertTrue(output.contains("s ago"), "Should include seconds ago format")
+    }
+
+    @Test
+    fun `formatStatusVerbose formats MLS with estimated time remaining`() {
+        val mlsMetrics =
+            MLSMetrics(
+                enrollment_pct = 85,
+                key_package_available = 150,
+                key_package_exhausted = false,
+                key_package_generation_enabled = true,
+                key_package_refresh_required = false,
+                mls_group_updates_failed_count = 0,
+                mls_enrollment_failures_count = 0,
+                mls_error_rate = 0.0,
+                last_key_package_refresh_timestamp = null,
+                timestamp = "2025-03-13T10:30:00Z",
+                estimated_remaining_ms = 10000, // 10 seconds
+            )
+        val metricsWithMls =
+            healthyMetrics.copy(mls = mlsMetrics)
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithMls),
+            )
+
+        val output = SyncOutputFormatter.formatStatusVerbose(result)
+
+        assertTrue(output.contains("estimated"), "Should include 'estimated'")
+        assertTrue(output.contains("s remaining"), "Should include seconds remaining format")
+    }
+
+    @Test
+    fun `formatStatusVerbose formats key packages with device name and fill status`() {
+        val mlsMetrics =
+            MLSMetrics(
+                enrollment_pct = 85,
+                key_package_available = 150,
+                key_package_exhausted = false,
+                key_package_generation_enabled = true,
+                key_package_refresh_required = false,
+                mls_group_updates_failed_count = 0,
+                mls_enrollment_failures_count = 0,
+                mls_error_rate = 0.0,
+                last_key_package_refresh_timestamp = null,
+                timestamp = "2025-03-13T10:30:00Z",
+                device_name = "Laptop",
+                key_package_total = 300,
+            )
+        val metricsWithMls =
+            healthyMetrics.copy(mls = mlsMetrics)
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithMls),
+            )
+
+        val output = SyncOutputFormatter.formatStatusVerbose(result)
+
+        assertTrue(output.contains("Laptop:"), "Should include device name")
+        assertTrue(output.contains("150/300"), "Should include key package count with total")
+    }
+
+    @Test
+    fun `formatStatusVerbose shows low key package status`() {
+        val mlsMetrics =
+            MLSMetrics(
+                enrollment_pct = 85,
+                key_package_available = 30, // Low count
+                key_package_exhausted = false,
+                key_package_generation_enabled = true,
+                key_package_refresh_required = true,
+                mls_group_updates_failed_count = 0,
+                mls_enrollment_failures_count = 0,
+                mls_error_rate = 0.0,
+                last_key_package_refresh_timestamp = null,
+                timestamp = "2025-03-13T10:30:00Z",
+                device_name = "Phone",
+                key_package_total = 300,
+            )
+        val metricsWithMls =
+            healthyMetrics.copy(mls = mlsMetrics)
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithMls),
+            )
+
+        val output = SyncOutputFormatter.formatStatusVerbose(result)
+
+        assertTrue(output.contains("low, refilling"), "Should indicate low key packages with refilling")
+    }
+
+    @Test
+    fun `formatStatusVerbose shows exhausted key package status`() {
+        val mlsMetrics =
+            MLSMetrics(
+                enrollment_pct = 85,
+                key_package_available = 0, // Exhausted
+                key_package_exhausted = true,
+                key_package_generation_enabled = true,
+                key_package_refresh_required = true,
+                mls_group_updates_failed_count = 0,
+                mls_enrollment_failures_count = 0,
+                mls_error_rate = 0.0,
+                last_key_package_refresh_timestamp = null,
+                timestamp = "2025-03-13T10:30:00Z",
+                device_name = "Tablet",
+                key_package_total = 300,
+            )
+        val metricsWithMls =
+            healthyMetrics.copy(mls = mlsMetrics)
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithMls),
+            )
+
+        val output = SyncOutputFormatter.formatStatusVerbose(result)
+
+        assertTrue(output.contains("exhausted, refresh needed"), "Should indicate exhausted key packages")
+    }
+
+    @Test
+    fun `formatStatusJson includes last message received timestamp`() {
+        val currentTimeMs = System.currentTimeMillis()
+        val metricsWithTimestamp =
+            healthyMetrics.copy(last_message_received_ms = currentTimeMs)
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithTimestamp),
+            )
+
+        val output = SyncOutputFormatter.formatStatusJson(result)
+
+        assertTrue(output.contains("\"last_message_received_ms\""), "Should include last_message_received_ms field")
+        assertTrue(output.contains(currentTimeMs.toString()), "Should include timestamp value")
+    }
+
+    // ==================== Auth and Encryption Status Tests ====================
+
+    @Test
+    fun `formatStatusHuman includes auth status connected`() {
+        val metricsWithAuth = healthyMetrics.copy(auth_status = "ok")
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithAuth),
+            )
+
+        val output = SyncOutputFormatter.formatStatusHuman(result)
+
+        assertTrue(output.contains("Auth: ✓ Connected"), "Should include auth connected status")
+    }
+
+    @Test
+    fun `formatStatusHuman shows auth status not authenticated`() {
+        val metricsWithAuth = healthyMetrics.copy(auth_status = "not_authenticated")
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithAuth),
+            )
+
+        val output = SyncOutputFormatter.formatStatusHuman(result)
+
+        assertTrue(output.contains("Auth: ✗ Not authenticated"), "Should show auth not authenticated status")
+    }
+
+    @Test
+    fun `formatStatusHuman includes encryption status ready`() {
+        val metricsWithEncryption = healthyMetrics.copy(encryption_status = "ready", mls_pct = 100)
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithEncryption),
+            )
+
+        val output = SyncOutputFormatter.formatStatusHuman(result)
+
+        assertTrue(output.contains("Encryption: ✓ Ready"), "Should include encryption ready status")
+    }
+
+    @Test
+    fun `formatStatusHuman shows encryption status pending with percentage`() {
+        val metricsWithEncryption = healthyMetrics.copy(encryption_status = "pending", mls_pct = 75)
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithEncryption),
+            )
+
+        val output = SyncOutputFormatter.formatStatusHuman(result)
+
+        assertTrue(output.contains("Encryption: ⟳ Pending (75% complete)"), "Should show encryption pending with percentage")
+    }
+
+    @Test
+    fun `formatStatusJson includes auth and encryption fields`() {
+        val metricsWithAuthEncryption =
+            healthyMetrics.copy(
+                auth_status = "ok",
+                encryption_status = "ready",
+                uptime_ms = 3600000L,
+            )
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(metrics = metricsWithAuthEncryption),
+            )
+
+        val output = SyncOutputFormatter.formatStatusJson(result)
+
+        assertTrue(output.contains("\"auth\""), "Should include auth field")
+        assertTrue(output.contains("\"encryption\""), "Should include encryption field")
+        assertTrue(output.contains("\"uptime_ms\""), "Should include uptime_ms field")
+        assertTrue(output.contains("\"ok\""), "Should include auth status value")
+        assertTrue(output.contains("\"ready\""), "Should include encryption status value")
+        assertTrue(output.contains("3600000"), "Should include uptime value")
+    }
+
+    @Test
+    fun `formatStatusHuman shows account health instead of sync status`() {
+        val result =
+            SyncStatusResult.Success(
+                healthyView.copy(status = SyncStatus.READY),
+            )
+
+        val output = SyncOutputFormatter.formatStatusHuman(result)
+
+        assertTrue(output.contains("Account Health:"), "Should show 'Account Health' instead of 'Sync Status'")
     }
 }

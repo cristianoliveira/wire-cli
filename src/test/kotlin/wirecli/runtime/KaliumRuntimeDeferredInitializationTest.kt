@@ -20,6 +20,7 @@ import wirecli.profile.ProfileResult
 import wirecli.sync.ConversationSyncStatusResult
 import wirecli.sync.DiagnosticsResult
 import wirecli.sync.PerConversationDiagnosticsResult
+import wirecli.sync.ResetResult
 import wirecli.sync.SyncApiClient
 import wirecli.sync.SyncStatusResult
 import kotlin.test.Test
@@ -184,6 +185,13 @@ private object NoopSyncApiClient : SyncApiClient {
 
     override fun getDiagnostics(session: AuthSession): DiagnosticsResult {
         return DiagnosticsResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun resetSync(
+        session: AuthSession,
+        force: Boolean,
+    ): ResetResult {
+        return ResetResult.Success("Reset successful (test mode)")
     }
 
     override fun getConversationSyncStatus(

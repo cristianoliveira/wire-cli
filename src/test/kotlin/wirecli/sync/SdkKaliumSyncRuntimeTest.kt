@@ -94,6 +94,13 @@ class SdkKaliumSyncRuntimeTest {
                     )
                 }
 
+                override fun resetSync(
+                    session: AuthSession,
+                    force: Boolean,
+                ): ResetResult {
+                    return ResetResult.Success("Reset successful (test mode)")
+                }
+
                 override fun shutdown() {}
             }
 

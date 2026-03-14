@@ -357,7 +357,7 @@ Sync health and device management are complementary:
 - **Device Management** answers "What devices are active?"
 - **Sync Health** answers "Are my devices and sync stack healthy?"
 
-In the MVP, sync status will show device key-package health (as aggregated metrics). The detailed per-device information will be available through `wire client show <device-id>`.
+In the MVP, sync status will show device key-package health (as aggregated metrics). The detailed per-device information will be available through `wire device info <device-id>`.
 
 ### Command Taxonomy
 ```
@@ -406,7 +406,7 @@ wire doctor reset [--force] [--yes]             # Force re-sync (Phase 2)
 Given the two features are complementary but independent:
 
 ### Option A: Sequential (Recommended)
-1. **Day 1**: Implement Device Management (`wire client list`, `wire client delete`)
+1. **Day 1**: Implement Device Management (`wire device list`, `wire device delete`)
    - Simpler service layer; proves command wiring pattern
    - Unblocks security workflows (device revocation)
 2. **Day 2–3**: Implement Sync Health (`wire sync status`, `--verbose`, diagnostics)

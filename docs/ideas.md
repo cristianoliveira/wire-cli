@@ -67,12 +67,12 @@ Why this family exists:
 Why this family exists:
 - Separates people discovery and relationship actions from message/conversation actions.
 
-### 7) `wire client`
+### 7) `wire device`
 
-- `wire client list`
-- `wire client show <client-id>`
-- `wire client delete <client-id> [--yes]`
-- `wire client key-packages status|refill`
+- `wire device list`
+- `wire device info <device-id>`
+- `wire device delete <device-id> [--yes]`
+- `wire device key-packages status|refill`
 
 Why this family exists:
 - Device/client hygiene is an operational concern and benefits from dedicated commands.
@@ -162,7 +162,7 @@ Support levels below are based on current `.local/kalium` surfaces.
 | `chat` | Full | Send/edit/delete/react/watch primitives are present. |
 | `search` | Partial | User search is strong; global message search/sort is weaker. |
 | `contacts` | Full | List/find/connect primitives are present. |
-| `client` | Partial | List/show/delete/status are strong; refill path is not first-class. |
+| `device` | Partial | List/info/delete/status are strong; refill path is not first-class. |
 | `backup` | Partial | Create/verify/restore exist; list/status/id-based restore are missing. |
 | `server` | Partial | Building blocks exist; no dedicated top-level server scope. |
 | `sync` | Partial | Status/watch strong; recover is fragmented across internals. |
@@ -177,7 +177,7 @@ These can be implemented in `wire-cli` with thin adapters to existing Kalium sco
 - `wire convo`: `list/create/members add/remove/archive`
 - `wire chat`: `send/edit/delete/react/watch`
 - `wire contacts`: `list/find/connect`
-- `wire client`: `list/show/delete` + key-package status
+- `wire device`: `list/info/delete` + key-package status
 
 ## Missing Kalium Capabilities to Add (SDK backlog)
 
@@ -218,7 +218,7 @@ To unlock the full ideas roadmap cleanly, Kalium should expose a few additional 
 
 - `auth`, `sessions`, `doctor` (CLI aggregation where needed)
 - cross-cutting output/error/safety flags
-- `contacts` and `client` read/write baseline
+- `contacts` and `device` read/write baseline
 
 ### Next
 

@@ -79,6 +79,25 @@ class RealKaliumAuthClientTest {
     }
 
     @Test
+    fun `maps password auth required client registration to password required exit code`() {
+        val client =
+            RealKaliumAuthClient(
+                FakeRuntime(
+                    authScopeResult = AuthStepResult.Success(FakeAuthScope(AuthStepResult.Success(authenticatedPrincipal()))),
+                    addAccountResult = AuthStepResult.Success(Unit),
+                    resolveSessionResult = AuthStepResult.Success(KaliumSessionScope("jane@example.com")),
+                    ensureClientResult = AuthStepResult.Failure(AuthFailureCategory.PASSWORD_REQUIRED),
+                ),
+            )
+
+        val result = client.login(loginInput)
+
+        val failure = assertIs<AuthApiResult.Failure>(result)
+        assertEquals(AuthMessages.passwordRequired(), failure.message)
+        assertEquals(ExitCodes.PASSWORD_REQUIRED, failure.exitCode)
+    }
+
+    @Test
     fun `redacts secrets in explicit failure messages`() {
         val client =
             RealKaliumAuthClient(

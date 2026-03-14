@@ -107,7 +107,12 @@ internal class RealKaliumAuthClient(
             is AuthStepResult.Failure ->
                 clientResult.toAuthFailure(
                     action = "Authentication",
-                    defaultMessage = AuthMessages.clientRegistrationFailed(),
+                    defaultMessage =
+                        if (clientResult.category == AuthFailureCategory.PASSWORD_REQUIRED) {
+                            null // Let PASSWORD_REQUIRED use its own message
+                        } else {
+                            AuthMessages.clientRegistrationFailed()
+                        },
                 )
         }
     }
@@ -181,6 +186,7 @@ internal sealed interface AuthStepResult<out T> {
 
 internal enum class AuthFailureCategory {
     INVALID_CREDENTIALS,
+    PASSWORD_REQUIRED,
     NETWORK,
     SERVER,
     UNAUTHORIZED,
@@ -303,9 +309,11 @@ internal class SdkKaliumAuthRuntime(
                     is RegisterClientResult.E2EICertificateRequired,
                     -> AuthStepResult.Success(Unit)
 
-                    is RegisterClientResult.Failure.InvalidCredentials,
-                    RegisterClientResult.Failure.PasswordAuthRequired,
-                    -> AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+                    is RegisterClientResult.Failure.InvalidCredentials ->
+                        AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
+
+                    RegisterClientResult.Failure.PasswordAuthRequired ->
+                        AuthStepResult.Failure(AuthFailureCategory.PASSWORD_REQUIRED)
 
                     RegisterClientResult.Failure.TooManyClients -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
                     is RegisterClientResult.Failure.Generic -> {
@@ -481,6 +489,7 @@ private fun AuthStepResult.Failure.toAuthFailure(
     val resolvedMessage =
         message ?: defaultMessage ?: when (category) {
             AuthFailureCategory.INVALID_CREDENTIALS -> AuthMessages.invalidCredentials()
+            AuthFailureCategory.PASSWORD_REQUIRED -> AuthMessages.passwordRequired()
             AuthFailureCategory.NETWORK -> AuthMessages.networkFailure(action)
             AuthFailureCategory.SERVER -> AuthMessages.authServiceUnavailable()
             AuthFailureCategory.UNAUTHORIZED -> AuthMessages.unauthorizedAction(action)
@@ -490,6 +499,7 @@ private fun AuthStepResult.Failure.toAuthFailure(
     val exitCode =
         when (category) {
             AuthFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
+            AuthFailureCategory.PASSWORD_REQUIRED -> ExitCodes.PASSWORD_REQUIRED
             AuthFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             AuthFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             AuthFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED

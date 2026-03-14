@@ -28,6 +28,24 @@ class StubDeviceApiClientTest {
     }
 
     @Test
+    fun `returns devices with complete properties`() {
+        val client = StubDeviceApiClient(emptyMap())
+
+        val result = client.listDevices(session)
+
+        val success = assertIs<DeviceListResult.Success>(result)
+        val device = success.view.devices[0]
+        assertEquals("device-001", device.id)
+        assertEquals("MacBook Pro", device.label)
+        assertEquals(DeviceType.DESKTOP, device.type)
+        assertEquals("MacBook Pro 16\"", device.model)
+        assertEquals(true, device.isVerified)
+        assertEquals(3, device.capabilities.size)
+        assertEquals(2, device.keyPackages.size)
+        assertEquals("Berlin, Germany", device.location)
+    }
+
+    @Test
     fun `returns empty list in list_empty mode`() {
         val client = StubDeviceApiClient(mapOf("WIRE_STUB_MODE" to "list_empty"))
 
@@ -132,6 +150,70 @@ class StubDeviceApiClientTest {
         val result = client.getDeviceDetail(session, "device-001")
 
         val failure = assertIs<DeviceDetailResult.Failure>(result)
+        assertEquals(AuthMessages.invalidOrExpiredSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `returns device list for user by default`() {
+        val client = StubDeviceApiClient(emptyMap())
+
+        val result = client.listDevicesForUser(session, "user-001")
+
+        val success = assertIs<DeviceListResult.Success>(result)
+        assertEquals(3, success.view.devices.size)
+        assertEquals("device-001", success.view.devices[0].id)
+    }
+
+    @Test
+    fun `returns empty list for user in list_empty mode`() {
+        val client = StubDeviceApiClient(mapOf("WIRE_STUB_MODE" to "list_empty"))
+
+        val result = client.listDevicesForUser(session, "user-001")
+
+        val success = assertIs<DeviceListResult.Success>(result)
+        assertEquals(0, success.view.devices.size)
+    }
+
+    @Test
+    fun `returns device list for user in list_ok mode`() {
+        val client = StubDeviceApiClient(mapOf("WIRE_STUB_MODE" to "list_ok"))
+
+        val result = client.listDevicesForUser(session, "user-001")
+
+        val success = assertIs<DeviceListResult.Success>(result)
+        assertEquals(3, success.view.devices.size)
+    }
+
+    @Test
+    fun `returns not found failure for user list in not_found mode`() {
+        val client = StubDeviceApiClient(mapOf("WIRE_STUB_MODE" to "not_found"))
+
+        val result = client.listDevicesForUser(session, "user-001")
+
+        val failure = assertIs<DeviceListResult.Failure>(result)
+        assertEquals(DeviceMessages.DEVICE_NOT_FOUND, failure.message)
+        assertEquals(DeviceExitCodes.NOT_FOUND, failure.exitCode)
+    }
+
+    @Test
+    fun `returns server error failure for user list in server_error mode`() {
+        val client = StubDeviceApiClient(mapOf("WIRE_STUB_MODE" to "server_error"))
+
+        val result = client.listDevicesForUser(session, "user-001")
+
+        val failure = assertIs<DeviceListResult.Failure>(result)
+        assertEquals(DeviceMessages.SERVER_FAILURE, failure.message)
+        assertEquals(ExitCodes.SERVER_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `returns unauthorized failure for user list in unauthorized mode`() {
+        val client = StubDeviceApiClient(mapOf("WIRE_STUB_MODE" to "unauthorized"))
+
+        val result = client.listDevicesForUser(session, "user-001")
+
+        val failure = assertIs<DeviceListResult.Failure>(result)
         assertEquals(AuthMessages.invalidOrExpiredSession(), failure.message)
         assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
     }

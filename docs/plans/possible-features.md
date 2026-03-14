@@ -1,198 +1,199 @@
-# Possible Features for `wire-cli`
+# Possible Features for `wire-cli` — Phase 2 Roadmap
 
-## Context
+**Context**: wire-cli MVP covers auth, profile, and presence (get/set). This roadmap outlines high-value features beyond core identity to support messaging, collaboration, and operations workflows.
 
-This proposal is based on a focused review of:
+**Current MVP baseline**: Login → Presence management → Session restoration. Next phase expands CLI into conversation, discovery, and observability domains.
 
-- `.local/kalium` (SDK capabilities and extension points)
-- `.local/wiretui` (proven user workflows and UX patterns)
-- current `wire-cli` implementation (existing commands and architecture)
+---
 
-Current `wire-cli` baseline is strong for auth/profile/presence, but still narrow compared to Kalium/WireTUI.
+## Feature Candidates
 
-## Prioritized Feature Candidates
+### 1. **Conversation/Message Essentials** (`wire chat send|list|read`)
+**Problem**: Users can't interact with conversations from CLI; no way to read/write messages programmatically.
 
-### Now (high value, lower risk)
+- **Complexity**: Medium
+- **Blockers**: Kalium's ConversationScope chat APIs are stable; schema for rich message types (mentions, reactions, edits) may differ between real/stub backends.
+- **Dependencies**: Session-backed message service, message formatter/normalizer (analogous to presence normalizer).
+- **Story headlines**:
+  - "Send messages to a conversation from CLI"
+  - "List recent messages in a conversation with optional filtering"
 
-1. **Secure login input + non-echo credentials**
-   - Add `--password-stdin` and hidden prompt support.
-   - Why: immediate security improvement; avoids leaking credentials in history/process list.
-   - Complexity: **M**.
+---
 
-2. **2FA login flow support**
-   - Handle second-factor challenge paths in `login`.
-   - Why: required for real-world auth parity and fewer login dead-ends.
-   - Complexity: **M**.
+### 2. **Contacts/User Discovery** (`wire contacts find|list|connect`)
+**Problem**: No way to search for users or manage contact relationships from CLI; manual profile IDs required.
 
-3. **Session/account command group (`wire sessions ...`)**
-   - Add `list`, `use`, `remove` (with safe confirmation / `--yes`).
-   - Why: unlocks multi-account workflows already proven in WireTUI/Kalium.
-   - Complexity: **M**.
+- **Complexity**: Medium
+- **Blockers**: User search ranking and domain federation may not be stable in stub backend; UI behavior for "send connection" varies by backend version.
+- **Dependencies**: Domain-aware search service, contact state normalization (pending/accepted/blocked).
+- **Story headlines**:
+  - "Search for users by name/email with optional domain filter"
+  - "Accept/block pending connection requests from CLI"
 
-4. **Auth/session diagnostics (`wire auth status|diagnose`)**
-   - Report active account, backend/server, token/session health, and actionable errors.
-   - Why: big supportability win with small implementation footprint.
-   - Complexity: **S/M**.
+---
 
-### Next (medium scope, strong operator value)
+### 3. **Device/Client Management** (`wire client list|show|delete`)
+**Problem**: Users can't inspect or revoke clients without UI; no way to rotate devices or verify key-package health in automation.
 
-5. **Device/client management (`wire client ...`)**
-   - List clients, inspect fingerprint/key package state, delete client.
-   - Why: account hygiene and incident recovery; already available in Kalium surfaces.
-   - Complexity: **M**.
+- **Complexity**: Small → Medium
+- **Blockers**: Key-package refill status API may not be first-class in Kalium (currently internal); delete confirmation UX needs safe defaults.
+- **Dependencies**: ClientScope extensions, key-package status normalizer, deletion safety guardrail (--yes flag).
+- **Story headlines**:
+  - "List all active clients with fingerprints and key-package status"
+  - "Revoke a client device with confirmation prompts"
 
-6. **Server selection workflow (`wire server select`)**
-   - Support explicit backend choice (`--backend`) and optional guided confirmation flow.
-   - Why: reduces backend misconfiguration and improves operator confidence.
-   - Complexity: **M**.
+---
 
-7. **Diagnostics and sync status (`wire sync watch`, `wire diagnostics ...`)**
-   - Expose sync liveness/health and recent categorized failures.
-   - Why: better observability for automation and CI/scripting contexts.
-   - Complexity: **S/M**.
+### 4. **Conversation Lifecycle** (`wire convo create|list|archive|member`)
+**Problem**: Group/team workflows blocked; can't create conversations or manage membership from CLI.
 
-8. **Contacts/search essentials (`wire contacts find`, `wire search global`)**
-   - Domain-aware search and machine-readable output (`--json`).
-   - Why: high daily utility for support and operations workflows.
-   - Complexity: **M/L**.
+- **Complexity**: Large
+- **Blockers**: ConversationScope.create() may require metadata schema negotiation (plain vs. MLS); member add/remove may have permission gates not visible in API signatures; guest links / public conversations unclear in Kalium surface.
+- **Dependencies**: Conversation service layer, member state normalizer, explicit error mapping for permission failures, conversation type detection (1-1, group, team).
+- **Story headlines**:
+  - "Create a new conversation with initial members and optional name"
+  - "Manage conversation membership (add/remove) with role assignment"
 
-### Later (larger feature surface)
+---
 
-9. **Backup/restore command suite (`wire backup ...`)**
-   - Backup create/list/restore with eligibility checks and progress output.
-   - Why: portability and recovery capabilities expected from mature clients.
-   - Complexity: **L**.
+### 5. **Sync Health & Observability** (`wire sync watch|status`, `wire doctor`)
+**Problem**: No way to see sync/encryption readiness; users can't diagnose "why is my presence slow?" without logs.
 
-10. **Conversation operations (`wire convo ...`, `wire groups ...`)**
-    - Group/channel create, member management, read-state, guest links, moderation actions.
-    - Why: biggest parity gap vs Kalium sample CLI and WireTUI workflows.
-    - Complexity: **L**.
+- **Complexity**: Small → Medium
+- **Blockers**: Sync internals are partly delicate (not all public APIs exposed); event stream contract unclear; "watch" mode may require long-lived subscription (not ideal for one-shot CLI).
+- **Dependencies**: SyncScope status API wrapper, health aggregator (auth OK? sync live? MLS ready?), streaming output handler.
+- **Story headlines**:
+  - "Check sync and MLS migration health in one command"
+  - "Watch real-time sync status for debugging startup/recovery"
 
-## Recommended Delivery Plan
+---
 
-### Slice 1 (security + reliability)
+### 6. **Notifications & Event Subscription** (`wire events watch|stream`)
+**Problem**: No way to subscribe to real-time updates (new messages, presence changes, typing); automation and alert workflows require polling.
 
-- Secure credential input
-- 2FA handling
-- `auth status/diagnose`
+- **Complexity**: Large
+- **Blockers**: Event stream contracts still fluid in Kalium (cursor format, idempotency keys, reconnection semantics unclear); long-lived JVM process on CLI is risky. May require event-stream version negotiation with backend.
+- **Dependencies**: EventScope subscription model, message-queue backend (to decouple fetch from render), stable cursor/idempotency schema, graceful shutdown on SIGINT.
+- **Story headlines**:
+  - "Stream incoming messages in real-time with optional filtering by conversation"
+  - "Watch presence changes and typing notifications as they occur"
 
-Outcome: production-safer login and faster troubleshooting.
+---
 
-### Slice 2 (multi-account operations)
+### 7. **Search & Message History** (`wire search messages|users|global`)
+**Problem**: Can't query message history or do federated user search; no way to find old conversations.
 
-- `wire sessions` command group
-- logout safety modes (`soft|hard`) with explicit flags
+- **Complexity**: Medium → Large
+- **Blockers**: Global message search may have rank/sort modes not yet stable in Kalium; pagination semantics differ between message and user search; index lag on backends can hide recent messages.
+- **Dependencies**: Unified search service (abstract message vs. user APIs), pagination normalizer (cursor vs. offset), sort-mode capability probe, full-text query validator.
+- **Story headlines**:
+  - "Search messages in a conversation or globally with date/author filters"
+  - "Find users across domains with optional role/status filters"
 
-Outcome: practical account lifecycle management without TUI dependency.
+---
 
-### Slice 3 (operator toolkit)
+### 8. **Team/Group & Moderation** (`wire team list|show`, `wire group moderate|restrict`)
+**Problem**: No way to manage team membership, permissions, or moderate conversations; only available in UI.
 
-- `wire client` management
-- `wire sync`/diagnostics
-- server selection flow
+- **Complexity**: Large
+- **Blockers**: Team vs. conversation vs. group semantics unclear in Kalium; moderation actions (remove user, revoke permissions, restrict posting) vary by backend API version; audit trail not always exposed.
+- **Dependencies**: Team service layer with role/permission normalizers, moderation action executor, member list with role visibility, timestamp-based activity log formatter.
+- **Story headlines**:
+  - "List teams and manage member roles (owner/member/guest)"
+  - "Moderate conversations with mute/restrict/remove actions"
 
-Outcome: stronger support and SRE-style workflows.
+---
 
-## Design Guardrails
+## Quick-Win Opportunities
 
-- Keep current architecture: **command -> service -> api client -> runtime**.
-- Make every new command script-friendly (`--json`, stable exit codes, no implicit prompts).
-- Use prompts only in explicitly interactive mode.
-- Add typed error mapping (avoid string-matching exceptions where possible).
-- Keep destructive operations gated with confirmations or `--yes`.
-- Update docs/stories in the same PR as implementation to avoid plan drift.
+### 🎯 **Sync Health & Diagnostics** (Small, High Value)
+- **Why small**: Status aggregation from existing SyncScope; no new backend integration required.
+- **Why valuable**: Unblocks troubleshooting; "is my account ready?" is asked constantly in support.
+- **Effort**: 2–3 days (service wrapper + output formatter).
 
-## Feature Backlog (one-line view)
+### 🎯 **Device Management** (Small→Medium, High Value)
+- **Why small**: Kalium ClientScope already exposes list/delete; only need CLI wiring.
+- **Why valuable**: Security operations (revoke compromised device) and compliance (audit active devices).
+- **Effort**: 1–2 days (with safe confirmation flow).
 
-- `login`: secure input + 2FA
-- `sessions`: list/use/remove
-- `auth`: status/diagnose
-- `client`: list/delete/fingerprint
-- `server`: select/show
-- `sync`: watch/status
-- `diagnostics`: health/log summary
-- `contacts`: find/connect
-- `search`: global with sort/output modes
-- `backup`: create/restore/status
-- `convo/groups`: create/manage/membership
+---
 
-## GitHub Benchmark Expansion (Slack/Discord)
+## Complexity Summary
 
-We reviewed mature Slack/Discord tools on GitHub to expand this plan with proven CLI patterns.
+| Feature | Complexity | Product Value | Effort | Risk |
+|---------|-----------|---------------|--------|------|
+| Chat send/read | Medium | High | 3–5d | Medium (message schema variance) |
+| Contacts/search | Medium | High | 3–5d | Medium (domain federation) |
+| Device management | Small→Med | High | 1–2d | Low (existing APIs) |
+| Sync/doctor | Small→Med | High | 2–3d | Low (aggregation only) |
+| Conversation lifecycle | Large | High | 7–10d | High (permission gates, MLS) |
+| Search/history | Medium→Large | Medium | 5–8d | Medium (pagination, rank) |
+| Notifications/events | Large | Very High | 10–15d | High (stream stability, JVM risks) |
+| Team/moderation | Large | Medium | 8–12d | High (version gates, audit trail) |
 
-### Representative repos reviewed
+---
 
-- Slack: `slackapi/slack-cli`, `slackapi/python-slack-sdk`, `slackapi/node-slack-sdk`, `slack-go/slack`, `slackapi/slack-github-action`, `rockymadden/slack-cli`.
-- Discord: `discordjs/discord.js`, `Rapptz/discord.py`, `bwmarrin/discordgo`, `serenity-rs/serenity`, `42wim/matterbridge`, `jackwener/discord-cli`.
+## Recommended Next Pick: **Device Management + Sync Health**
 
-### Cross-platform features to add to wire-cli
+**Why this pair**:
+1. **Small but high-value**: Each is 1–3 days; unlocks security and diagnostics workflows immediately.
+2. **Low implementation risk**: Both use existing Kalium APIs with minimal schema unknowns.
+3. **Proves patterns**: Establishes "how we wire service → command" for future medium/large features.
+4. **Unblocks feedback**: Real users can validate CLI model before investing in conversation/notifications (which are riskier).
 
-11. **Global structured output modes (`--output human|json|yaml`)**
-    - Why: scriptability and agent compatibility; common in mature tooling.
-    - Complexity: **M**.
+**Suggested sequencing**:
+1. **Day 1**: Implement `wire client list|delete` with safe confirmation flow.
+   - Proves session-backed service pattern + error handling.
+2. **Day 2**: Implement `wire doctor` / `wire sync status` aggregator.
+   - Proves health/diagnostics output formatting.
+3. **Day 3**: Add `--json` output to both; run Bats integration tests.
+   - Proves output stability for automation.
 
-12. **Pagination contract (`--limit`, `--cursor`, `--all`)**
-    - Why: predictable large-list behavior and resumable data fetches.
-    - Complexity: **M**.
+**Validation gates**:
+- All operations work in both stub and real backends.
+- Help text and error messages are actionable.
+- `--json` schema is versioned and stable (no unexpected key changes).
+- Test coverage >80% for new service layers.
 
-13. **Retry/rate-limit controls (`--retry`, backoff metadata in output)**
-    - Why: reliable automation under API pressure.
-    - Complexity: **M**.
+---
 
-14. **Safe mutation rails (`--dry-run`, `--yes`, explicit confirmations)**
-    - Why: prevents destructive mistakes in CI and scripts.
-    - Complexity: **M**.
+## Subsequent Priority (Post Device/Sync)
 
-15. **Idempotency for mutating operations (`--idempotency-key`)**
-    - Why: avoids duplicate side effects on retries/timeouts.
-    - Complexity: **M/L**.
+1. **Chat send/read** (~5 days): Highest daily utility; unblocks automation.
+2. **Contacts/search** (~5 days): Strong operator value; moderate complexity.
+3. **Conversation lifecycle** (~10 days): Large but well-scoped; can follow chat.
+4. **Search/history** (~8 days): Medium value until messaging is solid.
+5. **Notifications/events** (~15 days): Defer until event-stream contract stabilizes in Kalium.
+6. **Team/moderation** (~12 days): Lower priority; mostly admin workflows.
 
-16. **Audit/reason metadata (`--reason`) for admin actions**
-    - Why: traceable operational changes and better handoffs.
-    - Complexity: **S/M**.
+---
 
-17. **Verbose diagnostics (`--verbose`, `--log-level`, redacted `--trace-http`)**
-    - Why: faster troubleshooting without leaking secrets.
-    - Complexity: **M**.
+## Design Notes
 
-18. **CLI doctor (`wire doctor`) for config/auth/network checks**
-    - Why: shortens incident debugging loops; widely proven pattern.
-    - Complexity: **M**.
+- **Keep command → service → api-client → runtime pattern**: New features should not deviate from existing architecture.
+- **Script-friendly first**: All new commands need `--json`, stable exit codes, no implicit prompts.
+- **Schema versioning**: Output formats must be versioned (e.g., `--output json --format-version 2024-q1`).
+- **Confirmation guards**: Destructive ops (delete client, remove member) require `--yes` or interactive prompt.
+- **Error mapping**: Avoid string-matching on Kalium exceptions; add typed error contracts in each service layer.
+- **Testing**: Stub backend + real backend matrix for all integration tests; no happy-path-only testing.
 
-19. **Payload file/template support (`--payload-file`)**
-    - Why: easier CI integration for rich structured operations.
-    - Complexity: **S/M**.
+---
 
-20. **Uniform machine-readable error envelope + stable exit taxonomy**
-    - Why: deterministic automation and easier alerting.
-    - Complexity: **M**.
+## Blockers & Unknowns to Validate
 
-### Updated prioritization from benchmark
+| Unknown | Impact | Mitigation |
+|---------|--------|-----------|
+| Message schema variance (rich types) | Medium | Prototype chat send in stub mode first; validate schema with Kalium maintainers. |
+| Event-stream idempotency contract | High | Defer events/notifications until Kalium exposes stable cursor/retry semantics. |
+| Team vs. group vs. conversation semantics | High | Spike on WireTUI code and Kalium source; document mapping before implementation. |
+| MLS key-package refill API stability | Medium | Check if exposed as public ClientScope method; if internal, file Kalium RFC. |
+| Moderation action permission gates | Medium | Validate permission model against backend (who can remove user from team vs. group?). |
 
-#### Now
+---
 
-- `login` hardening (secure input + 2FA)
-- `sessions` + `auth diagnose`
-- `--output` contract + error envelope
-- `wire doctor`
-- `--dry-run` / `--yes`
+## Related Documentation
 
-#### Next
-
-- pagination + search windows
-- retry/rate-limit controls
-- `client` + `sync` diagnostics
-- `--reason` and payload-file support
-
-#### Later
-
-- idempotency keys for all writes
-- backup/restore suite
-- conversation/group operations
-
-### Key cautions from Slack/Discord ecosystems
-
-- Do not make interactive prompts mandatory for automation paths.
-- Do not change JSON schemas between commands without versioning.
-- Do not hide retries/rate-limit behavior; expose metadata.
-- Do not rely on ambiguous human-readable identifiers when stable IDs exist.
+- **Architecture patterns**: See `docs/Architecture.md` for command → service wiring and error-handling conventions.
+- **Existing command taxonomy**: See `docs/ideas.md` for fuller feature taxonomy (sessions, config, backup, etc.).
+- **Kalium integration**: See `docs/KALIUM_INTEGRATION.md` for SDK constraints and public API surface.
+- **Test patterns**: See `test/` for Bats integration test patterns (stub backend, session lifecycle).

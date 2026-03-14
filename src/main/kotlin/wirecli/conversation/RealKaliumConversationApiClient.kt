@@ -1,5 +1,6 @@
 package wirecli.conversation
 
+import kotlinx.datetime.Instant
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
@@ -76,17 +77,30 @@ internal class RealKaliumConversationApiClient(
     // ============ Helper Functions ============
 
     private fun mapKaliumConversationToDomain(kaliumConv: KaliumConversation): Conversation {
-        // Use a generic timestamp since Instant type is not easily accessible
-        val timestamp = "Unknown"
         return Conversation(
             id = kaliumConv.id.value,
-            name = kaliumConv.name ?: "Unknown",
+            name =
+                kaliumConv.name?.takeIf { it.isNotBlank() }
+                    ?: when (kaliumConv.type) {
+                        KaliumConversationType.Self -> "[Direct Message]"
+                        KaliumConversationType.OneOnOne -> "[Direct Message]"
+                        KaliumConversationType.ConnectionPending -> "[Direct Message]"
+                        is KaliumConversationType.Group -> "[Group]"
+                    },
             type = mapKaliumConversationType(kaliumConv.type),
             status = mapKaliumConversationStatus(kaliumConv.archived),
             memberCount = 0, // Member count not directly available in Conversation object
-            createdAt = timestamp,
-            updatedAt = timestamp,
+            createdAt = mapTimestamp(kaliumConv.lastModifiedDate),
+            updatedAt = mapTimestamp(kaliumConv.lastModifiedDate),
         )
+    }
+
+    private fun mapTimestamp(instant: Instant?): String {
+        return if (instant != null) {
+            instant.toString() // Already ISO 8601 format
+        } else {
+            "Unknown"
+        }
     }
 
     private fun mapKaliumConversationType(type: KaliumConversationType): ConversationType {

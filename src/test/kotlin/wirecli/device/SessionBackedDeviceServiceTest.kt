@@ -203,8 +203,7 @@ class SessionBackedDeviceServiceTest {
         override fun listDevicesForUser(
             session: AuthSession,
             userId: String,
-        ): DeviceListResult =
-            listResult ?: DeviceListResult.Success(DeviceListView(emptyList()))
+        ): DeviceListResult = listResult ?: DeviceListResult.Success(DeviceListView(emptyList()))
 
         override fun getDeviceDetail(
             session: AuthSession,

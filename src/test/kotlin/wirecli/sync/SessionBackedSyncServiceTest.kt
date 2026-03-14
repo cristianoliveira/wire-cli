@@ -221,7 +221,10 @@ class SessionBackedSyncServiceTest {
                     ),
                 )
 
-        override fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult {
+        override fun getConversationSyncStatus(
+            session: AuthSession,
+            conversationId: String,
+        ): ConversationSyncStatusResult {
             return ConversationSyncStatusResult.Success(
                 ConversationSyncStatus(
                     conversation_id = conversationId,
@@ -232,7 +235,10 @@ class SessionBackedSyncServiceTest {
             )
         }
 
-        override fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult {
+        override fun getPerConversationDiagnostics(
+            session: AuthSession,
+            conversationId: String,
+        ): PerConversationDiagnosticsResult {
             return PerConversationDiagnosticsResult.Success(
                 PerConversationDiagnosticsReport(
                     conversation_id = conversationId,

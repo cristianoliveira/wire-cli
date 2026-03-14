@@ -7,19 +7,20 @@ import kotlin.test.assertIs
 class DeviceContractsTest {
     @Test
     fun `Device model includes all required fields`() {
-        val device = Device(
-            id = "device-001",
-            label = "My Desktop",
-            type = DeviceType.DESKTOP,
-            model = "MacBook Pro",
-            fingerprint = "a1b2c3d4e5f6g7h8i9j0",
-            isVerified = true,
-            lastActive = "2025-03-13T10:30:00Z",
-            registrationTime = "2025-01-01T00:00:00Z",
-            capabilities = listOf("MLS", "PROTEUS"),
-            keyPackages = listOf("key1", "key2"),
-            location = "San Francisco, CA",
-        )
+        val device =
+            Device(
+                id = "device-001",
+                label = "My Desktop",
+                type = DeviceType.DESKTOP,
+                model = "MacBook Pro",
+                fingerprint = "a1b2c3d4e5f6g7h8i9j0",
+                isVerified = true,
+                lastActive = "2025-03-13T10:30:00Z",
+                registrationTime = "2025-01-01T00:00:00Z",
+                capabilities = listOf("MLS", "PROTEUS"),
+                keyPackages = listOf("key1", "key2"),
+                location = "San Francisco, CA",
+            )
 
         assertEquals("device-001", device.id)
         assertEquals("My Desktop", device.label)
@@ -36,12 +37,13 @@ class DeviceContractsTest {
 
     @Test
     fun `Device model has sensible defaults for optional fields`() {
-        val device = Device(
-            id = "device-001",
-            type = DeviceType.DESKTOP,
-            fingerprint = "a1b2c3d4e5f6g7h8i9j0",
-            lastActive = "2025-03-13T10:30:00Z",
-        )
+        val device =
+            Device(
+                id = "device-001",
+                type = DeviceType.DESKTOP,
+                fingerprint = "a1b2c3d4e5f6g7h8i9j0",
+                lastActive = "2025-03-13T10:30:00Z",
+            )
 
         assertEquals("device-001", device.id)
         assertEquals(null, device.label)
@@ -58,20 +60,21 @@ class DeviceContractsTest {
 
     @Test
     fun `DeviceListView contains devices list`() {
-        val devices = listOf(
-            Device(
-                id = "device-001",
-                type = DeviceType.DESKTOP,
-                fingerprint = "a1b2c3d4e5f6g7h8i9j0",
-                lastActive = "2025-03-13T10:30:00Z",
-            ),
-            Device(
-                id = "device-002",
-                type = DeviceType.MOBILE,
-                fingerprint = "b2c3d4e5f6g7h8i9j0k1",
-                lastActive = "2025-03-12T15:45:00Z",
-            ),
-        )
+        val devices =
+            listOf(
+                Device(
+                    id = "device-001",
+                    type = DeviceType.DESKTOP,
+                    fingerprint = "a1b2c3d4e5f6g7h8i9j0",
+                    lastActive = "2025-03-13T10:30:00Z",
+                ),
+                Device(
+                    id = "device-002",
+                    type = DeviceType.MOBILE,
+                    fingerprint = "b2c3d4e5f6g7h8i9j0k1",
+                    lastActive = "2025-03-12T15:45:00Z",
+                ),
+            )
         val view = DeviceListView(devices = devices)
 
         assertEquals(2, view.devices.size)
@@ -81,16 +84,18 @@ class DeviceContractsTest {
 
     @Test
     fun `DeviceDetailView contains device and key package status`() {
-        val device = Device(
-            id = "device-001",
-            type = DeviceType.DESKTOP,
-            fingerprint = "a1b2c3d4e5f6g7h8i9j0",
-            lastActive = "2025-03-13T10:30:00Z",
-        )
-        val view = DeviceDetailView(
-            device = device,
-            keyPackageStatus = KeyPackageStatus.VALID,
-        )
+        val device =
+            Device(
+                id = "device-001",
+                type = DeviceType.DESKTOP,
+                fingerprint = "a1b2c3d4e5f6g7h8i9j0",
+                lastActive = "2025-03-13T10:30:00Z",
+            )
+        val view =
+            DeviceDetailView(
+                device = device,
+                keyPackageStatus = KeyPackageStatus.VALID,
+            )
 
         assertEquals("device-001", view.device.id)
         assertEquals(KeyPackageStatus.VALID, view.keyPackageStatus)
@@ -107,10 +112,11 @@ class DeviceContractsTest {
 
     @Test
     fun `DeviceListResult Failure exposes message and exit code`() {
-        val result: DeviceListResult = DeviceListResult.Failure(
-            message = "Not found",
-            exitCode = DeviceExitCodes.NOT_FOUND,
-        )
+        val result: DeviceListResult =
+            DeviceListResult.Failure(
+                message = "Not found",
+                exitCode = DeviceExitCodes.NOT_FOUND,
+            )
 
         val failure = assertIs<DeviceListResult.Failure>(result)
         assertEquals("Not found", failure.message)
@@ -119,16 +125,18 @@ class DeviceContractsTest {
 
     @Test
     fun `DeviceDetailResult Success exposes view`() {
-        val device = Device(
-            id = "device-001",
-            type = DeviceType.DESKTOP,
-            fingerprint = "a1b2c3d4e5f6g7h8i9j0",
-            lastActive = "2025-03-13T10:30:00Z",
-        )
-        val view = DeviceDetailView(
-            device = device,
-            keyPackageStatus = KeyPackageStatus.VALID,
-        )
+        val device =
+            Device(
+                id = "device-001",
+                type = DeviceType.DESKTOP,
+                fingerprint = "a1b2c3d4e5f6g7h8i9j0",
+                lastActive = "2025-03-13T10:30:00Z",
+            )
+        val view =
+            DeviceDetailView(
+                device = device,
+                keyPackageStatus = KeyPackageStatus.VALID,
+            )
         val result: DeviceDetailResult = DeviceDetailResult.Success(view)
 
         val success = assertIs<DeviceDetailResult.Success>(result)
@@ -137,10 +145,11 @@ class DeviceContractsTest {
 
     @Test
     fun `DeviceDetailResult Failure exposes message and exit code`() {
-        val result: DeviceDetailResult = DeviceDetailResult.Failure(
-            message = "Device not found",
-            exitCode = DeviceExitCodes.NOT_FOUND,
-        )
+        val result: DeviceDetailResult =
+            DeviceDetailResult.Failure(
+                message = "Device not found",
+                exitCode = DeviceExitCodes.NOT_FOUND,
+            )
 
         val failure = assertIs<DeviceDetailResult.Failure>(result)
         assertEquals("Device not found", failure.message)
@@ -157,10 +166,11 @@ class DeviceContractsTest {
 
     @Test
     fun `DeviceDeleteResult Failure exposes message and exit code`() {
-        val result: DeviceDeleteResult = DeviceDeleteResult.Failure(
-            message = "Cannot delete device",
-            exitCode = DeviceExitCodes.PERMISSION_DENIED,
-        )
+        val result: DeviceDeleteResult =
+            DeviceDeleteResult.Failure(
+                message = "Cannot delete device",
+                exitCode = DeviceExitCodes.PERMISSION_DENIED,
+            )
 
         val failure = assertIs<DeviceDeleteResult.Failure>(result)
         assertEquals("Cannot delete device", failure.message)

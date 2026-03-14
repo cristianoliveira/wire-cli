@@ -34,7 +34,10 @@ class DeviceInfoCommand(
         }
     }
 
-    private fun outputAsText(device: wirecli.device.Device, keyPackageStatus: String) {
+    private fun outputAsText(
+        device: wirecli.device.Device,
+        keyPackageStatus: String,
+    ) {
         echo("ID: ${device.id}")
         echo("Type: ${device.type}")
         echo("Fingerprint: ${device.fingerprint}")
@@ -58,7 +61,10 @@ class DeviceInfoCommand(
         }
     }
 
-    private fun outputAsJson(device: wirecli.device.Device, keyPackageStatus: String) {
+    private fun outputAsJson(
+        device: wirecli.device.Device,
+        keyPackageStatus: String,
+    ) {
         val id = escapeJson(device.id)
         val type = escapeJson(device.type.toString())
         val fingerprint = escapeJson(device.fingerprint)
@@ -67,12 +73,12 @@ class DeviceInfoCommand(
         val model = device.model?.let { escapeJson(it) } ?: "null"
         val registrationTime = device.registrationTime?.let { escapeJson(it) } ?: "null"
         val location = device.location?.let { escapeJson(it) } ?: "null"
-        
+
         val labelJson = if (device.label != null) "\"$label\"" else "null"
         val modelJson = if (device.model != null) "\"$model\"" else "null"
         val registrationTimeJson = if (device.registrationTime != null) "\"$registrationTime\"" else "null"
         val locationJson = if (device.location != null) "\"$location\"" else "null"
-        
+
         val capabilitiesJson = device.capabilities.joinToString(",") { "\"${escapeJson(it)}\"" }
 
         val json = """{

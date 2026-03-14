@@ -28,11 +28,17 @@ internal class RealKaliumSyncApiClient(
         return runtime.getDiagnostics(session)
     }
 
-    override fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult {
+    override fun getConversationSyncStatus(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationSyncStatusResult {
         return runtime.getConversationSyncStatus(session, conversationId)
     }
 
-    override fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult {
+    override fun getPerConversationDiagnostics(
+        session: AuthSession,
+        conversationId: String,
+    ): PerConversationDiagnosticsResult {
         return runtime.getPerConversationDiagnostics(session, conversationId)
     }
 }
@@ -61,7 +67,10 @@ internal interface RealKaliumSyncRuntime {
      * @param conversationId The ID of the conversation to query
      * @return Sync status and metrics for the conversation
      */
-    fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult
+    fun getConversationSyncStatus(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationSyncStatusResult
 
     /**
      * Retrieves detailed diagnostics for a conversation's sync status.
@@ -70,7 +79,10 @@ internal interface RealKaliumSyncRuntime {
      * @param conversationId The ID of the conversation to diagnose
      * @return Detailed diagnostics report with checks and recovery hints
      */
-    fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult
+    fun getPerConversationDiagnostics(
+        session: AuthSession,
+        conversationId: String,
+    ): PerConversationDiagnosticsResult
 
     fun shutdown()
 }
@@ -123,9 +135,10 @@ internal class SdkKaliumSyncRuntime(
 
                 val status = mapSyncStateToStatus(syncState)
                 val lagMs = calculateLagMs(syncState)
-                val networkMetrics = networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                    estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
-                )
+                val networkMetrics =
+                    networkConnectivityChecker.checkNetworkConnectivity()?.copy(
+                        estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                    )
                 val metrics =
                     HealthMetrics(
                         lag_ms = lagMs,
@@ -235,27 +248,29 @@ internal class SdkKaliumSyncRuntime(
                 val networkMetrics = networkConnectivityChecker.checkNetworkConnectivity()
                 val lagMs = if (syncState != null) calculateLagMs(syncState) else 30000L
                 val estimatedLatency = networkConnectivityChecker.estimateNetworkLatency(lagMs)
-                
-                val networkCheckStatus = when {
-                    networkMetrics != null && !networkMetrics.connected -> "Fail"
-                    syncState is SyncState.Failed -> "Fail"
-                    networkMetrics != null && networkMetrics.error_rate > 0.3 -> "Warn"
-                    else -> "Pass"
-                }
-                
-                val networkDetails = buildString {
-                    if (networkMetrics != null) {
-                        append("Network: ${networkMetrics.network_type}, ")
-                        append("Latency: ${estimatedLatency}ms, ")
-                        append("Error Rate: ${String.format("%.1f%%", networkMetrics.error_rate * 100)}")
-                        if (networkMetrics.last_recovery_time_ms != null) {
-                            append(", Last Recovery: ${networkMetrics.last_recovery_time_ms}ms ago")
-                        }
-                    } else {
-                        append("Network connectivity status unavailable")
+
+                val networkCheckStatus =
+                    when {
+                        networkMetrics != null && !networkMetrics.connected -> "Fail"
+                        syncState is SyncState.Failed -> "Fail"
+                        networkMetrics != null && networkMetrics.error_rate > 0.3 -> "Warn"
+                        else -> "Pass"
                     }
-                }
-                
+
+                val networkDetails =
+                    buildString {
+                        if (networkMetrics != null) {
+                            append("Network: ${networkMetrics.network_type}, ")
+                            append("Latency: ${estimatedLatency}ms, ")
+                            append("Error Rate: ${String.format("%.1f%%", networkMetrics.error_rate * 100)}")
+                            if (networkMetrics.last_recovery_time_ms != null) {
+                                append(", Last Recovery: ${networkMetrics.last_recovery_time_ms}ms ago")
+                            }
+                        } else {
+                            append("Network connectivity status unavailable")
+                        }
+                    }
+
                 checks.add(
                     Check(
                         name = "Network Connectivity",
@@ -287,7 +302,10 @@ internal class SdkKaliumSyncRuntime(
         }
     }
 
-    override fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult {
+    override fun getConversationSyncStatus(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationSyncStatusResult {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: return ConversationSyncStatusResult.Failure(
@@ -319,9 +337,10 @@ internal class SdkKaliumSyncRuntime(
 
                 val status = mapSyncStateToStatus(syncState)
                 val lagMs = calculateConversationLagMs(syncState)
-                val networkMetrics = networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                    estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
-                )
+                val networkMetrics =
+                    networkConnectivityChecker.checkNetworkConnectivity()?.copy(
+                        estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                    )
                 val metrics =
                     ConversationMetrics(
                         conversation_id = conversationId,
@@ -349,7 +368,10 @@ internal class SdkKaliumSyncRuntime(
         }
     }
 
-    override fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult {
+    override fun getPerConversationDiagnostics(
+        session: AuthSession,
+        conversationId: String,
+    ): PerConversationDiagnosticsResult {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: return PerConversationDiagnosticsResult.Failure(
@@ -414,12 +436,13 @@ internal class SdkKaliumSyncRuntime(
                 checks.add(
                     Check(
                         name = "Sync Completeness",
-                        status = when {
-                            completeness >= 95 -> "Pass"
-                            completeness >= 70 -> "Warn"
-                            else -> "Fail"
-                        },
-                        details = "Sync completeness: ${completeness}%",
+                        status =
+                            when {
+                                completeness >= 95 -> "Pass"
+                                completeness >= 70 -> "Warn"
+                                else -> "Fail"
+                            },
+                        details = "Sync completeness: $completeness%",
                     ),
                 )
 
@@ -427,24 +450,26 @@ internal class SdkKaliumSyncRuntime(
                 val convNetworkMetrics = networkConnectivityChecker.checkNetworkConnectivity()
                 val convLagMs = calculateConversationLagMs(syncState)
                 val convEstimatedLatency = networkConnectivityChecker.estimateNetworkLatency(convLagMs)
-                
-                val convNetworkStatus = when {
-                    convNetworkMetrics != null && !convNetworkMetrics.connected -> "Fail"
-                    syncState is SyncState.Failed -> "Fail"
-                    convNetworkMetrics != null && convNetworkMetrics.error_rate > 0.3 -> "Warn"
-                    else -> "Pass"
-                }
-                
-                val convNetworkDetails = buildString {
-                    if (convNetworkMetrics != null) {
-                        append("Type: ${convNetworkMetrics.network_type}, ")
-                        append("Latency: ${convEstimatedLatency}ms, ")
-                        append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
-                    } else {
-                        append("Conversation connectivity status unavailable")
+
+                val convNetworkStatus =
+                    when {
+                        convNetworkMetrics != null && !convNetworkMetrics.connected -> "Fail"
+                        syncState is SyncState.Failed -> "Fail"
+                        convNetworkMetrics != null && convNetworkMetrics.error_rate > 0.3 -> "Warn"
+                        else -> "Pass"
                     }
-                }
-                
+
+                val convNetworkDetails =
+                    buildString {
+                        if (convNetworkMetrics != null) {
+                            append("Type: ${convNetworkMetrics.network_type}, ")
+                            append("Latency: ${convEstimatedLatency}ms, ")
+                            append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
+                        } else {
+                            append("Conversation connectivity status unavailable")
+                        }
+                    }
+
                 checks.add(
                     Check(
                         name = "Conversation Connectivity",
@@ -614,7 +639,9 @@ internal class SdkKaliumSyncRuntime(
                 hints.add(
                     RecoveryHint(
                         description = "Network is disconnected or unreachable",
-                        command = "1. Check your internet connection\n2. Verify DNS resolution (ping 8.8.8.8)\n3. Retry with: wire-cli sync status --retry",
+                        command =
+                            "1. Check your internet connection\n2. Verify DNS resolution " +
+                                "(ping 8.8.8.8)\n3. Retry with: wire-cli sync status --retry",
                     ),
                 )
             }
@@ -622,7 +649,9 @@ internal class SdkKaliumSyncRuntime(
                 hints.add(
                     RecoveryHint(
                         description = "High error rate detected on network connection",
-                        command = "1. Check for network instability\n2. Try switching networks if available\n3. Retry with: wire-cli sync status --retry",
+                        command =
+                            "1. Check for network instability\n2. Try switching networks " +
+                                "if available\n3. Retry with: wire-cli sync status --retry",
                     ),
                 )
             }
@@ -654,52 +683,58 @@ internal class SdkKaliumSyncRuntime(
         }
     }
 
-     private fun generateConversationRecoveryHints(
-         checks: List<Check>,
-         conversationId: String,
-     ): List<RecoveryHint> {
-         val hints = mutableListOf<RecoveryHint>()
+    private fun generateConversationRecoveryHints(
+        checks: List<Check>,
+        conversationId: String,
+    ): List<RecoveryHint> {
+        val hints = mutableListOf<RecoveryHint>()
 
-         if (checks.any { it.name == "Message Sync" && it.status == "Fail" }) {
-             hints.add(
-                 RecoveryHint(
-                     description = "Message sync failed for conversation",
-                     command = "wire-cli sync status --conversation $conversationId --retry",
-                 ),
-             )
-         }
+        if (checks.any { it.name == "Message Sync" && it.status == "Fail" }) {
+            hints.add(
+                RecoveryHint(
+                    description = "Message sync failed for conversation",
+                    command = "wire-cli sync status --conversation $conversationId --retry",
+                ),
+            )
+        }
 
-         if (checks.any { it.name == "Sync Completeness" && it.status == "Fail" }) {
-             hints.add(
-                 RecoveryHint(
-                     description = "Conversation sync is incomplete",
-                     command = "1. Check network connection status\n2. Verify server availability\n3. Retry full sync",
-                 ),
-             )
-         }
+        if (checks.any { it.name == "Sync Completeness" && it.status == "Fail" }) {
+            hints.add(
+                RecoveryHint(
+                    description = "Conversation sync is incomplete",
+                    command = "1. Check network connection status\n2. Verify server availability\n3. Retry full sync",
+                ),
+            )
+        }
 
-         val connCheck = checks.find { it.name == "Conversation Connectivity" }
-         when (connCheck?.status) {
-             "Fail" -> {
-                 hints.add(
-                     RecoveryHint(
-                         description = "Conversation connectivity failed - verify network and permissions",
-                         command = "1. Confirm network connectivity\n2. Verify conversation exists: wire-cli sync status\n3. Check access permissions and retry",
-                     ),
-                 )
-             }
-             "Warn" -> {
-                 hints.add(
-                     RecoveryHint(
-                         description = "Conversation connectivity has intermittent issues",
-                         command = "1. Check for network instability\n2. Retry with exponential backoff\n3. Consider retrying later if issue persists",
-                     ),
-                 )
-             }
-         }
+        val connCheck = checks.find { it.name == "Conversation Connectivity" }
+        when (connCheck?.status) {
+            "Fail" -> {
+                hints.add(
+                    RecoveryHint(
+                        description =
+                            "Conversation connectivity failed - verify network and " +
+                                "permissions",
+                        command =
+                            "1. Confirm network connectivity\n2. Verify conversation " +
+                                "exists: wire-cli sync status\n3. Check access permissions and retry",
+                    ),
+                )
+            }
+            "Warn" -> {
+                hints.add(
+                    RecoveryHint(
+                        description = "Conversation connectivity has intermittent issues",
+                        command =
+                            "1. Check for network instability\n2. Retry with exponential " +
+                                "backoff\n3. Consider retrying later if issue persists",
+                    ),
+                )
+            }
+        }
 
-         return hints
-     }
+        return hints
+    }
 
     private fun categoryFromThrowableSync(error: Throwable): SyncFailureCategory {
         val message = error.message.orEmpty()

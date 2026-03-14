@@ -1,7 +1,7 @@
 package wirecli.sync
 
-import com.wire.kalium.logic.data.sync.SyncState
 import com.wire.kalium.common.error.CoreFailure.Unknown
+import com.wire.kalium.logic.data.sync.SyncState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
@@ -47,10 +47,11 @@ class SyncMetricsCalculationTest {
 
     @Test
     fun `lag_ms is 10000ms for Failed state`() {
-        val failedState = SyncState.Failed(
-            cause = Unknown(null),
-            retryDelay = 1.seconds
-        )
+        val failedState =
+            SyncState.Failed(
+                cause = Unknown(null),
+                retryDelay = 1.seconds,
+            )
         val lagMs = calculator.calculateLagMs(failedState)
         assertEquals(10000L, lagMs, "Failed state should have 10000ms lag")
     }
@@ -96,23 +97,25 @@ class SyncMetricsCalculationTest {
 
     @Test
     fun `pending_messages is zero for Failed state`() {
-        val failedState = SyncState.Failed(
-            cause = Unknown(null),
-            retryDelay = 1.seconds
-        )
+        val failedState =
+            SyncState.Failed(
+                cause = Unknown(null),
+                retryDelay = 1.seconds,
+            )
         val pending = calculator.calculatePendingMessages(failedState)
         assertEquals(0, pending, "Failed state should have zero pending messages")
     }
 
     @Test
     fun `pending_messages are non-negative for all states`() {
-        val states = listOf(
-            SyncState.Live,
-            SyncState.SlowSync,
-            SyncState.GatheringPendingEvents,
-            SyncState.Waiting,
-            SyncState.Failed(Unknown(null), 1.seconds)
-        )
+        val states =
+            listOf(
+                SyncState.Live,
+                SyncState.SlowSync,
+                SyncState.GatheringPendingEvents,
+                SyncState.Waiting,
+                SyncState.Failed(Unknown(null), 1.seconds),
+            )
 
         states.forEach { state ->
             val pending = calculator.calculatePendingMessages(state)
@@ -148,23 +151,25 @@ class SyncMetricsCalculationTest {
 
     @Test
     fun `mls_pct is zero for Failed state`() {
-        val failedState = SyncState.Failed(
-            cause = Unknown(null),
-            retryDelay = 1.seconds
-        )
+        val failedState =
+            SyncState.Failed(
+                cause = Unknown(null),
+                retryDelay = 1.seconds,
+            )
         val mlsPct = calculator.calculateMlsPercentage(failedState)
         assertEquals(0, mlsPct, "Failed state should have 0% MLS")
     }
 
     @Test
     fun `mls_pct is always between 0 and 100`() {
-        val states = listOf(
-            SyncState.Live,
-            SyncState.SlowSync,
-            SyncState.GatheringPendingEvents,
-            SyncState.Waiting,
-            SyncState.Failed(Unknown(null), 1.seconds)
-        )
+        val states =
+            listOf(
+                SyncState.Live,
+                SyncState.SlowSync,
+                SyncState.GatheringPendingEvents,
+                SyncState.Waiting,
+                SyncState.Failed(Unknown(null), 1.seconds),
+            )
 
         states.forEach { state ->
             val mlsPct = calculator.calculateMlsPercentage(state)
@@ -211,13 +216,14 @@ class SyncMetricsCalculationTest {
 
     @Test
     fun `all sync states produce non-null results`() {
-        val states = listOf(
-            SyncState.Live,
-            SyncState.SlowSync,
-            SyncState.GatheringPendingEvents,
-            SyncState.Waiting,
-            SyncState.Failed(Unknown(null), 1.seconds)
-        )
+        val states =
+            listOf(
+                SyncState.Live,
+                SyncState.SlowSync,
+                SyncState.GatheringPendingEvents,
+                SyncState.Waiting,
+                SyncState.Failed(Unknown(null), 1.seconds),
+            )
 
         states.forEach { state ->
             val lag = calculator.calculateLagMs(state)
@@ -232,13 +238,14 @@ class SyncMetricsCalculationTest {
 
     @Test
     fun `lag_ms values are reasonable in milliseconds`() {
-        val states = listOf(
-            SyncState.Live,
-            SyncState.SlowSync,
-            SyncState.GatheringPendingEvents,
-            SyncState.Waiting,
-            SyncState.Failed(Unknown(null), 1.seconds)
-        )
+        val states =
+            listOf(
+                SyncState.Live,
+                SyncState.SlowSync,
+                SyncState.GatheringPendingEvents,
+                SyncState.Waiting,
+                SyncState.Failed(Unknown(null), 1.seconds),
+            )
 
         states.forEach { state ->
             val lag = calculator.calculateLagMs(state)
@@ -275,23 +282,25 @@ class SyncMetricsCalculationTest {
 
     @Test
     fun `Failed state maps to DEGRADED status`() {
-        val failedState = SyncState.Failed(
-            cause = Unknown(null),
-            retryDelay = 1.seconds
-        )
+        val failedState =
+            SyncState.Failed(
+                cause = Unknown(null),
+                retryDelay = 1.seconds,
+            )
         val status = calculator.mapSyncStateToStatus(failedState)
         assertEquals(SyncStatus.DEGRADED, status, "Failed state should map to DEGRADED status")
     }
 
     @Test
     fun `all sync states have valid status mappings`() {
-        val states = listOf(
-            SyncState.Live,
-            SyncState.SlowSync,
-            SyncState.GatheringPendingEvents,
-            SyncState.Waiting,
-            SyncState.Failed(Unknown(null), 1.seconds)
-        )
+        val states =
+            listOf(
+                SyncState.Live,
+                SyncState.SlowSync,
+                SyncState.GatheringPendingEvents,
+                SyncState.Waiting,
+                SyncState.Failed(Unknown(null), 1.seconds),
+            )
 
         states.forEach { state ->
             val status = calculator.mapSyncStateToStatus(state)
@@ -307,13 +316,14 @@ class SyncMetricsCalculationTest {
 
     @Test
     fun `metric calculations complete within reasonable time`() {
-        val states = listOf(
-            SyncState.Live,
-            SyncState.SlowSync,
-            SyncState.GatheringPendingEvents,
-            SyncState.Waiting,
-            SyncState.Failed(Unknown(null), 1.seconds)
-        )
+        val states =
+            listOf(
+                SyncState.Live,
+                SyncState.SlowSync,
+                SyncState.GatheringPendingEvents,
+                SyncState.Waiting,
+                SyncState.Failed(Unknown(null), 1.seconds),
+            )
 
         val startTime = System.nanoTime()
 

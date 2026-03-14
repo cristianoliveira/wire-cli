@@ -345,7 +345,10 @@ class StubSyncApiClient(
         }
     }
 
-    override fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult {
+    override fun getConversationSyncStatus(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationSyncStatusResult {
         val mode = environment["WIRE_STUB_MODE"]
 
         if (conversationId.isBlank()) {
@@ -442,7 +445,10 @@ class StubSyncApiClient(
         }
     }
 
-    override fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult {
+    override fun getPerConversationDiagnostics(
+        session: AuthSession,
+        conversationId: String,
+    ): PerConversationDiagnosticsResult {
         val mode = environment["WIRE_STUB_MODE"]
 
         if (conversationId.isBlank()) {

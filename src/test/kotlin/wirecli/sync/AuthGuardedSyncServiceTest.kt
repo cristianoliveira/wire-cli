@@ -180,5 +180,26 @@ class AuthGuardedSyncServiceTest {
         override fun getCurrentSyncStatus(): SyncStatusResult = statusResult
 
         override fun getDiagnosticsReport(): DiagnosticsResult = diagnosticsResult
+
+        override fun getConversationSyncStatus(conversationId: String): ConversationSyncStatusResult {
+            return ConversationSyncStatusResult.Success(
+                ConversationSyncStatus(
+                    conversation_id = conversationId,
+                    status = SyncStatus.READY,
+                    metrics = ConversationMetrics(conversationId, 100L, 0, 100, "2025-03-13T10:30:00Z"),
+                    last_sync_timestamp = "2025-03-13T10:30:00Z",
+                ),
+            )
+        }
+
+        override fun getPerConversationDiagnostics(conversationId: String): PerConversationDiagnosticsResult {
+            return PerConversationDiagnosticsResult.Success(
+                PerConversationDiagnosticsReport(
+                    conversation_id = conversationId,
+                    checks = emptyList(),
+                    summary = "Conversation is healthy",
+                ),
+            )
+        }
     }
 }

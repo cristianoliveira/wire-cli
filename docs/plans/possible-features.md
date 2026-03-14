@@ -36,10 +36,10 @@
 
 ---
 
-### 3. **Device Management** (`wire device list|show|delete`)
+### 3. **Device Management** (`wire device list|info|delete`)
 **Problem**: Users can't inspect or revoke devices without UI; no way to rotate devices or verify key-package health in automation.
 
-**Note**: `wire client` command will be removed in favor of `wire device` (breaking change in beta, no deprecation period).
+**Note**: `wire client` command has been consolidated into `wire device` (breaking change completed in beta).
 
 - **Complexity**: Small → Medium
 - **Blockers**: Key-package refill status API may not be first-class in Kalium (currently internal); delete confirmation UX needs safe defaults.
@@ -152,7 +152,7 @@
 5. **Breaking changes allowed**: Beta allows direct changes without deprecation (remove `wire client`, rename `wire sync` → `wire doctor`)
 
 **Suggested sequencing**:
-1. **Day 1**: Implement `wire device` management with safe confirmation flow (consolidate from any `wire client` legacy code).
+1. **Day 1**: Implement `wire device` management with safe confirmation flow (consolidation complete).
    - Proves session-backed service pattern + error handling.
 2. **Day 2**: Implement `wire doctor` aggregator (`status`, `diagnose`, `reset` subcommands).
    - Proves health/diagnostics output formatting.

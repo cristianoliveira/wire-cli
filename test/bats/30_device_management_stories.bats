@@ -38,11 +38,11 @@ validate_json() {
 }
 
 # Story 13: Device List - Table Format
-@test "Given authenticated session, when wire client list runs, then devices are displayed in table format" {
+@test "Given authenticated session, when wire device list runs, then devices are displayed in table format" {
   login_stub_session
 
   export WIRE_STUB_MODE="list_ok"
-  run_wire client list
+  run_wire device list
   assert_status 0
   [[ "${output}" == *"ID"* ]]
   [[ "${output}" == *"Type"* ]]
@@ -53,11 +53,11 @@ validate_json() {
 }
 
 # Story 13: Device List - JSON Format
-@test "Given authenticated session, when wire client list --json runs, then valid JSON is output" {
+@test "Given authenticated session, when wire device list --json runs, then valid JSON is output" {
   login_stub_session
 
   export WIRE_STUB_MODE="list_ok"
-  run_wire client list --json
+  run_wire device list --json
   assert_status 0
   [[ "${output}" == *"devices"* ]]
   [[ "${output}" == *"device-001"* ]]
@@ -66,28 +66,28 @@ validate_json() {
 }
 
 # Story 13: Device List - Empty Devices
-@test "Given authenticated user with no devices, when wire client list runs, then empty state message is shown" {
+@test "Given authenticated user with no devices, when wire device list runs, then empty state message is shown" {
   login_stub_session
 
   export WIRE_STUB_MODE="list_empty"
-  run_wire client list
+  run_wire device list
   assert_status 0
   [[ "${output}" == *"No devices found."* ]]
 }
 
 # Story 13: Device List - Unauthenticated Access
-@test "Given no session, when wire client list runs, then access is denied with reauth guidance" {
-  run_wire client list
+@test "Given no session, when wire device list runs, then access is denied with reauth guidance" {
+  run_wire device list
   assert_status 11
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 # Story 13: Device List - JSON with Empty Devices
-@test "Given authenticated user with no devices, when wire client list --json runs, then empty JSON array is output" {
+@test "Given authenticated user with no devices, when wire device list --json runs, then empty JSON array is output" {
   login_stub_session
 
   export WIRE_STUB_MODE="list_empty"
-  run_wire client list --json
+  run_wire device list --json
   assert_status 0
   [[ "${output}" == *"devices"* ]]
   [[ "${output}" == *"[]"* ]]
@@ -95,83 +95,83 @@ validate_json() {
 }
 
 # Story 13: Device List - Unauthorized Session
-@test "Given expired session, when wire client list runs, then unauthorized error is returned" {
+@test "Given expired session, when wire device list runs, then unauthorized error is returned" {
   login_stub_session
 
   export WIRE_STUB_MODE="unauthorized"
-  run_wire client list
+  run_wire device list
   assert_status 11
   [[ "${output}" == *"invalid or expired"* ]]
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 # Story 15: Device Delete - Confirmation Prompt
-@test "Given authenticated session, when wire client delete runs without --yes, then confirmation prompt is shown" {
+@test "Given authenticated session, when wire device delete runs without --yes, then confirmation prompt is shown" {
   login_stub_session
 
   export WIRE_STUB_MODE="list_ok"
   # We need to answer 'n' to the confirmation
-  run_wire_with_stdin "n" client delete "device-001"
+  run_wire_with_stdin "n" device delete "device-001"
   assert_status 0
   [[ "${output}" == *"Are you sure you want to delete device"* ]]
   [[ "${output}" == *"Device deletion cancelled."* ]]
 }
 
 # Story 15: Device Delete - Confirmation With Yes
-@test "Given authenticated session, when wire client delete is confirmed with 'y', then device is deleted" {
+@test "Given authenticated session, when wire device delete is confirmed with 'y', then device is deleted" {
   login_stub_session
 
   export WIRE_STUB_MODE="list_ok"
-  run_wire_with_stdin "y" client delete "device-001"
+  run_wire_with_stdin "y" device delete "device-001"
   assert_status 0
   [[ "${output}" == *"Are you sure you want to delete device"* ]]
   [[ "${output}" == *"Device deleted successfully."* ]]
 }
 
 # Story 15: Device Delete - Yes Flag Skips Confirmation
-@test "Given authenticated session, when wire client delete --yes runs, then no confirmation prompt is shown" {
+@test "Given authenticated session, when wire device delete --yes runs, then no confirmation prompt is shown" {
   login_stub_session
 
   export WIRE_STUB_MODE="list_ok"
-  run_wire client delete "device-001" --yes
+  run_wire device delete "device-001" --yes
   assert_status 0
   [[ "${output}" == *"Device deleted successfully."* ]]
   [[ "${output}" != *"Are you sure"* ]]
 }
 
 # Story 15: Device Delete - Non-existent Device
-@test "Given authenticated session, when wire client delete runs for non-existent device, then not found error is returned" {
+@test "Given authenticated session, when wire device delete runs for non-existent device, then not found error is returned" {
   login_stub_session
 
   export WIRE_STUB_MODE="not_found"
-  run_wire client delete "non-existent-device" --yes
+  run_wire device delete "non-existent-device" --yes
   assert_status 13
   [[ "${output}" == *"Device not found"* ]]
 }
 
 # Story 15: Device Delete - Unauthenticated Access
-@test "Given no session, when wire client delete runs, then access is denied with reauth guidance" {
-  run_wire client delete "device-001" --yes
+@test "Given no session, when wire device delete runs, then access is denied with reauth guidance" {
+  run_wire device delete "device-001" --yes
   assert_status 11
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 # Story 15: Device Delete - Server Error
-@test "Given server failure, when wire client delete runs, then server error is returned" {
+@test "Given server failure, when wire device delete runs, then server error is returned" {
   login_stub_session
 
   export WIRE_STUB_MODE="server_error"
-  run_wire client delete "device-001" --yes
+  run_wire device delete "device-001" --yes
   assert_status 13
   [[ "${output}" == *"unavailable"* || "${output}" == *"Retry later"* ]]
 }
 
 # Story 13: Device List - Multiple Devices
-@test "Given authenticated user with multiple devices, when wire client list runs, then all devices are shown" {
+@test "Given authenticated user with multiple devices, when wire device list runs, then all devices are shown" {
   login_stub_session
 
   export WIRE_STUB_MODE="list_ok"
-  run_wire client list
+  run_wire device list
   assert_status 0
   [[ "${output}" == *"device-001"* ]]
   [[ "${output}" == *"device-002"* ]]
@@ -181,11 +181,11 @@ validate_json() {
 }
 
 # Story 13: Device List - JSON Multiple Devices
-@test "Given authenticated user with multiple devices, when wire client list --json runs, then all devices are in JSON" {
+@test "Given authenticated user with multiple devices, when wire device list --json runs, then all devices are in JSON" {
   login_stub_session
 
   export WIRE_STUB_MODE="list_ok"
-  run_wire client list --json
+  run_wire device list --json
   assert_status 0
   [[ "${output}" == *"device-001"* ]]
   [[ "${output}" == *"device-002"* ]]
@@ -199,7 +199,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="list_ok"
   # User inputs lowercase 'n'
-  run_wire_with_stdin "n" client delete "device-001"
+  run_wire_with_stdin "n" device delete "device-001"
   assert_status 0
   [[ "${output}" == *"Device deletion cancelled."* ]]
 }
@@ -209,7 +209,7 @@ validate_json() {
   login_stub_session
 
   export WIRE_STUB_MODE="list_ok"
-  run_wire_with_stdin "Y" client delete "device-001"
+  run_wire_with_stdin "Y" device delete "device-001"
   assert_status 0
   [[ "${output}" == *"Device deleted successfully."* ]]
 }

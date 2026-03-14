@@ -21,7 +21,7 @@ Today, Wire users have no way to inspect or revoke their active devices from the
 - Before sharing sensitive information, wants to verify all her devices are "healthy" (key packages in stock, encryption ready)
 - Works in automation scripts and needs a programmatic way to check device health
 
-**Why Device Management Matters**: Alice needs `wire client list` to see her active devices, `wire client show <id>` to inspect fingerprints and key-package status, and `wire client delete <id>` to revoke compromised or unused devices—all from the terminal. This is faster than opening the UI, especially from scripts or remote sessions.
+**Why Device Management Matters**: Alice needs `wire device list` to see her active devices, `wire device info <id>` to inspect fingerprints and key-package status, and `wire device delete <id>` to revoke compromised or unused devices—all from the terminal. This is faster than opening the UI, especially from scripts or remote sessions.
 
 ### Persona 2: Team Lead / Admin
 **Profile**: Bob manages a team of 30 people. He uses Wire as the primary communication platform and occasionally needs to audit account security, onboard new team members, and respond to security incidents (e.g., "Is a former contractor's device still active?").
@@ -32,7 +32,7 @@ Today, Wire users have no way to inspect or revoke their active devices from the
 - During offboarding, Bob wants to verify that a departing team member's devices are revoked as part of account deprovisioning
 - Can't audit active devices across the team; no way to generate a report
 
-**Why Device Management Matters**: Bob needs `wire client list` to see all active devices on an account, confirm key-package health (is this device able to receive messages?), and `wire client delete` with a confirmation flow to safely revoke devices. This enables one-off security audits and scripted offboarding workflows.
+**Why Device Management Matters**: Bob needs `wire device list` to see all active devices on an account, confirm key-package health (is this device able to receive messages?), and `wire device delete` with a confirmation flow to safely revoke devices. This enables one-off security audits and scripted offboarding workflows.
 
 ## Realistic User Stories
 
@@ -47,7 +47,7 @@ Today, Wire users have no way to inspect or revoke their active devices from the
 > As a user concerned about account security, I want to see all active devices on my account (including device type, fingerprint, and last activity) so I can audit which devices are currently connected and notice any unauthorized access.
 
 **Acceptance Criteria**:
-- Given I am authenticated, when I run `wire client list`, then I see a table/list of all active devices with columns: device ID, device type (if available), fingerprint hash, creation date, and last activity timestamp
+- Given I am authenticated, when I run `wire device list`, then I see a table/list of all active devices with columns: device ID, device type (if available), fingerprint hash, creation date, and last activity timestamp
 - Given no devices are active (hypothetically), when I run the command, then I see a message "No active devices found"
 - Given a device has no fingerprint available yet (e.g., key packages being initialized), then the output shows a placeholder (e.g., "pending") and succeeds
 - When `--json` flag is used, output is valid JSON with consistent schema
@@ -67,7 +67,7 @@ Today, Wire users have no way to inspect or revoke their active devices from the
 > As a security-conscious developer, I want to view detailed information about a specific device (including key-package status and encryption readiness) so I can verify it's healthy before relying on it or decide if it needs to be revoked.
 
 **Acceptance Criteria**:
-- Given I know a device ID, when I run `wire client show <device-id>`, then I see detailed information: device ID, type, fingerprint, creation date, last activity, and key-package status
+- Given I know a device ID, when I run `wire device info <device-id>`, then I see detailed information: device ID, type, fingerprint, creation date, last activity, and key-package status
 - Given a device is ready to receive messages, when I view it, then key-package status shows "ready" or a healthy count (e.g., "250 key packages available")
 - Given a device has low or no key packages, then status shows "low" or "warning" and suggests refill
 - Given the device ID does not exist, when I run the command, then I see an error message "Device not found" with exit code 14 (not found)
@@ -88,7 +88,7 @@ Today, Wire users have no way to inspect or revoke their active devices from the
 > As a user who just realized my old laptop was compromised, I want to revoke a device from the CLI so I can immediately remove it without navigating a UI or browser.
 
 **Acceptance Criteria**:
-- Given I know the device ID I want to revoke, when I run `wire client delete <device-id>`, then the CLI prompts me to confirm the action (e.g., "You are about to revoke device ABC123. This is irreversible. Type 'yes' to confirm")
+- Given I know the device ID I want to revoke, when I run `wire device delete <device-id>`, then the CLI prompts me to confirm the action (e.g., "You are about to revoke device ABC123. This is irreversible. Type 'yes' to confirm")
 - Given I confirm deletion, when the device is revoked successfully, then I see a success message "Device ABC123 revoked successfully" and exit code 0
 - Given I do not confirm (press Ctrl+C or type "no"), then the operation is cancelled and no device is deleted
 - Given the device is my only active device, then the CLI shows a warning (but still allows deletion): "Warning: This is your only active device. Revoking it will sign you out."
@@ -111,7 +111,7 @@ Today, Wire users have no way to inspect or revoke their active devices from the
 > As a power user with multiple devices, I want to rename a device with a friendly label (e.g., "MacBook Pro 2024") so I can quickly identify it when viewing the device list.
 
 **Acceptance Criteria**:
-- Given I know a device ID, when I run `wire client rename <device-id> --name "My Work Laptop"`, then the device is renamed and I see a confirmation message
+- Given I know a device ID, when I run `wire device rename <device-id> --name "My Work Laptop"`, then the device is renamed and I see a confirmation message
 - Given I view the device list, then the friendly name is displayed alongside the device ID
 - Given a friendly name is longer than 50 characters, then the CLI truncates it with a warning
 - Given no `--name` argument is provided, then the CLI shows an error "Please provide a device name with --name"
@@ -125,14 +125,14 @@ Today, Wire users have no way to inspect or revoke their active devices from the
 **Definition**: A working device management feature that enables users and admins to audit and revoke devices.
 
 **In scope for MVP**:
-1. `wire client list` – Show all active devices with basic metadata (ID, type, fingerprint, last activity)
-2. `wire client delete <id>` – Revoke a device with interactive confirmation; support `--yes` flag for scripting
+1. `wire device list` – Show all active devices with basic metadata (ID, type, fingerprint, last activity)
+2. `wire device delete <id>` – Revoke a device with interactive confirmation; support `--yes` flag for scripting
 3. Exit codes and error handling: 0 (success), 11 (unauthorized), 13 (server error), 14 (not found)
 4. `--json` output for both commands with stable schema
 5. Unit tests for service layer + Bats integration tests (stub backend)
 
 **Out of scope for MVP**:
-- `wire client show <id>` (defer to day 1.5 if time allows)
+- `wire device info <id>` (defer to day 1.5 if time allows)
 - Key-package health indicators (show "pending" placeholder; full health aggregation comes in sync-health feature)
 - Device renaming
 - Bulk operations
@@ -149,21 +149,21 @@ Device management and sync health are complementary:
 - **Device Management** answers "What devices are active?"
 - **Sync Health** answers "Is each device healthy and ready?"
 
-In the MVP, `wire client show` will show basic key-package status (as a placeholder). The full health diagnosis (including MLS readiness, sync lag, encryption checks) will be handled by `wire doctor` / `wire sync status` in the sync-health feature.
+In the MVP, `wire device info` will show basic key-package status (as a placeholder). The full health diagnosis (including MLS readiness, sync lag, encryption checks) will be handled by `wire doctor` / `wire sync status` in the sync-health feature.
 
 ### Command Taxonomy
 ```
-wire client list                  # List all devices
-wire client delete <device-id>    # Revoke a device
-wire client show <device-id>      # (Phase 2a) Show device details
-wire client rename <device-id>    # (Phase 2b) Rename device
+wire device list                  # List all devices
+wire device delete <device-id>    # Revoke a device
+wire device info <device-id>      # (Phase 2a) Show device details
+wire device rename <device-id>    # (Phase 2b) Rename device
 ```
 
 ### Error Model
 | Scenario | Exit Code | Message | Recovery |
 |----------|-----------|---------|----------|
 | Unauthorized (not logged in) | 11 | "Session expired. Run `wire login` to re-authenticate." | Re-login |
-| Device not found | 14 | "Device <id> not found. Run `wire client list` to see active devices." | List devices |
+| Device not found | 14 | "Device <id> not found. Run `wire device list` to see active devices." | List devices |
 | Server error (network, backend) | 13 | "Failed to revoke device: [underlying error]" | Retry or contact support |
 | Permission denied (e.g., revoking someone else's device) | 15 | "Permission denied. You can only manage your own devices." | Check device ownership |
 

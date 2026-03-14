@@ -71,20 +71,20 @@ This report compares the **product owner's vision** (from `docs/stories/sync-hea
 
 | Story | Title | Planned? | Implemented? | Acceptance Criteria Coverage |
 |-------|-------|----------|--------------|-----|
-| 13 | `wire client list` — show all active devices | ✅ [Planned] [Must] | ⚠️ Partial | 83% |
-| 14 | `wire client show <device-id>` — device details | ✅ [Planned] [Should] | ⚠️ Partial | 43% |
-| 15 | `wire client delete <device-id>` — revoke device | ✅ [Planned] [Must] | ⚠️ Partial | 63% |
-| 16 | `wire client rename <device-id>` — friendly name | ✅ [Planned] [Could] | ❌ No (deferred) | 0% |
+| 13 | `wire device list` — show all active devices | ✅ [Planned] [Must] | ⚠️ Partial | 83% |
+| 14 | `wire device info <device-id>` — device details | ✅ [Planned] [Should] | ⚠️ Partial | 43% |
+| 15 | `wire device delete <device-id>` — revoke device | ✅ [Planned] [Must] | ⚠️ Partial | 63% |
+| 16 | `wire device rename <device-id>` — friendly name | ✅ [Planned] [Could] | ❌ No (deferred) | 0% |
 
 ### Device: What's Working Well ✅
 
-1. **`wire client list`** properly shows devices with device ID, type, fingerprint hash (83% complete)
+1. **`wire device list`** properly shows devices with device ID, type, fingerprint hash (83% complete)
    - ✅ Table and JSON output modes work
    - ✅ "No active devices" message shown when list is empty
    - ✅ Auth guards properly enforced
    - ⚠️ Missing: placeholder "pending" for uninitialized fingerprints
 
-2. **`wire client delete`** revokes devices safely (63% complete)
+2. **`wire device delete`** revokes devices safely (63% complete)
    - ✅ Confirmation prompt shown
    - ✅ `--yes` flag enables scripted deletion
    - ✅ Exit codes mostly correct (11 for unauthorized, 13 for server error)
@@ -99,9 +99,9 @@ This report compares the **product owner's vision** (from `docs/stories/sync-hea
    - Actual implementation: uses exit code **13** for device not found
    - Impact: Automation will misclassify device-not-found as server error
 
-2. **`wire client show` Missing JSON Output (HIGH)**
+2. **`wire device info` Missing JSON Output (HIGH)**
    - Vision story 14: "When `--json` flag is used, output is valid JSON..."
-   - Actual: `show` command exists but only produces human-readable table
+   - Actual: `info` command exists but only produces human-readable table
    - Impact: Scripts cannot parse device details; blocks scripting use case
 
 3. **Hardcoded Key-Package Status (HIGH)**
@@ -141,6 +141,7 @@ This report compares the **product owner's vision** (from `docs/stories/sync-hea
 - ❌ Acceptance criteria 4: exit code 14 NOT USED (uses 13 instead)
 - ❌ Acceptance criteria 5: JSON OUTPUT MISSING (story calls for it)
 - ✅ Acceptance criteria 6: auth guards work
+(Note: `wire client show` renamed to `wire device info`)
 
 #### Story 15: Delete Device (63% complete)
 ⚠️ **Partially done**
@@ -158,11 +159,11 @@ This report compares the **product owner's vision** (from `docs/stories/sync-hea
 ### Device: Recommendations
 
 1. **Priority 1 (CRITICAL)**: Fix exit code **13 ↔ 14** inversion
-   - `wire client show <missing-id>` should return 14 (not found), not 13 (server error)
-   - `wire client delete <missing-id>` should return 14 (not found), not 13
+   - `wire device info <missing-id>` should return 14 (not found), not 13 (server error)
+   - `wire device delete <missing-id>` should return 14 (not found), not 13
    - File: `src/main/kotlin/wirecli/device/RealKaliumDeviceApiClient.kt`
 
-2. **Priority 2 (HIGH)**: Add `--json` output to `wire client show` command
+2. **Priority 2 (HIGH)**: Add `--json` output to `wire device info` command
    - Should output structured device metadata + key-package status
    - File: `src/main/kotlin/wirecli/commands/DeviceCommand.kt`
 
@@ -179,6 +180,7 @@ This report compares the **product owner's vision** (from `docs/stories/sync-hea
 5. **Priority 5 (MEDIUM)**: Handle "pending" fingerprint state
    - When Proteus keys initializing, show "pending" instead of client ID
    - File: `src/main/kotlin/wirecli/device/RealKaliumDeviceApiClient.kt`
+   - Note: References to `wire client` have been consolidated to `wire device`
 
 ---
 

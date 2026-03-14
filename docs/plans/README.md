@@ -21,7 +21,7 @@ These are the two "small but interesting" features recommended as Phase 2 quick-
 - Revoke a device ✅ (MVP)
 - Rename device ❌ (Phase 2b)
 
-**MVP Scope**: `wire client list` + `wire client delete` (1 day)
+**MVP Scope**: `wire device list` + `wire device delete` (1 day)
 
 ---
 
@@ -49,7 +49,7 @@ These are the two "small but interesting" features recommended as Phase 2 quick-
 ### 🎯 Sequential (Device → Sync) — Recommended
 
 1. **Day 1**: Device Management MVP
-   - `wire client list` + `wire client delete`
+   - `wire device list` + `wire device delete`
    - Establishes service pattern; unblocks security ops
 
 2. **Days 2–3**: Sync Health MVP
@@ -111,8 +111,8 @@ Convert exploration stories to `.beads/issues.jsonl` format:
 
 ### During Implementation (Device Management)
 - [ ] `ClientService` layer created
-- [ ] `wire client list` command wired
-- [ ] `wire client delete` command with confirmation/--yes
+- [ ] `wire device list` command wired
+- [ ] `wire device delete` command with confirmation/--yes
 - [ ] Error handling and exit codes
 - [ ] Unit + Bats integration tests (both backends)
 - [ ] `--json` output with schema versioning

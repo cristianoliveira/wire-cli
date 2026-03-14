@@ -1,4 +1,12 @@
-# Sync Health Exploration
+# Doctor (Sync Health) Exploration
+
+## Implementation Note: Beta Breaking Change
+
+**Version**: v0.0.1-beta — Breaking changes are allowed without deprecation periods.
+
+**Change**: `wire sync` command will be directly renamed to `wire doctor` with **no deprecation period**. This is acceptable under v0.0.1-beta policy (see `AGENTS.md`).
+
+---
 
 ## Problem: Why Users Care About Sync State
 
@@ -9,6 +17,101 @@ Imagine you just logged in to Wire after being offline for a few hours. Your mes
 **The User Frustration**: You work across time zones. You close your laptop, fly to a different continent, and open it 12 hours later. Your presence shows "online," but your messages aren't being delivered. You restart the app, wait, and still nothing. A `wire doctor` command that tells you "Sync is live, encryption is ready, but you have 15 pending messages—check your network" would be worth its weight in gold.
 
 **The Compliance Requirement**: Some organizations need to audit: "Is this account's sync stack healthy?" Not just for troubleshooting, but for compliance reporting. A JSON output of sync health metrics enables automation and dashboards.
+
+---
+
+## Philosophy: What is `wire doctor` and What is it Not?
+
+### The Core Idea
+
+**`wire doctor` is not about managing sync—it's about observing sync.** Kalium's sync layer handles synchronization automatically: it merges remote and local state, negotiates encryption keys, and keeps your account consistent. That's Kalium's job. `wire doctor` is the CLI's job: **to give you a window into that sync state** so you can see what's happening and make informed decisions.
+
+Think of it like this: Your car's transmission shifts automatically. You don't manage it. But your dashboard shows you the engine temperature, RPM, and fuel level. That's what `wire doctor` does for your account. It's the health dashboard.
+
+### What Does `wire doctor` Do? (And What Doesn't It?)
+
+| | **`wire doctor` Does This** | **Kalium Handles That** |
+|---|---|---|
+| **Observe sync state** | ✓ Show "sync is live" or "initializing" | — |
+| **Report encryption readiness** | ✓ Show "MLS is ready" or "migrating" | — |
+| **List pending messages** | ✓ Aggregate and report count | — |
+| **Trigger sync from CLI** | ✗ | ✓ Automatic background sync |
+| **Resolve merge conflicts** | ✗ | ✓ Kalium merges automatically |
+| **Manage encryption keys** | ✗ | ✓ Kalium negotiates MLS keys |
+| **Monitor in real-time** | ✗ (outside MVP scope) | ✓ Real-time event stream |
+
+**Key distinction**: `wire doctor status` is read-only. It's introspection. It doesn't change state; it reports it.
+
+### Three Core Use Cases
+
+#### 1. **DevOps Automation: "Is the bot ready?"**
+**Scenario**: You deploy a Wire-based notification bot. It logs in successfully, but you don't know if it's ready to send messages yet.
+
+**How `wire doctor` helps**: Run `wire doctor status --json` in your startup script. Check the returned JSON:
+```json
+{
+  "status": "ready",
+  "sync": { "live": true },
+  "encryption": { "ready": true }
+}
+```
+If status is "ready", your bot can start sending. If "initializing", retry in 5 seconds. No more log grepping. No more crossing your fingers.
+
+**Real-world benefit**: Reduce bot startup time from "2 minutes of uncertainty" to "10 seconds of certainty."
+
+---
+
+#### 2. **Customer Support / Troubleshooting: "What's wrong with their account?"**
+**Scenario**: A user reports: "My messages aren't being delivered." You need to diagnose quickly.
+
+**How `wire doctor` helps**: Run `wire doctor status --verbose` on their account. Get a report:
+```
+Sync:            Live (last update 2s ago)
+Encryption:      Ready (MLS 100% complete)
+Devices:         3 active (all healthy key packages)
+Pending Messages: 42 (last received 15s ago)
+Sync Lag:        150ms
+```
+From this, you know: "Sync is healthy, but 42 messages are pending. Their network might be slow. Suggest they check connectivity."
+
+**Real-world benefit**: Reduce "I don't know what's wrong" support time from 30 minutes of investigation to 30 seconds of diagnosis.
+
+---
+
+#### 3. **Power User Security Audit: "Am I actually synced?"**
+**Scenario**: You use Wire for sensitive communication. You just logged in on a new device and want to verify you're truly synced before starting important conversations.
+
+**How `wire doctor` helps**: Run `wire doctor status`. See:
+```
+Status: Ready ✓
+Sync:   Live (last update 1s ago)
+Encryption: Ready (MLS ready)
+```
+You know your account is healthy. Your encryption keys are negotiated. You can start communicating with confidence.
+
+**Real-world benefit**: Peace of mind in < 1 second instead of "hope I'm synced" anxiety.
+
+---
+
+### MVP Scope: What's Included? What's Deferred?
+
+**In MVP** (1.5-day implementation):
+- ✅ `wire doctor status` – Basic health check (auth, sync, encryption, last sync time)
+- ✅ `--verbose` flag – Detailed metrics (sync lag, pending messages, MLS status, device key-package counts)
+- ✅ `--json` output – Machine-readable, stable schema
+- ✅ Simple diagnostics – "Ready" vs. "Initializing" vs. "Degraded" with recovery suggestions
+- ✅ Exit codes – 0 (healthy), 1 (degraded), 11 (unauthorized), 13 (server error)
+- ✅ `--wait-for-ready` flag – Optional, useful for startup scripts
+
+**Deferred to Phase 2**:
+- ❌ `wire doctor reset` – Force re-sync (complex, lower priority)
+- ❌ `wire doctor diagnose` – Step-by-step diagnosis (can start with simple suggestions in MVP)
+- ❌ Real-time monitoring (`wire doctor watch`) – Out of scope for now
+- ❌ Metric export to monitoring systems – Can add later
+
+**Philosophy**: MVP is intentionally narrow. It solves the three core use cases. Advanced features (reset, detailed diagnosis, monitoring) follow once we validate that basic status + verbose is valuable.
+
+---
 
 ## Personas & Why They Need Sync Diagnostics
 
@@ -21,7 +124,7 @@ Imagine you just logged in to Wire after being offline for a few hours. Your mes
 - During account recovery (e.g., password reset), Carlos needs to verify the account is ready to use without manually testing
 - Can't write a health-check script that tells him "This account is 100% ready" vs. "Still initializing, retry in 5 seconds"
 
-**Why Sync Health Matters**: Carlos needs a `wire doctor` command (or `wire sync status`) that runs once and outputs a clear health report: "Auth: ✓ Ready | Sync: ✓ Live | Encryption: ✓ Ready | Pending Messages: 0 | Last Sync: 2s ago". This unblocks automation, debugging, and customer support.
+**Why Doctor Matters**: Carlos needs a `wire doctor` command that runs once and outputs a clear health report: "Auth: ✓ Ready | Sync: ✓ Live | Encryption: ✓ Ready | Pending Messages: 0 | Last Sync: 2s ago". This unblocks automation, debugging, and customer support.
 
 ### Persona 2: End User / Power User
 **Profile**: Diana uses Wire on her laptop and phone. She occasionally encounters situations where messages don't seem to be flowing (or she's paranoid about whether she's actually synced), and she wants to quickly verify her account is healthy.
@@ -32,7 +135,7 @@ Imagine you just logged in to Wire after being offline for a few hours. Your mes
 - Uses Wire for sensitive communication; wants to audit that her account encryption is solid and all devices are synced
 - Has a flaky network and wants to know if message delivery is blocked because of sync lag or network issues
 
-**Why Sync Health Matters**: Diana needs a simple `wire sync status` command (or `wire doctor`) that tells her at a glance: "Sync is live and healthy" or "Sync is initializing, wait 30 seconds". She doesn't need to understand MLS or key packages—she just wants to know: "Am I ready to send?"
+**Why Doctor Matters**: Diana needs a simple `wire doctor status` command that tells her at a glance: "Sync is live and healthy" or "Sync is initializing, wait 30 seconds". She doesn't need to understand MLS or key packages—she just wants to know: "Am I ready to send?"
 
 ---
 
@@ -49,7 +152,7 @@ Imagine you just logged in to Wire after being offline for a few hours. Your mes
 > As a user concerned about message delivery, I want to run a single command that tells me if my account's sync layer is live and encryption is ready so I can be confident that messages I send will be delivered.
 
 **Acceptance Criteria**:
-- Given I am authenticated, when I run `wire sync status` (or `wire doctor`), then I see a clear health report showing: auth status, sync status (live/initializing/degraded), encryption readiness (ready/pending/error), and when last sync occurred
+- Given I am authenticated, when I run `wire doctor status`, then I see a clear health report showing: auth status, sync status (live/initializing/degraded), encryption readiness (ready/pending/error), and when last sync occurred
 - Given the account is fully ready, the output shows all green checkmarks (or "Ready" / "✓") and exit code is 0
 - Given the account is still initializing (e.g., MLS migration in progress), the output shows "Initializing" for relevant fields and exit code 1 (degraded but not broken)
 - Given there's a critical error (auth expired, sync failed), the output shows the issue clearly with exit code 13 (server error) or 11 (unauthorized)
@@ -71,12 +174,12 @@ Imagine you just logged in to Wire after being offline for a few hours. Your mes
 > As a support engineer responding to a sync complaint, I want to run a command that gives me detailed diagnostics (sync lag, pending messages, MLS status, key-package health) so I can pinpoint the issue and provide actionable recovery steps.
 
 **Acceptance Criteria**:
-- Given I run `wire sync status --verbose` (or `wire doctor --verbose`), then I see detailed metrics: sync lag (ms since last sync), number of pending messages, MLS migration status (percentage complete or "done"), key-package count per device, event-stream cursor position
+- Given I run `wire doctor status --verbose`, then I see detailed metrics: sync lag (ms since last sync), number of pending messages, MLS migration status (percentage complete or "done"), key-package count per device, event-stream cursor position
 - Given there are pending messages, the output shows: "Pending Messages: 42 (last received 15s ago)"
 - Given MLS migration is in progress, the output shows: "MLS Migration: 75% complete (estimated 10s remaining)"
 - Given key packages are low, the output shows: "Key Packages (Laptop): 150/300 (low, refilling...)"
 - When `--json` flag is used, output includes all diagnostic fields in a flat or nested structure (e.g., `metrics: { pending_messages: 42, sync_lag_ms: 150, mls_migration_pct: 75, ... }`)
-- Given a specific issue is detected, the output includes a "recovery_suggestion": e.g., "Sync lag is high; try: `wire sync reset` or check your network"
+- Given a specific issue is detected, the output includes a "recovery_suggestion": e.g., "Sync lag is high; try: `wire doctor reset` or check your network"
 - Given no issues are detected, recovery_suggestion field is null or "All systems healthy"
 
 **MVP Acceptance**: Shows at least 5 key metrics; suggestions are basic but helpful
@@ -94,11 +197,11 @@ Imagine you just logged in to Wire after being offline for a few hours. Your mes
 > As a user experiencing message delivery delays, I want to run a diagnostic that tells me if the issue is sync-related (our encryption, event queue), network-related, or server-side so I can take appropriate action.
 
 **Acceptance Criteria**:
-- Given I run `wire sync diagnose` (or `wire doctor diagnose`), then the CLI performs a series of checks and outputs a diagnosis report
+- Given I run `wire doctor diagnose`, then the CLI performs a series of checks and outputs a diagnosis report
 - The report includes: "Auth Status: Connected" → "Sync Status: Live" → "Event Queue: Empty" → "Key Packages: Healthy" → "Network: OK"
 - If any check fails, the report shows: "Sync Status: Lag detected (250ms). Last event received 3s ago. Retrying..." with a suggestion
 - If MLS is pending, the report shows: "Encryption: MLS migration in progress (80% done). Message delivery may be blocked until complete."
-- Given network issues are suspected, the report suggests: "Network appears slow. Try: `wire sync reset` or check your internet connection."
+- Given network issues are suspected, the report suggests: "Network appears slow. Try: `wire doctor reset` or check your internet connection."
 - Given the issue is resolved (sync catches up), the report shows: "Diagnosis complete: All checks passed ✓"
 - Exit code 0 if healthy, exit code 1 if degraded, exit code 13 if server error
 
@@ -117,7 +220,7 @@ Imagine you just logged in to Wire after being offline for a few hours. Your mes
 > As a support engineer helping a user with stale data, I want to trigger a sync reset from the CLI so the account re-downloads its full state without waiting for automatic refresh.
 
 **Acceptance Criteria**:
-- Given I run `wire sync reset --force` (with confirmation or `--yes` flag), then the CLI initiates a full re-sync of the account state
+- Given I run `wire doctor reset --force` (with confirmation or `--yes` flag), then the CLI initiates a full re-sync of the account state
 - The CLI shows a progress indicator or message: "Resetting sync... This may take 30-60 seconds."
 - Once complete, the output shows: "Sync reset complete. Full state re-downloaded. You may now resume using Wire."
 - Given the reset fails, the output shows the error and suggests contacting support
@@ -129,10 +232,10 @@ Imagine you just logged in to Wire after being offline for a few hours. Your mes
 
 ## Minimum Viable Slice (1.5-Day MVP)
 
-**Definition**: A working sync health diagnostics feature that enables users and operators to verify account readiness and troubleshoot sync issues.
+**Definition**: A working doctor (sync health) diagnostics feature that enables users and operators to verify account readiness and troubleshoot sync issues.
 
 **In scope for MVP**:
-1. `wire sync status` (or `wire doctor`) – Show basic health: auth, sync, encryption, last sync time
+1. `wire doctor status` – Show basic health: auth, sync, encryption, last sync time
 2. `--verbose` flag – Show detailed metrics: sync lag, pending messages, MLS status, key-package counts
 3. `--json` output with stable schema for both basic and verbose modes
 4. Simple diagnostics: "All healthy" vs. "Initializing" vs. "Degraded" with a recovery suggestion
@@ -141,9 +244,9 @@ Imagine you just logged in to Wire after being offline for a few hours. Your mes
 7. Unit tests for health aggregator + Bats integration tests
 
 **Out of scope for MVP**:
-- `wire sync diagnose` (detailed step-by-step diagnosis)
-- `wire sync reset` (force re-sync)
-- Real-time monitoring mode (`wire sync watch`)
+- `wire doctor diagnose` (detailed step-by-step diagnosis)
+- `wire doctor reset` (force re-sync)
+- Real-time monitoring mode (`wire doctor watch`)
 - Event-stream inspection (cursor position, lag estimation from events)
 - Metric export to monitoring systems
 
@@ -157,7 +260,7 @@ The sync health feature aggregates status from multiple sources:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ wire sync status / wire doctor                       │
+│ wire doctor status                                  │
 └─────────────────────────────────────────────────────┘
          │
          ├─ AuthScope → auth is valid, session alive?
@@ -176,7 +279,7 @@ The sync health feature aggregates status from multiple sources:
 
 **Plain Text (default)**:
 ```
-wire-cli sync status
+wire-cli doctor status
 
 Status: Ready ✓
 
@@ -258,11 +361,12 @@ In the MVP, sync status will show device key-package health (as aggregated metri
 
 ### Command Taxonomy
 ```
-wire sync status                # Basic health check
-wire sync status --verbose      # Detailed metrics
-wire sync status --wait-for-ready --timeout 30  # Block until ready
-wire sync status --json         # Machine-readable output
-wire doctor                      # Alias for `wire sync status`
+wire doctor status                              # Basic health check
+wire doctor status --verbose                    # Detailed metrics
+wire doctor status --wait-for-ready --timeout 30  # Block until ready
+wire doctor status --json                       # Machine-readable output
+wire doctor diagnose                            # Targeted diagnostics
+wire doctor reset [--force] [--yes]             # Force re-sync (Phase 2)
 ```
 
 ### Error Model

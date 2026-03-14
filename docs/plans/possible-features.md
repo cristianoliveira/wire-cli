@@ -4,6 +4,10 @@
 
 **Current MVP baseline**: Login → Presence management → Session restoration. Next phase expands CLI into conversation, discovery, and observability domains.
 
+**Version**: v0.0.1-beta — Breaking changes are allowed without deprecation periods. Direct renames and removals are acceptable during beta.
+
+---
+
 ---
 
 ## Feature Candidates
@@ -32,15 +36,17 @@
 
 ---
 
-### 3. **Device/Client Management** (`wire client list|show|delete`)
-**Problem**: Users can't inspect or revoke clients without UI; no way to rotate devices or verify key-package health in automation.
+### 3. **Device Management** (`wire device list|show|delete`)
+**Problem**: Users can't inspect or revoke devices without UI; no way to rotate devices or verify key-package health in automation.
+
+**Note**: `wire client` command will be removed in favor of `wire device` (breaking change in beta, no deprecation period).
 
 - **Complexity**: Small → Medium
 - **Blockers**: Key-package refill status API may not be first-class in Kalium (currently internal); delete confirmation UX needs safe defaults.
 - **Dependencies**: ClientScope extensions, key-package status normalizer, deletion safety guardrail (--yes flag).
 - **Story headlines**:
-  - "List all active clients with fingerprints and key-package status"
-  - "Revoke a client device with confirmation prompts"
+  - "List all active devices with fingerprints and key-package status"
+  - "Revoke a device with confirmation prompts"
 
 ---
 
@@ -56,15 +62,18 @@
 
 ---
 
-### 5. **Sync Health & Observability** (`wire sync watch|status`, `wire doctor`)
-**Problem**: No way to see sync/encryption readiness; users can't diagnose "why is my presence slow?" without logs.
+### 5. **Doctor: Sync Health & Observability** (`wire doctor status|diagnose|reset`)
+**Problem**: No way to see sync/encryption readiness; users can't diagnose "why is my account not syncing?" without logs.
+
+**Note**: `wire sync` command will be renamed to `wire doctor` (breaking change in beta, no deprecation period).
 
 - **Complexity**: Small → Medium
 - **Blockers**: Sync internals are partly delicate (not all public APIs exposed); event stream contract unclear; "watch" mode may require long-lived subscription (not ideal for one-shot CLI).
 - **Dependencies**: SyncScope status API wrapper, health aggregator (auth OK? sync live? MLS ready?), streaming output handler.
 - **Story headlines**:
-  - "Check sync and MLS migration health in one command"
-  - "Watch real-time sync status for debugging startup/recovery"
+  - "Check sync and MLS migration health with `wire doctor status`"
+  - "Diagnose sync issues with `wire doctor diagnose`"
+  - "Reset sync manually with `wire doctor reset`"
 
 ---
 
@@ -106,7 +115,7 @@
 
 ## Quick-Win Opportunities
 
-### 🎯 **Sync Health & Diagnostics** (Small, High Value)
+### 🎯 **Doctor: Sync Health & Diagnostics** (Small, High Value)
 - **Why small**: Status aggregation from existing SyncScope; no new backend integration required.
 - **Why valuable**: Unblocks troubleshooting; "is my account ready?" is asked constantly in support.
 - **Effort**: 2–3 days (service wrapper + output formatter).
@@ -125,7 +134,7 @@
 | Chat send/read | Medium | High | 3–5d | Medium (message schema variance) |
 | Contacts/search | Medium | High | 3–5d | Medium (domain federation) |
 | Device management | Small→Med | High | 1–2d | Low (existing APIs) |
-| Sync/doctor | Small→Med | High | 2–3d | Low (aggregation only) |
+| Doctor | Small→Med | High | 2–3d | Low (aggregation only) |
 | Conversation lifecycle | Large | High | 7–10d | High (permission gates, MLS) |
 | Search/history | Medium→Large | Medium | 5–8d | Medium (pagination, rank) |
 | Notifications/events | Large | Very High | 10–15d | High (stream stability, JVM risks) |
@@ -133,18 +142,19 @@
 
 ---
 
-## Recommended Next Pick: **Device Management + Sync Health**
+## Recommended Next Pick: **Device Management + Doctor**
 
 **Why this pair**:
 1. **Small but high-value**: Each is 1–3 days; unlocks security and diagnostics workflows immediately.
 2. **Low implementation risk**: Both use existing Kalium APIs with minimal schema unknowns.
 3. **Proves patterns**: Establishes "how we wire service → command" for future medium/large features.
 4. **Unblocks feedback**: Real users can validate CLI model before investing in conversation/notifications (which are riskier).
+5. **Breaking changes allowed**: Beta allows direct changes without deprecation (remove `wire client`, rename `wire sync` → `wire doctor`)
 
 **Suggested sequencing**:
-1. **Day 1**: Implement `wire client list|delete` with safe confirmation flow.
+1. **Day 1**: Implement `wire device` management with safe confirmation flow (consolidate from any `wire client` legacy code).
    - Proves session-backed service pattern + error handling.
-2. **Day 2**: Implement `wire doctor` / `wire sync status` aggregator.
+2. **Day 2**: Implement `wire doctor` aggregator (`status`, `diagnose`, `reset` subcommands).
    - Proves health/diagnostics output formatting.
 3. **Day 3**: Add `--json` output to both; run Bats integration tests.
    - Proves output stability for automation.
@@ -157,7 +167,7 @@
 
 ---
 
-## Subsequent Priority (Post Device/Sync)
+## Subsequent Priority (Post Device/Doctor)
 
 1. **Chat send/read** (~5 days): Highest daily utility; unblocks automation.
 2. **Contacts/search** (~5 days): Strong operator value; moderate complexity.

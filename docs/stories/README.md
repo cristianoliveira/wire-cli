@@ -16,7 +16,7 @@ Presence core stories are done, and any non-blocking follow-ups are tracked in t
 - [Profile](./profile.md)
 - [Presence](./presence.md)
 - [Device Management](./device-management.md)
-- [Sync Health](./sync-health.md)
+- [Doctor: Sync Health & Diagnostics](./doctor.md)
 
 ## Acceptance Test Lanes
 

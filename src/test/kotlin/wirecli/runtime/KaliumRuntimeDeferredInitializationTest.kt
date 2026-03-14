@@ -95,6 +95,9 @@ private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFac
                         return NoopDeviceApiClient
                     }
 
+                override val conversationApiClient: ConversationApiClient
+                    get() = StubConversationApiClient(emptyMap())
+
                 override val syncApiClient: SyncApiClient
                     get() {
                         counters.syncApiClientAccesses += 1

@@ -469,6 +469,7 @@ class RealKaliumDeviceApiClientTest {
         override fun deleteDevice(
             sessionScope: KaliumDeviceSessionScope,
             deviceId: String,
+            password: String?,
         ): DeviceStepResult<Unit> {
             return deleteDeviceResult
         }
@@ -515,6 +516,7 @@ class RealKaliumDeviceApiClientTest {
         override fun deleteDevice(
             sessionScope: KaliumDeviceSessionScope,
             deviceId: String,
+            password: String?,
         ): DeviceStepResult<Unit> {
             return deleteDeviceResult
         }

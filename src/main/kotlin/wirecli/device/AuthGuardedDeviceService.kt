@@ -40,9 +40,12 @@ class AuthGuardedDeviceService(
         }
     }
 
-    override fun remove(deviceId: String): DeviceDeleteResult {
+    override fun remove(
+        deviceId: String,
+        password: String?,
+    ): DeviceDeleteResult {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.remove(deviceId)
+            is AuthResult.Success -> delegate.remove(deviceId, password)
             is AuthResult.Failure ->
                 DeviceDeleteResult.Failure(
                     message = authResult.message,

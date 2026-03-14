@@ -228,6 +228,7 @@ class SessionBackedDeviceServiceTest {
         override fun deleteDevice(
             session: AuthSession,
             deviceId: String,
+            password: String?,
         ): DeviceDeleteResult {
             lastDeleteDeviceId = deviceId
             return deleteResult ?: DeviceDeleteResult.Success("Deleted")

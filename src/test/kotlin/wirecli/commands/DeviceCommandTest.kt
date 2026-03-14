@@ -253,7 +253,10 @@ class DeviceCommandTest {
 
         override fun getDetail(deviceId: String): DeviceDetailResult = getDetailResult
 
-        override fun remove(deviceId: String): DeviceDeleteResult = removeResult
+        override fun remove(
+            deviceId: String,
+            password: String?,
+        ): DeviceDeleteResult = removeResult
 
         override fun verify(deviceId: String): DeviceVerifyResult = verifyResult
     }

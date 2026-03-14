@@ -158,6 +158,7 @@ private object NoopDeviceApiClient : DeviceApiClient {
     override fun deleteDevice(
         session: AuthSession,
         deviceId: String,
+        password: String?,
     ): DeviceDeleteResult {
         return DeviceDeleteResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }

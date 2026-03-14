@@ -1,9 +1,10 @@
 package wirecli.conversation
 
+import com.wire.kalium.logic.data.conversation.ConversationDetails
+import kotlinx.datetime.Instant
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
-import com.wire.kalium.logic.data.conversation.Conversation as KaliumConversation
 import com.wire.kalium.logic.data.conversation.Conversation.Type as KaliumConversationType
 
 /**
@@ -17,7 +18,7 @@ internal class RealKaliumConversationApiClient(
             is ConversationStepResult.Success ->
                 ListConversationsResult.Success(
                     ConversationListView(
-                        conversations = result.value.map { mapKaliumConversationToDomain(it) },
+                        conversations = result.value.map { mapConversationDetailsToDomain(it) },
                     ),
                 )
 
@@ -33,7 +34,7 @@ internal class RealKaliumConversationApiClient(
             is ConversationStepResult.Success ->
                 GetConversationResult.Success(
                     ConversationDetailView(
-                        mapKaliumConversationToDomain(result.value),
+                        mapConversationDetailsToDomain(result.value),
                     ),
                 )
 
@@ -75,18 +76,92 @@ internal class RealKaliumConversationApiClient(
 
     // ============ Helper Functions ============
 
-    private fun mapKaliumConversationToDomain(kaliumConv: KaliumConversation): Conversation {
-        // Use a generic timestamp since Instant type is not easily accessible
-        val timestamp = "Unknown"
-        return Conversation(
-            id = kaliumConv.id.value,
-            name = kaliumConv.name ?: "Unknown",
-            type = mapKaliumConversationType(kaliumConv.type),
-            status = mapKaliumConversationStatus(kaliumConv.archived),
-            memberCount = 0, // Member count not directly available in Conversation object
-            createdAt = timestamp,
-            updatedAt = timestamp,
-        )
+    /**
+     * Maps Kalium ConversationDetails to domain Conversation model.
+     * Handles 1-on-1 conversations by extracting actual contact names
+     * instead of using "[Direct Message]" placeholder.
+     */
+    private fun mapConversationDetailsToDomain(details: ConversationDetails): Conversation {
+        return when (details) {
+            // 1-on-1 conversations with actual contact info
+            is ConversationDetails.OneOne -> {
+                Conversation(
+                    id = details.conversation.id.value,
+                    name =
+                        details.otherUser.name
+                            ?: details.otherUser.handle
+                            ?: details.otherUser.id.value, // Fallback: name → handle → user ID
+                    type = ConversationType.ONE_TO_ONE,
+                    status = mapKaliumConversationStatus(details.conversation.archived),
+                    memberCount = 2,
+                    createdAt = mapTimestamp(details.conversation.lastModifiedDate),
+                    updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
+                )
+            }
+
+            // Pending connection requests
+            is ConversationDetails.Connection -> {
+                Conversation(
+                    id = details.conversationId.value,
+                    name =
+                        details.otherUser?.name
+                            ?: details.otherUser?.handle
+                            ?: "[Connection Pending]",
+                    type = ConversationType.ONE_TO_ONE,
+                    status = ConversationStatus.ACTIVE,
+                    memberCount = 2,
+                    createdAt = mapTimestamp(details.lastModifiedDate),
+                    updatedAt = mapTimestamp(details.lastModifiedDate),
+                )
+            }
+
+            // Group conversations with their names
+            is ConversationDetails.Group -> {
+                Conversation(
+                    id = details.conversation.id.value,
+                    name = details.conversation.name ?: "[Group]",
+                    type = mapKaliumConversationType(details.conversation.type),
+                    status = mapKaliumConversationStatus(details.conversation.archived),
+                    memberCount = 0, // Member count not available in ConversationDetails, can be improved later
+                    createdAt = mapTimestamp(details.conversation.lastModifiedDate),
+                    updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
+                )
+            }
+
+            // Team conversations
+            is ConversationDetails.Team -> {
+                Conversation(
+                    id = details.conversation.id.value,
+                    name = details.conversation.name ?: "[Team]",
+                    type = mapKaliumConversationType(details.conversation.type),
+                    status = mapKaliumConversationStatus(details.conversation.archived),
+                    memberCount = 0,
+                    createdAt = mapTimestamp(details.conversation.lastModifiedDate),
+                    updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
+                )
+            }
+
+            // Self conversation
+            is ConversationDetails.Self -> {
+                Conversation(
+                    id = details.conversation.id.value,
+                    name = details.conversation.name ?: "[Saved Messages]",
+                    type = mapKaliumConversationType(details.conversation.type),
+                    status = mapKaliumConversationStatus(details.conversation.archived),
+                    memberCount = 1,
+                    createdAt = mapTimestamp(details.conversation.lastModifiedDate),
+                    updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
+                )
+            }
+        }
+    }
+
+    private fun mapTimestamp(instant: Instant?): String {
+        return if (instant != null) {
+            instant.toString() // Already ISO 8601 format
+        } else {
+            "Unknown"
+        }
     }
 
     private fun mapKaliumConversationType(type: KaliumConversationType): ConversationType {

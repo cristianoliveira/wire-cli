@@ -1,27 +1,28 @@
 package wirecli.conversation
 
 import com.wire.kalium.logic.CoreLogic
+import com.wire.kalium.logic.data.conversation.ConversationDetails
+import com.wire.kalium.logic.data.conversation.ConversationFilter
 import com.wire.kalium.logic.data.id.ConversationId
 import com.wire.kalium.logic.data.user.UserId
-import com.wire.kalium.logic.feature.conversation.GetConversationsUseCase
+import com.wire.kalium.logic.feature.conversation.ObserveConversationDetailsUseCase
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthSession
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 import java.nio.file.Paths
-import com.wire.kalium.logic.data.conversation.Conversation as KaliumConversation
 
 /**
  * Runtime abstraction for Kalium conversation operations
  */
 internal interface RealKaliumConversationRuntime {
-    fun listConversations(session: AuthSession): ConversationStepResult<List<KaliumConversation>>
+    fun listConversations(session: AuthSession): ConversationStepResult<List<ConversationDetails>>
 
     fun getConversation(
         session: AuthSession,
         conversationId: String,
-    ): ConversationStepResult<KaliumConversation>
+    ): ConversationStepResult<ConversationDetails>
 
     fun close() {
         shutdown()
@@ -63,7 +64,7 @@ internal class SdkKaliumConversationRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
-    override fun listConversations(session: AuthSession): ConversationStepResult<List<KaliumConversation>> {
+    override fun listConversations(session: AuthSession): ConversationStepResult<List<ConversationDetails>> {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: return ConversationStepResult.Failure(ConversationFailureCategory.UNAUTHORIZED)
@@ -71,21 +72,19 @@ internal class SdkKaliumConversationRuntime(
 
         return runBlocking {
             try {
-                // Use the public GetConversationsUseCase API
-                val result =
+                // Use observeConversationListDetailsWithEvents usecase to get full ConversationDetails with contact info
+                val conversationDetails =
                     coreLogic.sessionScope(qualifiedId) {
-                        conversations.getConversations()
+                        conversations.observeConversationListDetailsWithEvents(
+                            fromArchive = false,
+                            conversationFilter = ConversationFilter.All,
+                        )
+                            .firstOrNull()
+                            ?.map { it.conversationDetails }
+                            ?: emptyList()
                     }
 
-                when (result) {
-                    is GetConversationsUseCase.Result.Success -> {
-                        val conversations = result.convFlow.firstOrNull() ?: emptyList()
-                        ConversationStepResult.Success(conversations)
-                    }
-
-                    is GetConversationsUseCase.Result.Failure ->
-                        ConversationStepResult.Failure(ConversationFailureCategory.SERVER)
-                }
+                ConversationStepResult.Success(conversationDetails)
             } catch (error: Throwable) {
                 ConversationStepResult.Failure(categoryFromThrowable(error))
             }
@@ -95,7 +94,7 @@ internal class SdkKaliumConversationRuntime(
     override fun getConversation(
         session: AuthSession,
         conversationId: String,
-    ): ConversationStepResult<KaliumConversation> {
+    ): ConversationStepResult<ConversationDetails> {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: return ConversationStepResult.Failure(ConversationFailureCategory.UNAUTHORIZED)
@@ -111,22 +110,14 @@ internal class SdkKaliumConversationRuntime(
 
                 val result =
                     coreLogic.sessionScope(qualifiedId) {
-                        conversations.getConversations()
+                        conversations.observeConversationDetails(kaliumConvId)
+                            .firstOrNull()
                     }
 
-                when (result) {
-                    is GetConversationsUseCase.Result.Success -> {
-                        val conversations = result.convFlow.firstOrNull() ?: emptyList()
-                        val conversation = conversations.firstOrNull { it.id == kaliumConvId }
-                        if (conversation != null) {
-                            ConversationStepResult.Success(conversation)
-                        } else {
-                            ConversationStepResult.Failure(ConversationFailureCategory.NOT_FOUND)
-                        }
-                    }
-
-                    is GetConversationsUseCase.Result.Failure ->
-                        ConversationStepResult.Failure(ConversationFailureCategory.SERVER)
+                if (result is ObserveConversationDetailsUseCase.Result.Success) {
+                    ConversationStepResult.Success(result.conversationDetails)
+                } else {
+                    ConversationStepResult.Failure(ConversationFailureCategory.NOT_FOUND)
                 }
             } catch (error: Throwable) {
                 ConversationStepResult.Failure(categoryFromThrowable(error))

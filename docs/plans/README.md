@@ -25,7 +25,14 @@ These are the two "small but interesting" features recommended as Phase 2 quick-
 
 ---
 
-### 2. Sync Health Exploration
+### 2. Conversations Exploration
+📄 **File**: `conversations-exploration.md`
+
+**Focus**: Enable developers and LLM agents to discover and filter conversations.
+
+---
+
+### 3. Sync Health Exploration
 📄 **File**: `sync-health-exploration.md` (2,518 words)
 
 **Focus**: User needs around sync readiness, diagnostics, and troubleshooting.
@@ -46,25 +53,29 @@ These are the two "small but interesting" features recommended as Phase 2 quick-
 
 ## Recommended Execution Order
 
-### 🎯 Sequential (Device → Sync) — Recommended
+### 🎯 Sequential (Device → Conversations → Sync) — Recommended
 
 1. **Day 1**: Device Management MVP
    - `wire device list` + `wire device delete`
    - Establishes service pattern; unblocks security ops
 
-2. **Days 2–3**: Sync Health MVP
+2. **Day 2**: Conversations MVP
+   - `wire conversation list` with filtering and metadata
+   - Enables agent discovery; unblocks conversation-based workflows
+
+3. **Days 3–4**: Sync Health MVP
    - `wire sync status` + `--verbose`
    - Builds on device patterns; unblocks diagnostics
 
-**Why**: Device management is smaller and more independent. Day 1 delivers complete value. By day 3, sync health can show device health intelligently.
+**Why**: Device management is smaller and more independent. Conversations builds naturally after. By day 4, sync health can show device health intelligently.
 
 ### 🎯 Alternative: Parallel (If Pairing)
 
-If two engineers are available, both features can be done in parallel over 3 days.
+If two engineers are available, features can be done in parallel over 3–4 days.
 
-### 🎯 Alternative: Sync-First (If Diagnostics Priority)
+### 🎯 Alternative: Conversations-First (If Agent Integration Priority)
 
-If support tickets demand diagnostics more urgently, do sync health first (days 1–2), then device management (day 3).
+If LLM agent integration is the immediate priority, start with conversations (days 1–2), then device management (day 3), then sync health (days 4–5).
 
 ---
 

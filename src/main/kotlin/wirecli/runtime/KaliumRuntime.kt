@@ -10,6 +10,8 @@ import wirecli.auth.StubAuthApiClient
 import wirecli.conversation.AuthGuardedConversationService
 import wirecli.conversation.ConversationApiClient
 import wirecli.conversation.ConversationService
+import wirecli.conversation.RealKaliumConversationApiClient
+import wirecli.conversation.SdkKaliumConversationRuntime
 import wirecli.conversation.SessionBackedConversationService
 import wirecli.conversation.StubConversationApiClient
 import wirecli.device.AuthGuardedDeviceService
@@ -226,12 +228,14 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             private val presenceRuntimeLazy = lazy { SdkKaliumPresenceRuntime(environment) }
             private val deviceRuntimeLazy = lazy { SdkKaliumDeviceRuntime(environment) }
             private val syncRuntimeLazy = lazy { SdkKaliumSyncRuntime(environment) }
+            private val conversationRuntimeLazy = lazy { SdkKaliumConversationRuntime(environment) }
 
             private val authRuntime by authRuntimeLazy
             private val profileRuntime by profileRuntimeLazy
             private val presenceRuntime by presenceRuntimeLazy
             private val deviceRuntime by deviceRuntimeLazy
             private val syncRuntime by syncRuntimeLazy
+            private val conversationRuntime by conversationRuntimeLazy
 
             override val authApiClient: AuthApiClient by lazy { RealKaliumAuthClient(authRuntime) }
             override val profileApiClient: ProfileApiClient by lazy { RealKaliumProfileApiClient(profileRuntime) }
@@ -239,9 +243,8 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             override val deviceApiClient: DeviceApiClient by lazy { RealKaliumDeviceApiClient(deviceRuntime) }
             override val syncApiClient: SyncApiClient by lazy { RealKaliumSyncApiClient(syncRuntime) }
 
-            // TODO: wire-cli-q51 (D3) will provide real implementation
             override val conversationApiClient: ConversationApiClient by lazy {
-                StubConversationApiClient(environment)
+                RealKaliumConversationApiClient(conversationRuntime)
             }
 
             override fun shutdown() {
@@ -250,6 +253,7 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
                 if (presenceRuntimeLazy.isInitialized()) presenceRuntime.close()
                 if (deviceRuntimeLazy.isInitialized()) deviceRuntime.shutdown()
                 if (syncRuntimeLazy.isInitialized()) syncRuntime.shutdown()
+                if (conversationRuntimeLazy.isInitialized()) conversationRuntime.shutdown()
             }
         }
     }

@@ -5,6 +5,8 @@ import wirecli.auth.AuthApiResult
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.auth.LoginInput
+import wirecli.conversation.ConversationApiClient
+import wirecli.conversation.StubConversationApiClient
 import wirecli.device.DeviceApiClient
 import wirecli.device.DeviceDeleteResult
 import wirecli.device.DeviceDetailResult
@@ -98,6 +100,10 @@ private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFac
                         counters.syncApiClientAccesses += 1
                         return NoopSyncApiClient
                     }
+
+                override val conversationApiClient: ConversationApiClient by lazy {
+                    StubConversationApiClient(environment)
+                }
 
                 override fun shutdown() {
                     counters.shutdownCalls += 1

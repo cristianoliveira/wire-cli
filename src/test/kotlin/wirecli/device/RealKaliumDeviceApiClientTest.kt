@@ -348,6 +348,135 @@ class RealKaliumDeviceApiClientTest {
         assertEquals(ExitCodes.UNKNOWN_ERROR, failure.exitCode)
     }
 
+    @Test
+    fun `read operations pass isWriteOperation=false for fresh session support`() {
+        val runtime =
+            WriteOperationTrackingRuntime(
+                sessionScopeResult = DeviceStepResult.Success(KaliumDeviceSessionScope(session.userId, session.server)),
+                listDevicesResult =
+                    DeviceStepResult.Success(
+                        listOf(
+                            Device(
+                                id = "device-001",
+                                type = DeviceType.DESKTOP,
+                                fingerprint = "fingerprint",
+                                lastActive = "2025-03-13T10:30:00Z",
+                            ),
+                        ),
+                    ),
+            )
+        val client = RealKaliumDeviceApiClient(runtime)
+
+        client.listDevices(session)
+
+        assertEquals(false, runtime.lastIsWriteOperation, "listDevices should pass isWriteOperation=false")
+    }
+
+    @Test
+    fun `getDeviceDetail passes isWriteOperation=false for fresh session support`() {
+        val device =
+            Device(
+                id = "device-001",
+                type = DeviceType.DESKTOP,
+                fingerprint = "fingerprint",
+                lastActive = "2025-03-13T10:30:00Z",
+            )
+        val runtime =
+            WriteOperationTrackingRuntime(
+                sessionScopeResult = DeviceStepResult.Success(KaliumDeviceSessionScope(session.userId, session.server)),
+                getDeviceDetailResult = DeviceStepResult.Success(device),
+            )
+        val client = RealKaliumDeviceApiClient(runtime)
+
+        client.getDeviceDetail(session, "device-001")
+
+        assertEquals(false, runtime.lastIsWriteOperation, "getDeviceDetail should pass isWriteOperation=false")
+    }
+
+    @Test
+    fun `verifyDevice passes isWriteOperation=false for fresh session support`() {
+        val device =
+            Device(
+                id = "device-001",
+                type = DeviceType.DESKTOP,
+                fingerprint = "fingerprint",
+                lastActive = "2025-03-13T10:30:00Z",
+            )
+        val runtime =
+            WriteOperationTrackingRuntime(
+                sessionScopeResult = DeviceStepResult.Success(KaliumDeviceSessionScope(session.userId, session.server)),
+                getDeviceDetailResult = DeviceStepResult.Success(device),
+            )
+        val client = RealKaliumDeviceApiClient(runtime)
+
+        client.verifyDevice(session, "device-001")
+
+        assertEquals(false, runtime.lastIsWriteOperation, "verifyDevice should pass isWriteOperation=false")
+    }
+
+    @Test
+    fun `deleteDevice passes isWriteOperation=true for strict session validation`() {
+        val runtime =
+            WriteOperationTrackingRuntime(
+                sessionScopeResult = DeviceStepResult.Success(KaliumDeviceSessionScope(session.userId, session.server)),
+                deleteDeviceResult = DeviceStepResult.Success(Unit),
+            )
+        val client = RealKaliumDeviceApiClient(runtime)
+
+        client.deleteDevice(session, "device-001")
+
+        assertEquals(true, runtime.lastIsWriteOperation, "deleteDevice should pass isWriteOperation=true")
+    }
+
+    private class WriteOperationTrackingRuntime(
+        private val sessionScopeResult: DeviceStepResult<KaliumDeviceSessionScope>,
+        private val listDevicesResult: DeviceStepResult<List<Device>> = DeviceStepResult.Success(emptyList()),
+        private val listDevicesForUserResult: DeviceStepResult<List<Device>> = DeviceStepResult.Success(emptyList()),
+        private val getDeviceDetailResult: DeviceStepResult<Device> =
+            DeviceStepResult.Failure(
+                DeviceFailureCategory.DEVICE_NOT_FOUND,
+            ),
+        private val deleteDeviceResult: DeviceStepResult<Unit> = DeviceStepResult.Success(Unit),
+    ) : RealKaliumDeviceRuntime {
+        var lastIsWriteOperation: Boolean? = null
+
+        override fun resolveSessionScope(
+            session: AuthSession,
+            isWriteOperation: Boolean,
+        ): DeviceStepResult<KaliumDeviceSessionScope> {
+            lastIsWriteOperation = isWriteOperation
+            return sessionScopeResult
+        }
+
+        override fun listDevices(sessionScope: KaliumDeviceSessionScope): DeviceStepResult<List<Device>> {
+            return listDevicesResult
+        }
+
+        override fun listDevicesForUser(
+            sessionScope: KaliumDeviceSessionScope,
+            userId: String,
+        ): DeviceStepResult<List<Device>> {
+            return listDevicesForUserResult
+        }
+
+        override fun getDeviceDetail(
+            sessionScope: KaliumDeviceSessionScope,
+            deviceId: String,
+        ): DeviceStepResult<Device> {
+            return getDeviceDetailResult
+        }
+
+        override fun deleteDevice(
+            sessionScope: KaliumDeviceSessionScope,
+            deviceId: String,
+        ): DeviceStepResult<Unit> {
+            return deleteDeviceResult
+        }
+
+        override fun shutdown() {
+        }
+    }
+
     private class FakeRuntime(
         private val sessionScopeResult: DeviceStepResult<KaliumDeviceSessionScope>,
         private val listDevicesResult: DeviceStepResult<List<Device>> = DeviceStepResult.Success(emptyList()),
@@ -358,7 +487,10 @@ class RealKaliumDeviceApiClientTest {
             ),
         private val deleteDeviceResult: DeviceStepResult<Unit> = DeviceStepResult.Success(Unit),
     ) : RealKaliumDeviceRuntime {
-        override fun resolveSessionScope(session: AuthSession): DeviceStepResult<KaliumDeviceSessionScope> {
+        override fun resolveSessionScope(
+            session: AuthSession,
+            isWriteOperation: Boolean,
+        ): DeviceStepResult<KaliumDeviceSessionScope> {
             return sessionScopeResult
         }
 

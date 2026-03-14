@@ -179,11 +179,17 @@ private object NoopSyncApiClient : SyncApiClient {
         return DiagnosticsResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 
-    override fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult {
+    override fun getConversationSyncStatus(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationSyncStatusResult {
         return ConversationSyncStatusResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 
-    override fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult {
+    override fun getPerConversationDiagnostics(
+        session: AuthSession,
+        conversationId: String,
+    ): PerConversationDiagnosticsResult {
         return PerConversationDiagnosticsResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

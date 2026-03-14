@@ -30,7 +30,10 @@ internal interface NetworkConnectivityChecker {
      * @param totalAttempts Total number of attempts
      * @return Error rate as a decimal (0.0 to 1.0)
      */
-    fun calculateErrorRate(failureCount: Int, totalAttempts: Int): Double
+    fun calculateErrorRate(
+        failureCount: Int,
+        totalAttempts: Int,
+    ): Double
 }
 
 /**
@@ -69,7 +72,10 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
         return maxOf(10L, syncLagMs / 2)
     }
 
-    override fun calculateErrorRate(failureCount: Int, totalAttempts: Int): Double {
+    override fun calculateErrorRate(
+        failureCount: Int,
+        totalAttempts: Int,
+    ): Double {
         return if (totalAttempts == 0) {
             0.0
         } else {
@@ -219,7 +225,10 @@ internal class StubNetworkConnectivityChecker(
         return maxOf(10L, syncLagMs / 2)
     }
 
-    override fun calculateErrorRate(failureCount: Int, totalAttempts: Int): Double {
+    override fun calculateErrorRate(
+        failureCount: Int,
+        totalAttempts: Int,
+    ): Double {
         // Use real calculation logic
         return if (totalAttempts == 0) {
             0.0

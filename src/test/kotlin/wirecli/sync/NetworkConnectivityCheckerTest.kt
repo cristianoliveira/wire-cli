@@ -5,7 +5,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import java.time.Instant
 
 /**
  * Unit tests for network connectivity metrics.
@@ -18,12 +17,13 @@ import java.time.Instant
  * - Recovery time tracking
  */
 class NetworkConnectivityCheckerTest {
-    private val stubChecker = StubNetworkConnectivityChecker(
-        connected = true,
-        networkType = NetworkType.WIFI,
-        estimatedLatency = 20L,
-        errorRate = 0.0,
-    )
+    private val stubChecker =
+        StubNetworkConnectivityChecker(
+            connected = true,
+            networkType = NetworkType.WIFI,
+            estimatedLatency = 20L,
+            errorRate = 0.0,
+        )
 
     // ==================== NETWORK TYPE DETECTION TESTS ====================
 
@@ -120,17 +120,19 @@ class NetworkConnectivityCheckerTest {
 
     @Test
     fun `metrics with errors include recovery time`() {
-        val metricsWithErrors = StubNetworkConnectivityChecker(
-            errorRate = 0.5,
-        ).checkNetworkConnectivity()
+        val metricsWithErrors =
+            StubNetworkConnectivityChecker(
+                errorRate = 0.5,
+            ).checkNetworkConnectivity()
         assertNotNull(metricsWithErrors.last_recovery_time_ms, "Recovery time should be set when there are errors")
     }
 
     @Test
     fun `metrics without errors have null recovery time`() {
-        val metricsWithoutErrors = StubNetworkConnectivityChecker(
-            errorRate = 0.0,
-        ).checkNetworkConnectivity()
+        val metricsWithoutErrors =
+            StubNetworkConnectivityChecker(
+                errorRate = 0.0,
+            ).checkNetworkConnectivity()
         assertEquals(null, metricsWithoutErrors.last_recovery_time_ms, "Recovery time should be null without errors")
     }
 

@@ -139,7 +139,10 @@ interface SyncApiClient {
      * @param conversationId The ID of the conversation to query
      * @return Sync status and metrics for the conversation
      */
-    fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult
+    fun getConversationSyncStatus(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationSyncStatusResult
 
     /**
      * Retrieves detailed diagnostics for a conversation's sync status.
@@ -148,7 +151,10 @@ interface SyncApiClient {
      * @param conversationId The ID of the conversation to diagnose
      * @return Detailed diagnostics report with checks and recovery hints
      */
-    fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult
+    fun getPerConversationDiagnostics(
+        session: AuthSession,
+        conversationId: String,
+    ): PerConversationDiagnosticsResult
 }
 
 // ==================== PER-CONVERSATION SYNC DIAGNOSTICS ====================

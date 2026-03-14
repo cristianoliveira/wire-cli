@@ -1,7 +1,7 @@
 package wirecli.sync
 
-import com.wire.kalium.logic.data.sync.SyncState
 import com.wire.kalium.common.error.CoreFailure.Unknown
+import com.wire.kalium.logic.data.sync.SyncState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -108,13 +108,14 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `sync completeness values are between 0 and 100`() {
-        val states = listOf(
-            SyncState.Live,
-            SyncState.SlowSync,
-            SyncState.GatheringPendingEvents,
-            SyncState.Waiting,
-            SyncState.Failed(Unknown(null), 1.seconds),
-        )
+        val states =
+            listOf(
+                SyncState.Live,
+                SyncState.SlowSync,
+                SyncState.GatheringPendingEvents,
+                SyncState.Waiting,
+                SyncState.Failed(Unknown(null), 1.seconds),
+            )
 
         states.forEach { state ->
             val completeness = generator.calculateSyncCompletenessPercentage(state)
@@ -194,12 +195,13 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `summary indicates healthy when all checks pass`() {
-        val checks = listOf(
-            Check("Conversation State", "Pass", "OK"),
-            Check("Message Sync", "Pass", "OK"),
-            Check("Sync Completeness", "Pass", "100%"),
-            Check("Conversation Connectivity", "Pass", "OK"),
-        )
+        val checks =
+            listOf(
+                Check("Conversation State", "Pass", "OK"),
+                Check("Message Sync", "Pass", "OK"),
+                Check("Sync Completeness", "Pass", "100%"),
+                Check("Conversation Connectivity", "Pass", "OK"),
+            )
 
         val summary = generator.generateConversationSummary(checks)
 
@@ -208,12 +210,13 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `summary indicates degradation when checks fail`() {
-        val checks = listOf(
-            Check("Conversation State", "Pass", "OK"),
-            Check("Message Sync", "Fail", "Error"),
-            Check("Sync Completeness", "Fail", "0%"),
-            Check("Conversation Connectivity", "Fail", "Unreachable"),
-        )
+        val checks =
+            listOf(
+                Check("Conversation State", "Pass", "OK"),
+                Check("Message Sync", "Fail", "Error"),
+                Check("Sync Completeness", "Fail", "0%"),
+                Check("Conversation Connectivity", "Fail", "Unreachable"),
+            )
 
         val summary = generator.generateConversationSummary(checks)
 
@@ -222,12 +225,13 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `summary indicates progress when warnings present`() {
-        val checks = listOf(
-            Check("Conversation State", "Pass", "OK"),
-            Check("Message Sync", "Warn", "In progress"),
-            Check("Sync Completeness", "Warn", "65%"),
-            Check("Conversation Connectivity", "Pass", "OK"),
-        )
+        val checks =
+            listOf(
+                Check("Conversation State", "Pass", "OK"),
+                Check("Message Sync", "Warn", "In progress"),
+                Check("Sync Completeness", "Warn", "65%"),
+                Check("Conversation Connectivity", "Pass", "OK"),
+            )
 
         val summary = generator.generateConversationSummary(checks)
 
@@ -238,9 +242,10 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `message sync failure generates recovery hint`() {
-        val checks = listOf(
-            Check("Message Sync", "Fail", "Error"),
-        )
+        val checks =
+            listOf(
+                Check("Message Sync", "Fail", "Error"),
+            )
 
         val hints = generator.generateConversationRecoveryHints(checks, "test-conv-123")
 
@@ -250,9 +255,10 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `completeness failure generates recovery hint`() {
-        val checks = listOf(
-            Check("Sync Completeness", "Fail", "0%"),
-        )
+        val checks =
+            listOf(
+                Check("Sync Completeness", "Fail", "0%"),
+            )
 
         val hints = generator.generateConversationRecoveryHints(checks, "test-conv-123")
 
@@ -262,9 +268,10 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `connectivity failure generates recovery hint`() {
-        val checks = listOf(
-            Check("Conversation Connectivity", "Fail", "Unreachable"),
-        )
+        val checks =
+            listOf(
+                Check("Conversation Connectivity", "Fail", "Unreachable"),
+            )
 
         val hints = generator.generateConversationRecoveryHints(checks, "test-conv-123")
 
@@ -274,12 +281,13 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `no hints generated when all checks pass`() {
-        val checks = listOf(
-            Check("Conversation State", "Pass", "OK"),
-            Check("Message Sync", "Pass", "OK"),
-            Check("Sync Completeness", "Pass", "100%"),
-            Check("Conversation Connectivity", "Pass", "OK"),
-        )
+        val checks =
+            listOf(
+                Check("Conversation State", "Pass", "OK"),
+                Check("Message Sync", "Pass", "OK"),
+                Check("Sync Completeness", "Pass", "100%"),
+                Check("Conversation Connectivity", "Pass", "OK"),
+            )
 
         val hints = generator.generateConversationRecoveryHints(checks, "test-conv-123")
 
@@ -289,9 +297,10 @@ class PerConversationSyncDiagnosticsTest {
     @Test
     fun `recovery hints include conversation ID`() {
         val conversationId = "specific-conv-id"
-        val checks = listOf(
-            Check("Message Sync", "Fail", "Error"),
-        )
+        val checks =
+            listOf(
+                Check("Message Sync", "Fail", "Error"),
+            )
 
         val hints = generator.generateConversationRecoveryHints(checks, conversationId)
 
@@ -303,11 +312,12 @@ class PerConversationSyncDiagnosticsTest {
     @Test
     fun `per-conversation report contains conversation ID`() {
         val conversationId = "test-conv-456"
-        val report = PerConversationDiagnosticsReport(
-            conversation_id = conversationId,
-            checks = listOf(Check("Test", "Pass", "OK")),
-            summary = "All good",
-        )
+        val report =
+            PerConversationDiagnosticsReport(
+                conversation_id = conversationId,
+                checks = listOf(Check("Test", "Pass", "OK")),
+                summary = "All good",
+            )
 
         assertEquals(conversationId, report.conversation_id)
     }
@@ -316,12 +326,13 @@ class PerConversationSyncDiagnosticsTest {
     fun `per-conversation report contains all required fields`() {
         val checks = listOf(Check("Test", "Pass", "OK"))
         val hints = listOf(RecoveryHint("Issue", "Fix it"))
-        val report = PerConversationDiagnosticsReport(
-            conversation_id = "test-conv",
-            checks = checks,
-            summary = "All good",
-            recoveryHints = hints,
-        )
+        val report =
+            PerConversationDiagnosticsReport(
+                conversation_id = "test-conv",
+                checks = checks,
+                summary = "All good",
+                recoveryHints = hints,
+            )
 
         assertEquals(1, report.checks.size)
         assertEquals("All good", report.summary)
@@ -330,11 +341,12 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `per-conversation report recovery hints are optional`() {
-        val report = PerConversationDiagnosticsReport(
-            conversation_id = "test-conv",
-            checks = emptyList(),
-            summary = "No checks",
-        )
+        val report =
+            PerConversationDiagnosticsReport(
+                conversation_id = "test-conv",
+                checks = emptyList(),
+                summary = "No checks",
+            )
 
         assertEquals(0, report.recoveryHints.size, "Recovery hints should default to empty list")
     }
@@ -376,10 +388,11 @@ class PerConversationSyncDiagnosticsTest {
 
     @Test
     fun `recovery hints have both description and command for conversation`() {
-        val checks = listOf(
-            Check("Message Sync", "Fail", "Error"),
-            Check("Conversation Connectivity", "Fail", "Error"),
-        )
+        val checks =
+            listOf(
+                Check("Message Sync", "Fail", "Error"),
+                Check("Conversation Connectivity", "Fail", "Error"),
+            )
 
         val hints = generator.generateConversationRecoveryHints(checks, "test-conv-123")
 
@@ -440,7 +453,10 @@ class PerConversationSyncDiagnosticsTest {
      * This mirrors the actual implementation in RealKaliumSyncApiClient.
      */
     private class TestConversationDiagnosticsGenerator {
-        fun generateConversationMetrics(conversationId: String, syncState: SyncState): ConversationMetrics {
+        fun generateConversationMetrics(
+            conversationId: String,
+            syncState: SyncState,
+        ): ConversationMetrics {
             return ConversationMetrics(
                 conversation_id = conversationId,
                 lag_ms = calculateConversationLagMs(syncState),
@@ -450,7 +466,10 @@ class PerConversationSyncDiagnosticsTest {
             )
         }
 
-        fun generateConversationChecks(conversationId: String, syncState: SyncState): List<Check> {
+        fun generateConversationChecks(
+            conversationId: String,
+            syncState: SyncState,
+        ): List<Check> {
             val checks = mutableListOf<Check>()
 
             checks.add(
@@ -461,13 +480,14 @@ class PerConversationSyncDiagnosticsTest {
                 ),
             )
 
-            val messageSyncStatus = when (syncState) {
-                is SyncState.Live -> "Pass"
-                is SyncState.SlowSync -> "Warn"
-                is SyncState.GatheringPendingEvents -> "Warn"
-                is SyncState.Waiting -> "Warn"
-                is SyncState.Failed -> "Fail"
-            }
+            val messageSyncStatus =
+                when (syncState) {
+                    is SyncState.Live -> "Pass"
+                    is SyncState.SlowSync -> "Warn"
+                    is SyncState.GatheringPendingEvents -> "Warn"
+                    is SyncState.Waiting -> "Warn"
+                    is SyncState.Failed -> "Fail"
+                }
             checks.add(
                 Check(
                     name = "Message Sync",
@@ -480,12 +500,13 @@ class PerConversationSyncDiagnosticsTest {
             checks.add(
                 Check(
                     name = "Sync Completeness",
-                    status = when {
-                        completeness >= 95 -> "Pass"
-                        completeness >= 70 -> "Warn"
-                        else -> "Fail"
-                    },
-                    details = "Sync completeness: ${completeness}%",
+                    status =
+                        when {
+                            completeness >= 95 -> "Pass"
+                            completeness >= 70 -> "Warn"
+                            else -> "Fail"
+                        },
+                    details = "Sync completeness: $completeness%",
                 ),
             )
 
@@ -513,7 +534,10 @@ class PerConversationSyncDiagnosticsTest {
             }
         }
 
-        fun generateConversationRecoveryHints(checks: List<Check>, conversationId: String): List<RecoveryHint> {
+        fun generateConversationRecoveryHints(
+            checks: List<Check>,
+            conversationId: String,
+        ): List<RecoveryHint> {
             val hints = mutableListOf<RecoveryHint>()
 
             if (checks.any { it.name == "Message Sync" && it.status == "Fail" }) {

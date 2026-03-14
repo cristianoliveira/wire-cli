@@ -124,13 +124,16 @@ object SyncOutputFormatter {
             if (view.metrics.mls != null) {
                 appendLine("")
                 val mlsMetrics = view.metrics.mls
-                val keyPackageStatus = when {
-                    mlsMetrics.key_package_exhausted -> "exhausted, refresh needed"
-                    mlsMetrics.key_package_available < 50 -> "low, refilling"
-                    else -> "${mlsMetrics.key_package_available} available"
-                }
+                val keyPackageStatus =
+                    when {
+                        mlsMetrics.key_package_exhausted -> "exhausted, refresh needed"
+                        mlsMetrics.key_package_available < 50 -> "low, refilling"
+                        else -> "${mlsMetrics.key_package_available} available"
+                    }
                 if (mlsMetrics.device_name != null && mlsMetrics.key_package_total != null) {
-                    appendLine("  • ${mlsMetrics.device_name}: ${mlsMetrics.key_package_available}/${mlsMetrics.key_package_total} ($keyPackageStatus)")
+                    val keyPackageInfo =
+                        "  • ${mlsMetrics.device_name}: ${mlsMetrics.key_package_available}/${mlsMetrics.key_package_total} ($keyPackageStatus)"
+                    appendLine(keyPackageInfo)
                 } else {
                     appendLine("  • Key Packages: $keyPackageStatus")
                 }

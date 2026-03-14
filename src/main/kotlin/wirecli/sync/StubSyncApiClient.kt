@@ -344,4 +344,270 @@ class StubSyncApiClient(
                 )
         }
     }
+
+    override fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        if (conversationId.isBlank()) {
+            return ConversationSyncStatusResult.Failure(
+                message = SyncMessages.CONVERSATION_NOT_FOUND,
+                exitCode = SyncExitCodes.DEGRADED,
+            )
+        }
+
+        return when (mode) {
+            "conversation_ready" ->
+                ConversationSyncStatusResult.Success(
+                    status =
+                        ConversationSyncStatus(
+                            conversation_id = conversationId,
+                            status = SyncStatus.READY,
+                            metrics =
+                                ConversationMetrics(
+                                    conversation_id = conversationId,
+                                    lag_ms = 50L,
+                                    pending_messages = 0,
+                                    sync_completeness_pct = 100,
+                                    timestamp = "2025-03-13T10:30:00Z",
+                                ),
+                            last_sync_timestamp = "2025-03-13T10:30:00Z",
+                        ),
+                )
+
+            "conversation_initializing" ->
+                ConversationSyncStatusResult.Success(
+                    status =
+                        ConversationSyncStatus(
+                            conversation_id = conversationId,
+                            status = SyncStatus.INITIALIZING,
+                            metrics =
+                                ConversationMetrics(
+                                    conversation_id = conversationId,
+                                    lag_ms = 2000L,
+                                    pending_messages = 15,
+                                    sync_completeness_pct = 65,
+                                    timestamp = "2025-03-13T10:32:00Z",
+                                ),
+                            last_sync_timestamp = "2025-03-13T10:32:00Z",
+                        ),
+                )
+
+            "conversation_degraded" ->
+                ConversationSyncStatusResult.Success(
+                    status =
+                        ConversationSyncStatus(
+                            conversation_id = conversationId,
+                            status = SyncStatus.DEGRADED,
+                            metrics =
+                                ConversationMetrics(
+                                    conversation_id = conversationId,
+                                    lag_ms = 5000L,
+                                    pending_messages = 50,
+                                    sync_completeness_pct = 40,
+                                    timestamp = "2025-03-13T10:35:00Z",
+                                ),
+                            last_sync_timestamp = "2025-03-13T10:35:00Z",
+                        ),
+                )
+
+            "conversation_network_error" ->
+                ConversationSyncStatusResult.Failure(
+                    message = SyncMessages.CONVERSATION_SYNC_NETWORK_FAILURE,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+
+            "conversation_not_found" ->
+                ConversationSyncStatusResult.Failure(
+                    message = SyncMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+
+            else ->
+                ConversationSyncStatusResult.Success(
+                    status =
+                        ConversationSyncStatus(
+                            conversation_id = conversationId,
+                            status = SyncStatus.READY,
+                            metrics =
+                                ConversationMetrics(
+                                    conversation_id = conversationId,
+                                    lag_ms = 50L,
+                                    pending_messages = 0,
+                                    sync_completeness_pct = 100,
+                                    timestamp = "2025-03-13T10:30:00Z",
+                                ),
+                            last_sync_timestamp = "2025-03-13T10:30:00Z",
+                        ),
+                )
+        }
+    }
+
+    override fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        if (conversationId.isBlank()) {
+            return PerConversationDiagnosticsResult.Failure(
+                message = SyncMessages.CONVERSATION_NOT_FOUND,
+                exitCode = SyncExitCodes.DEGRADED,
+            )
+        }
+
+        return when (mode) {
+            "conversation_ready", "conversation_diagnostics_healthy" ->
+                PerConversationDiagnosticsResult.Success(
+                    report =
+                        PerConversationDiagnosticsReport(
+                            conversation_id = conversationId,
+                            checks =
+                                listOf(
+                                    Check(
+                                        name = "Conversation State",
+                                        status = "Pass",
+                                        details = "Conversation ID: $conversationId",
+                                    ),
+                                    Check(
+                                        name = "Message Sync",
+                                        status = "Pass",
+                                        details = "All messages synced",
+                                    ),
+                                    Check(
+                                        name = "Sync Completeness",
+                                        status = "Pass",
+                                        details = "Sync completeness: 100%",
+                                    ),
+                                    Check(
+                                        name = "Conversation Connectivity",
+                                        status = "Pass",
+                                        details = "Conversation is reachable",
+                                    ),
+                                ),
+                            summary = "Conversation is fully synced and healthy.",
+                            recoveryHints = emptyList(),
+                        ),
+                )
+
+            "conversation_initializing", "conversation_diagnostics_initializing" ->
+                PerConversationDiagnosticsResult.Success(
+                    report =
+                        PerConversationDiagnosticsReport(
+                            conversation_id = conversationId,
+                            checks =
+                                listOf(
+                                    Check(
+                                        name = "Conversation State",
+                                        status = "Pass",
+                                        details = "Conversation ID: $conversationId",
+                                    ),
+                                    Check(
+                                        name = "Message Sync",
+                                        status = "Warn",
+                                        details = "Message sync in progress",
+                                    ),
+                                    Check(
+                                        name = "Sync Completeness",
+                                        status = "Warn",
+                                        details = "Sync completeness: 65%",
+                                    ),
+                                    Check(
+                                        name = "Conversation Connectivity",
+                                        status = "Pass",
+                                        details = "Conversation is reachable",
+                                    ),
+                                ),
+                            summary = "Conversation sync is in progress. Check back soon.",
+                            recoveryHints =
+                                listOf(
+                                    RecoveryHint(
+                                        description = "Conversation is syncing messages",
+                                        command = "Monitor sync progress with: wire-cli sync status --conversation $conversationId",
+                                    ),
+                                ),
+                        ),
+                )
+
+            "conversation_degraded", "conversation_diagnostics_degraded" ->
+                PerConversationDiagnosticsResult.Success(
+                    report =
+                        PerConversationDiagnosticsReport(
+                            conversation_id = conversationId,
+                            checks =
+                                listOf(
+                                    Check(
+                                        name = "Conversation State",
+                                        status = "Pass",
+                                        details = "Conversation ID: $conversationId",
+                                    ),
+                                    Check(
+                                        name = "Message Sync",
+                                        status = "Fail",
+                                        details = "Message sync degraded",
+                                    ),
+                                    Check(
+                                        name = "Sync Completeness",
+                                        status = "Warn",
+                                        details = "Sync completeness: 40%",
+                                    ),
+                                    Check(
+                                        name = "Conversation Connectivity",
+                                        status = "Fail",
+                                        details = "Conversation connectivity degraded",
+                                    ),
+                                ),
+                            summary = "Conversation sync has failed. Recovery actions may help.",
+                            recoveryHints =
+                                listOf(
+                                    RecoveryHint(
+                                        description = "Message sync failed for conversation",
+                                        command = "wire-cli sync status --conversation $conversationId --retry",
+                                    ),
+                                ),
+                        ),
+                )
+
+            "conversation_network_error" ->
+                PerConversationDiagnosticsResult.Failure(
+                    message = SyncMessages.CONVERSATION_SYNC_NETWORK_FAILURE,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+
+            "conversation_not_found" ->
+                PerConversationDiagnosticsResult.Failure(
+                    message = SyncMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+
+            else ->
+                PerConversationDiagnosticsResult.Success(
+                    report =
+                        PerConversationDiagnosticsReport(
+                            conversation_id = conversationId,
+                            checks =
+                                listOf(
+                                    Check(
+                                        name = "Conversation State",
+                                        status = "Pass",
+                                        details = "Conversation ID: $conversationId",
+                                    ),
+                                    Check(
+                                        name = "Message Sync",
+                                        status = "Pass",
+                                        details = "All messages synced",
+                                    ),
+                                    Check(
+                                        name = "Sync Completeness",
+                                        status = "Pass",
+                                        details = "Sync completeness: 100%",
+                                    ),
+                                    Check(
+                                        name = "Conversation Connectivity",
+                                        status = "Pass",
+                                        details = "Conversation is reachable",
+                                    ),
+                                ),
+                            summary = "Conversation is fully synced and healthy.",
+                            recoveryHints = emptyList(),
+                        ),
+                )
+        }
+    }
 }

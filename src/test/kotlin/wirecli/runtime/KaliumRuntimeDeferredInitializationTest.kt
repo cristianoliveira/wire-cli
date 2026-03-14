@@ -9,12 +9,15 @@ import wirecli.device.DeviceApiClient
 import wirecli.device.DeviceDeleteResult
 import wirecli.device.DeviceDetailResult
 import wirecli.device.DeviceListResult
+import wirecli.device.DeviceVerifyResult
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceResult
 import wirecli.presence.WritablePresenceState
 import wirecli.profile.ProfileApiClient
 import wirecli.profile.ProfileResult
+import wirecli.sync.ConversationSyncStatusResult
 import wirecli.sync.DiagnosticsResult
+import wirecli.sync.PerConversationDiagnosticsResult
 import wirecli.sync.SyncApiClient
 import wirecli.sync.SyncStatusResult
 import kotlin.test.Test
@@ -158,6 +161,13 @@ private object NoopDeviceApiClient : DeviceApiClient {
     ): DeviceDeleteResult {
         return DeviceDeleteResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
+
+    override fun verifyDevice(
+        session: AuthSession,
+        deviceId: String,
+    ): DeviceVerifyResult {
+        return DeviceVerifyResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
 }
 
 private object NoopSyncApiClient : SyncApiClient {
@@ -167,5 +177,13 @@ private object NoopSyncApiClient : SyncApiClient {
 
     override fun getDiagnostics(session: AuthSession): DiagnosticsResult {
         return DiagnosticsResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult {
+        return ConversationSyncStatusResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult {
+        return PerConversationDiagnosticsResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

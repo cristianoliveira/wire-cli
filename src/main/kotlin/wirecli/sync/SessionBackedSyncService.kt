@@ -29,4 +29,26 @@ class SessionBackedSyncService(
 
         return apiClient.getDiagnostics(session)
     }
+
+    override fun getConversationSyncStatus(conversationId: String): ConversationSyncStatusResult {
+        val session =
+            sessionStore.readActiveSession()
+                ?: return ConversationSyncStatusResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+        return apiClient.getConversationSyncStatus(session, conversationId)
+    }
+
+    override fun getPerConversationDiagnostics(conversationId: String): PerConversationDiagnosticsResult {
+        val session =
+            sessionStore.readActiveSession()
+                ?: return PerConversationDiagnosticsResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+        return apiClient.getPerConversationDiagnostics(session, conversationId)
+    }
 }

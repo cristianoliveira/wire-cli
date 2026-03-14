@@ -57,12 +57,82 @@ interface SyncApiClient {
     fun getSyncStatus(session: AuthSession): SyncStatusResult
 
     fun getDiagnostics(session: AuthSession): DiagnosticsResult
+
+    /**
+     * Retrieves sync status for a specific conversation.
+     *
+     * @param session The authenticated session
+     * @param conversationId The ID of the conversation to query
+     * @return Sync status and metrics for the conversation
+     */
+    fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult
+
+    /**
+     * Retrieves detailed diagnostics for a conversation's sync status.
+     *
+     * @param session The authenticated session
+     * @param conversationId The ID of the conversation to diagnose
+     * @return Detailed diagnostics report with checks and recovery hints
+     */
+    fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult
+}
+
+// ==================== PER-CONVERSATION SYNC DIAGNOSTICS ====================
+
+data class ConversationMetrics(
+    val conversation_id: String,
+    val lag_ms: Long,
+    val pending_messages: Int,
+    val sync_completeness_pct: Int,
+    val timestamp: String,
+)
+
+data class ConversationSyncStatus(
+    val conversation_id: String,
+    val status: SyncStatus,
+    val metrics: ConversationMetrics,
+    val last_sync_timestamp: String,
+)
+
+data class PerConversationDiagnosticsReport(
+    val conversation_id: String,
+    val checks: List<Check>,
+    val summary: String,
+    val recoveryHints: List<RecoveryHint> = emptyList(),
+)
+
+sealed interface ConversationSyncStatusResult {
+    data class Success(val status: ConversationSyncStatus) : ConversationSyncStatusResult
+
+    data class Failure(val message: String, val exitCode: Int) : ConversationSyncStatusResult
+}
+
+sealed interface PerConversationDiagnosticsResult {
+    data class Success(val report: PerConversationDiagnosticsReport) : PerConversationDiagnosticsResult
+
+    data class Failure(val message: String, val exitCode: Int) : PerConversationDiagnosticsResult
 }
 
 interface SyncService {
     fun getCurrentSyncStatus(): SyncStatusResult
 
     fun getDiagnosticsReport(): DiagnosticsResult
+
+    /**
+     * Retrieves sync status for a specific conversation.
+     *
+     * @param conversationId The ID of the conversation to query
+     * @return Sync status and metrics for the conversation, or failure if not found
+     */
+    fun getConversationSyncStatus(conversationId: String): ConversationSyncStatusResult
+
+    /**
+     * Retrieves detailed diagnostics for a specific conversation's sync status.
+     *
+     * @param conversationId The ID of the conversation to diagnose
+     * @return Detailed diagnostics report with checks and recovery hints
+     */
+    fun getPerConversationDiagnostics(conversationId: String): PerConversationDiagnosticsResult
 }
 
 object SyncExitCodes {
@@ -81,4 +151,10 @@ internal object SyncMessages {
     const val DIAGNOSTICS_NETWORK_FAILURE = "Diagnostics fetch failed: network is unreachable. Check your connection and retry."
     const val DIAGNOSTICS_SERVER_FAILURE = "Diagnostics service is unavailable. Retry later or check server settings."
     const val DIAGNOSTICS_UNKNOWN_FAILURE = "Diagnostics fetch failed unexpectedly. Retry and check your setup."
+
+    // Per-conversation sync diagnostics messages
+    const val CONVERSATION_NOT_FOUND = "Conversation not found. Verify the conversation ID and retry."
+    const val CONVERSATION_SYNC_NETWORK_FAILURE = "Failed to fetch conversation sync status: network is unreachable."
+    const val CONVERSATION_SYNC_SERVER_FAILURE = "Failed to fetch conversation sync status: server error occurred."
+    const val CONVERSATION_SYNC_UNKNOWN_FAILURE = "Failed to fetch conversation sync status unexpectedly."
 }

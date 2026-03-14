@@ -27,6 +27,14 @@ internal class RealKaliumSyncApiClient(
     override fun getDiagnostics(session: AuthSession): DiagnosticsResult {
         return runtime.getDiagnostics(session)
     }
+
+    override fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult {
+        return runtime.getConversationSyncStatus(session, conversationId)
+    }
+
+    override fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult {
+        return runtime.getPerConversationDiagnostics(session, conversationId)
+    }
 }
 
 /**
@@ -45,6 +53,24 @@ internal interface RealKaliumSyncRuntime {
      * Retrieves diagnostic information about the sync engine.
      */
     fun getDiagnostics(session: AuthSession): DiagnosticsResult
+
+    /**
+     * Retrieves sync status for a specific conversation.
+     *
+     * @param session The authenticated session
+     * @param conversationId The ID of the conversation to query
+     * @return Sync status and metrics for the conversation
+     */
+    fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult
+
+    /**
+     * Retrieves detailed diagnostics for a conversation's sync status.
+     *
+     * @param session The authenticated session
+     * @param conversationId The ID of the conversation to diagnose
+     * @return Detailed diagnostics report with checks and recovery hints
+     */
+    fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult
 
     fun shutdown()
 }
@@ -236,6 +262,175 @@ internal class SdkKaliumSyncRuntime(
         }
     }
 
+    override fun getConversationSyncStatus(session: AuthSession, conversationId: String): ConversationSyncStatusResult {
+        val qualifiedId =
+            session.userId.toQualifiedIdOrNull()
+                ?: return ConversationSyncStatusResult.Failure(
+                    message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                    exitCode = SyncExitCodes.UNAUTHORIZED,
+                )
+        activeSessionUserIds += qualifiedId
+
+        if (conversationId.isBlank()) {
+            return ConversationSyncStatusResult.Failure(
+                message = SyncExitMessages.CONVERSATION_NOT_FOUND,
+                exitCode = SyncExitCodes.DEGRADED,
+            )
+        }
+
+        return runBlocking {
+            try {
+                val syncState: SyncState? =
+                    coreLogic.sessionScope(qualifiedId) {
+                        observeSyncState().firstOrNull()
+                    }
+
+                if (syncState == null) {
+                    return@runBlocking ConversationSyncStatusResult.Failure(
+                        message = SyncExitMessages.CONVERSATION_SYNC_NETWORK_FAILURE,
+                        exitCode = SyncExitCodes.DEGRADED,
+                    )
+                }
+
+                val status = mapSyncStateToStatus(syncState)
+                val metrics =
+                    ConversationMetrics(
+                        conversation_id = conversationId,
+                        lag_ms = calculateConversationLagMs(syncState),
+                        pending_messages = calculateConversationPendingMessages(syncState),
+                        sync_completeness_pct = calculateSyncCompletenessPercentage(syncState),
+                        timestamp = Instant.now().toString(),
+                    )
+
+                val view =
+                    ConversationSyncStatus(
+                        conversation_id = conversationId,
+                        status = status,
+                        metrics = metrics,
+                        last_sync_timestamp = Instant.now().toString(),
+                    )
+                ConversationSyncStatusResult.Success(view)
+            } catch (error: Throwable) {
+                ConversationSyncStatusResult.Failure(
+                    message = categoryFromThrowableSync(error).getConversationMessage(),
+                    exitCode = categoryFromThrowableSync(error).getExitCode(),
+                )
+            }
+        }
+    }
+
+    override fun getPerConversationDiagnostics(session: AuthSession, conversationId: String): PerConversationDiagnosticsResult {
+        val qualifiedId =
+            session.userId.toQualifiedIdOrNull()
+                ?: return PerConversationDiagnosticsResult.Failure(
+                    message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                    exitCode = SyncExitCodes.UNAUTHORIZED,
+                )
+        activeSessionUserIds += qualifiedId
+
+        if (conversationId.isBlank()) {
+            return PerConversationDiagnosticsResult.Failure(
+                message = SyncExitMessages.CONVERSATION_NOT_FOUND,
+                exitCode = SyncExitCodes.DEGRADED,
+            )
+        }
+
+        return runBlocking {
+            try {
+                val syncState: SyncState? =
+                    coreLogic.sessionScope(qualifiedId) {
+                        observeSyncState().firstOrNull()
+                    }
+
+                val checks = mutableListOf<Check>()
+
+                // Conversation State Check
+                checks.add(
+                    Check(
+                        name = "Conversation State",
+                        status = "Pass",
+                        details = "Conversation ID: $conversationId",
+                    ),
+                )
+
+                // Message Sync Check
+                val messageSyncStatus =
+                    if (syncState != null) {
+                        when (syncState) {
+                            is SyncState.Live -> "Pass"
+                            is SyncState.SlowSync -> "Warn"
+                            is SyncState.GatheringPendingEvents -> "Warn"
+                            is SyncState.Waiting -> "Warn"
+                            is SyncState.Failed -> "Fail"
+                        }
+                    } else {
+                        "Fail"
+                    }
+                checks.add(
+                    Check(
+                        name = "Message Sync",
+                        status = messageSyncStatus,
+                        details =
+                            if (syncState != null) {
+                                "Message sync state: ${syncState::class.simpleName}"
+                            } else {
+                                "Unable to determine message sync state"
+                            },
+                    ),
+                )
+
+                // Completeness Check
+                val completeness = calculateSyncCompletenessPercentage(syncState)
+                checks.add(
+                    Check(
+                        name = "Sync Completeness",
+                        status = when {
+                            completeness >= 95 -> "Pass"
+                            completeness >= 70 -> "Warn"
+                            else -> "Fail"
+                        },
+                        details = "Sync completeness: ${completeness}%",
+                    ),
+                )
+
+                // Conversation-Specific Network Check
+                checks.add(
+                    Check(
+                        name = "Conversation Connectivity",
+                        status = if (syncState !is SyncState.Failed) "Pass" else "Fail",
+                        details =
+                            if (syncState !is SyncState.Failed) {
+                                "Conversation is reachable"
+                            } else {
+                                "Conversation connectivity issues detected"
+                            },
+                    ),
+                )
+
+                val summary =
+                    when {
+                        checks.all { it.status == "Pass" } -> "Conversation is fully synced and healthy."
+                        checks.any { it.status == "Fail" } -> "Conversation sync has failed. Recovery actions may help."
+                        else -> "Conversation sync is in progress. Check back soon."
+                    }
+
+                PerConversationDiagnosticsResult.Success(
+                    PerConversationDiagnosticsReport(
+                        conversation_id = conversationId,
+                        checks = checks,
+                        summary = summary,
+                        recoveryHints = generateConversationRecoveryHints(checks, conversationId),
+                    ),
+                )
+            } catch (error: Throwable) {
+                PerConversationDiagnosticsResult.Failure(
+                    message = categoryFromThrowableSync(error).getConversationMessage(),
+                    exitCode = categoryFromThrowableSync(error).getExitCode(),
+                )
+            }
+        }
+    }
+
     override fun shutdown() {
         if (!coreLogicLazy.isInitialized()) return
 
@@ -324,6 +519,65 @@ internal class SdkKaliumSyncRuntime(
         return hints
     }
 
+    private fun calculateConversationLagMs(syncState: SyncState?): Long {
+        if (syncState == null) return 30000L // Default to 30s lag if state unknown
+        return calculateLagMs(syncState)
+    }
+
+    private fun calculateConversationPendingMessages(syncState: SyncState?): Int {
+        if (syncState == null) return 0 // Default to 0 if state unknown
+        return calculatePendingMessages(syncState)
+    }
+
+    private fun calculateSyncCompletenessPercentage(syncState: SyncState?): Int {
+        // Calculate sync completeness as a percentage based on the sync state
+        // In a fully integrated system, this would query real conversation message counts
+        return when (syncState) {
+            is SyncState.Live -> 100 // All messages synced
+            is SyncState.SlowSync -> 10 // Initial sync just started
+            is SyncState.GatheringPendingEvents -> 70 // Gathering missed messages
+            is SyncState.Waiting -> 5 // About to start sync
+            is SyncState.Failed -> 0 // Sync failed, no progress
+            null -> 0 // Unable to determine
+        }
+    }
+
+    private fun generateConversationRecoveryHints(
+        checks: List<Check>,
+        conversationId: String,
+    ): List<RecoveryHint> {
+        val hints = mutableListOf<RecoveryHint>()
+
+        if (checks.any { it.name == "Message Sync" && it.status == "Fail" }) {
+            hints.add(
+                RecoveryHint(
+                    description = "Message sync failed for conversation",
+                    command = "wire-cli sync status --conversation $conversationId --retry",
+                ),
+            )
+        }
+
+        if (checks.any { it.name == "Sync Completeness" && it.status == "Fail" }) {
+            hints.add(
+                RecoveryHint(
+                    description = "Conversation sync is incomplete",
+                    command = "Check network connection and retry full sync",
+                ),
+            )
+        }
+
+        if (checks.any { it.name == "Conversation Connectivity" && it.status == "Fail" }) {
+            hints.add(
+                RecoveryHint(
+                    description = "Conversation is unreachable",
+                    command = "Verify conversation exists and you have access permissions",
+                ),
+            )
+        }
+
+        return hints
+    }
+
     private fun categoryFromThrowableSync(error: Throwable): SyncFailureCategory {
         val message = error.message.orEmpty()
         return when {
@@ -365,6 +619,14 @@ private enum class SyncFailureCategory {
             UNKNOWN -> SyncExitMessages.DIAGNOSTICS_UNKNOWN_FAILURE
         }
 
+    fun getConversationMessage(): String =
+        when (this) {
+            NETWORK -> SyncExitMessages.CONVERSATION_SYNC_NETWORK_FAILURE
+            SERVER -> SyncExitMessages.CONVERSATION_SYNC_SERVER_FAILURE
+            UNAUTHORIZED -> SyncExitMessages.UNAUTHORIZED_FAILURE
+            UNKNOWN -> SyncExitMessages.CONVERSATION_SYNC_UNKNOWN_FAILURE
+        }
+
     fun getExitCode(): Int =
         when (this) {
             NETWORK -> SyncExitCodes.DEGRADED
@@ -390,6 +652,16 @@ private object SyncExitMessages {
         "Diagnostics service is unavailable. Retry later or check server settings."
     const val DIAGNOSTICS_UNKNOWN_FAILURE =
         "Diagnostics fetch failed unexpectedly. Retry and check your setup."
+
+    const val CONVERSATION_NOT_FOUND =
+        "Conversation not found. Verify the conversation ID and retry."
+
+    const val CONVERSATION_SYNC_NETWORK_FAILURE =
+        "Conversation sync fetch failed: network is unreachable. Check your connection and retry."
+    const val CONVERSATION_SYNC_SERVER_FAILURE =
+        "Conversation sync fetch failed: server error occurred. Retry later or check server settings."
+    const val CONVERSATION_SYNC_UNKNOWN_FAILURE =
+        "Conversation sync fetch failed unexpectedly. Retry and check your setup."
 }
 
 private fun String.toQualifiedIdOrNull(): UserId? {

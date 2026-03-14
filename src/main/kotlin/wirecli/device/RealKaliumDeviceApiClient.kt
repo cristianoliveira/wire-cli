@@ -19,7 +19,7 @@ internal class RealKaliumDeviceApiClient(
 ) : DeviceApiClient {
     override fun listDevices(session: AuthSession): DeviceListResult {
         val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
+            when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
                 is DeviceStepResult.Success -> scope.value
                 is DeviceStepResult.Failure -> return scope.toDeviceFailure()
             }
@@ -39,7 +39,7 @@ internal class RealKaliumDeviceApiClient(
         userId: String,
     ): DeviceListResult {
         val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
+            when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
                 is DeviceStepResult.Success -> scope.value
                 is DeviceStepResult.Failure -> return scope.toDeviceFailure()
             }
@@ -59,7 +59,7 @@ internal class RealKaliumDeviceApiClient(
         deviceId: String,
     ): DeviceDetailResult {
         val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
+            when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
                 is DeviceStepResult.Success -> scope.value
                 is DeviceStepResult.Failure -> return scope.toDeviceDetailFailure()
             }
@@ -83,7 +83,7 @@ internal class RealKaliumDeviceApiClient(
         deviceId: String,
     ): DeviceDeleteResult {
         val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
+            when (val scope = runtime.resolveSessionScope(session, isWriteOperation = true)) {
                 is DeviceStepResult.Success -> scope.value
                 is DeviceStepResult.Failure -> return scope.toDeviceDeleteFailure()
             }
@@ -103,7 +103,7 @@ internal class RealKaliumDeviceApiClient(
         deviceId: String,
     ): DeviceVerifyResult {
         val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
+            when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
                 is DeviceStepResult.Success -> scope.value
                 is DeviceStepResult.Failure -> return scope.toDeviceVerifyFailure()
             }
@@ -121,7 +121,10 @@ internal class RealKaliumDeviceApiClient(
 }
 
 internal interface RealKaliumDeviceRuntime {
-    fun resolveSessionScope(session: AuthSession): DeviceStepResult<KaliumDeviceSessionScope>
+    fun resolveSessionScope(
+        session: AuthSession,
+        isWriteOperation: Boolean = false,
+    ): DeviceStepResult<KaliumDeviceSessionScope>
 
     fun listDevices(sessionScope: KaliumDeviceSessionScope): DeviceStepResult<List<Device>>
 
@@ -182,7 +185,10 @@ internal class SdkKaliumDeviceRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
-    override fun resolveSessionScope(session: AuthSession): DeviceStepResult<KaliumDeviceSessionScope> {
+    override fun resolveSessionScope(
+        session: AuthSession,
+        isWriteOperation: Boolean,
+    ): DeviceStepResult<KaliumDeviceSessionScope> {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: return DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
@@ -190,7 +196,9 @@ internal class SdkKaliumDeviceRuntime(
 
         return runBlocking {
             try {
-                if (!cliMode.disableSessionSyncWait) {
+                // For read operations, skip strict sync validation to allow fresh sessions
+                // For write operations, enforce sync validation only if explicitly enabled
+                if (!cliMode.disableSessionSyncWait && isWriteOperation) {
                     coreLogic.sessionScope(qualifiedId) {
                         syncExecutor.request { waitUntilLiveOrFailure() }
                     }

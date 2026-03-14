@@ -32,7 +32,14 @@ These are the two "small but interesting" features recommended as Phase 2 quick-
 
 ---
 
-### 3. Sync Health Exploration
+### 3. Messages Exploration
+📄 **File**: `messages-exploration.md`
+
+**Focus**: Enable CLI-native bots and automations with message send/receive capabilities.
+
+---
+
+### 4. Sync Health Exploration
 📄 **File**: `sync-health-exploration.md` (2,518 words)
 
 **Focus**: User needs around sync readiness, diagnostics, and troubleshooting.
@@ -53,7 +60,7 @@ These are the two "small but interesting" features recommended as Phase 2 quick-
 
 ## Recommended Execution Order
 
-### 🎯 Sequential (Device → Conversations → Sync) — Recommended
+### 🎯 Sequential (Device → Conversations → Messages → Sync) — Recommended
 
 1. **Day 1**: Device Management MVP
    - `wire device list` + `wire device delete`
@@ -63,19 +70,23 @@ These are the two "small but interesting" features recommended as Phase 2 quick-
    - `wire conversation list` with filtering and metadata
    - Enables agent discovery; unblocks conversation-based workflows
 
-3. **Days 3–4**: Sync Health MVP
+3. **Day 3**: Messages MVP
+   - `wire message send` + `wire message receive`
+   - Enables CLI-native bots; unblocks automation workflows
+
+4. **Days 4–5**: Sync Health MVP
    - `wire sync status` + `--verbose`
    - Builds on device patterns; unblocks diagnostics
 
-**Why**: Device management is smaller and more independent. Conversations builds naturally after. By day 4, sync health can show device health intelligently.
+**Why**: Device management is smaller and more independent. Conversations builds naturally after. Messages enables automation capabilities. By day 5, sync health can show device health intelligently.
 
 ### 🎯 Alternative: Parallel (If Pairing)
 
-If two engineers are available, features can be done in parallel over 3–4 days.
+If two engineers are available, features can be done in parallel over 4–5 days.
 
 ### 🎯 Alternative: Conversations-First (If Agent Integration Priority)
 
-If LLM agent integration is the immediate priority, start with conversations (days 1–2), then device management (day 3), then sync health (days 4–5).
+If LLM agent integration is the immediate priority, start with conversations (days 1–2), messages (day 3), then device management (day 4), then sync health (days 5–6).
 
 ---
 

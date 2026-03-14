@@ -18,6 +18,7 @@ Presence core stories are done, and any non-blocking follow-ups are tracked in t
 - [Device Management](./device-management.md)
 - [Doctor: Sync Health & Diagnostics](./doctor.md)
 - [Conversations](./conversations.md) — List user conversations with metadata and filtering
+- [Messages](./messages.md) — Send and receive messages to automate Wire conversations
 
 ## Acceptance Test Lanes
 

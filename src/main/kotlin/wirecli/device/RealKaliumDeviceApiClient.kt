@@ -17,111 +17,114 @@ import wirecli.runtime.kaliumCliConfigs
 internal class RealKaliumDeviceApiClient(
     private val runtime: RealKaliumDeviceRuntime,
 ) : DeviceApiClient {
-    override fun listDevices(session: AuthSession): DeviceListResult {
-        val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceFailure()
-            }
+     override fun listDevices(session: AuthSession): DeviceListResult {
+         val sessionScope =
+             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
+                 is DeviceStepResult.Success -> scope.value
+                 is DeviceStepResult.Failure -> return scope.toDeviceFailure()
+             }
 
-        return when (val devices = runtime.listDevices(sessionScope)) {
-            is DeviceStepResult.Success ->
-                DeviceListResult.Success(
-                    view = DeviceListView(devices = devices.value),
-                )
+         return when (val devices = runtime.listDevices(sessionScope)) {
+             is DeviceStepResult.Success ->
+                 DeviceListResult.Success(
+                     view = DeviceListView(devices = devices.value),
+                 )
 
-            is DeviceStepResult.Failure -> devices.toDeviceFailure()
-        }
-    }
+             is DeviceStepResult.Failure -> devices.toDeviceFailure()
+         }
+     }
 
-    override fun listDevicesForUser(
-        session: AuthSession,
-        userId: String,
-    ): DeviceListResult {
-        val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceFailure()
-            }
+     override fun listDevicesForUser(
+         session: AuthSession,
+         userId: String,
+     ): DeviceListResult {
+         val sessionScope =
+             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
+                 is DeviceStepResult.Success -> scope.value
+                 is DeviceStepResult.Failure -> return scope.toDeviceFailure()
+             }
 
-        return when (val devices = runtime.listDevicesForUser(sessionScope, userId)) {
-            is DeviceStepResult.Success ->
-                DeviceListResult.Success(
-                    view = DeviceListView(devices = devices.value),
-                )
+         return when (val devices = runtime.listDevicesForUser(sessionScope, userId)) {
+             is DeviceStepResult.Success ->
+                 DeviceListResult.Success(
+                     view = DeviceListView(devices = devices.value),
+                 )
 
-            is DeviceStepResult.Failure -> devices.toDeviceFailure()
-        }
-    }
+             is DeviceStepResult.Failure -> devices.toDeviceFailure()
+         }
+     }
 
-    override fun getDeviceDetail(
-        session: AuthSession,
-        deviceId: String,
-    ): DeviceDetailResult {
-        val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceDetailFailure()
-            }
+     override fun getDeviceDetail(
+         session: AuthSession,
+         deviceId: String,
+     ): DeviceDetailResult {
+         val sessionScope =
+             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
+                 is DeviceStepResult.Success -> scope.value
+                 is DeviceStepResult.Failure -> return scope.toDeviceDetailFailure()
+             }
 
-        return when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
-            is DeviceStepResult.Success ->
-                DeviceDetailResult.Success(
-                    view =
-                        DeviceDetailView(
-                            device = device.value,
-                            keyPackageStatus = KeyPackageStatus.VALID,
-                        ),
-                )
+         return when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
+             is DeviceStepResult.Success ->
+                 DeviceDetailResult.Success(
+                     view =
+                         DeviceDetailView(
+                             device = device.value,
+                             keyPackageStatus = KeyPackageStatus.VALID,
+                         ),
+                 )
 
-            is DeviceStepResult.Failure -> device.toDeviceDetailFailure()
-        }
-    }
+             is DeviceStepResult.Failure -> device.toDeviceDetailFailure()
+         }
+     }
 
-    override fun deleteDevice(
-        session: AuthSession,
-        deviceId: String,
-    ): DeviceDeleteResult {
-        val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceDeleteFailure()
-            }
+     override fun deleteDevice(
+         session: AuthSession,
+         deviceId: String,
+     ): DeviceDeleteResult {
+         val sessionScope =
+             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = true)) {
+                 is DeviceStepResult.Success -> scope.value
+                 is DeviceStepResult.Failure -> return scope.toDeviceDeleteFailure()
+             }
 
-        return when (val result = runtime.deleteDevice(sessionScope, deviceId)) {
-            is DeviceStepResult.Success ->
-                DeviceDeleteResult.Success(
-                    message = "Device deleted successfully.",
-                )
+         return when (val result = runtime.deleteDevice(sessionScope, deviceId)) {
+             is DeviceStepResult.Success ->
+                 DeviceDeleteResult.Success(
+                     message = "Device deleted successfully.",
+                 )
 
-            is DeviceStepResult.Failure -> result.toDeviceDeleteFailure()
-        }
-    }
+             is DeviceStepResult.Failure -> result.toDeviceDeleteFailure()
+         }
+     }
 
-    override fun verifyDevice(
-        session: AuthSession,
-        deviceId: String,
-    ): DeviceVerifyResult {
-        val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceVerifyFailure()
-            }
+     override fun verifyDevice(
+         session: AuthSession,
+         deviceId: String,
+     ): DeviceVerifyResult {
+         val sessionScope =
+             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
+                 is DeviceStepResult.Success -> scope.value
+                 is DeviceStepResult.Failure -> return scope.toDeviceVerifyFailure()
+             }
 
-        return when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
-            is DeviceStepResult.Success ->
-                DeviceVerifyResult.Success(
-                    message = "Device verified successfully.",
-                    fingerprint = device.value.fingerprint,
-                )
+         return when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
+             is DeviceStepResult.Success ->
+                 DeviceVerifyResult.Success(
+                     message = "Device verified successfully.",
+                     fingerprint = device.value.fingerprint,
+                 )
 
-            is DeviceStepResult.Failure -> device.toDeviceVerifyFailure()
-        }
-    }
+             is DeviceStepResult.Failure -> device.toDeviceVerifyFailure()
+         }
+     }
 }
 
 internal interface RealKaliumDeviceRuntime {
-    fun resolveSessionScope(session: AuthSession): DeviceStepResult<KaliumDeviceSessionScope>
+    fun resolveSessionScope(
+        session: AuthSession,
+        isWriteOperation: Boolean = false,
+    ): DeviceStepResult<KaliumDeviceSessionScope>
 
     fun listDevices(sessionScope: KaliumDeviceSessionScope): DeviceStepResult<List<Device>>
 
@@ -182,7 +185,10 @@ internal class SdkKaliumDeviceRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
-    override fun resolveSessionScope(session: AuthSession): DeviceStepResult<KaliumDeviceSessionScope> {
+    override fun resolveSessionScope(
+        session: AuthSession,
+        isWriteOperation: Boolean,
+    ): DeviceStepResult<KaliumDeviceSessionScope> {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: return DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
@@ -190,7 +196,10 @@ internal class SdkKaliumDeviceRuntime(
 
         return runBlocking {
             try {
-                if (!cliMode.disableSessionSyncWait) {
+                // Only perform strict validation (waitUntilLiveOrFailure) for write operations.
+                // For read-only operations, skip the validation to allow sessions that may be
+                // slightly expired but still valid for querying.
+                if (isWriteOperation && !cliMode.disableSessionSyncWait) {
                     coreLogic.sessionScope(qualifiedId) {
                         syncExecutor.request { waitUntilLiveOrFailure() }
                     }

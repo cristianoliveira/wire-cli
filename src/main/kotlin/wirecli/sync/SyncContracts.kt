@@ -54,6 +54,9 @@ data class MLSMetrics(
     val mls_error_rate: Double,
     val last_key_package_refresh_timestamp: String?,
     val timestamp: String,
+    val estimated_remaining_ms: Long? = null,
+    val device_name: String? = null,
+    val key_package_total: Int? = null,
 )
 
 /**
@@ -117,6 +120,7 @@ data class DiagnosticsReport(
 data class SyncStatusView(
     val status: SyncStatus,
     val metrics: HealthMetrics,
+    val diagnosticsReport: DiagnosticsReport? = null,
 )
 
 sealed interface SyncStatusResult {

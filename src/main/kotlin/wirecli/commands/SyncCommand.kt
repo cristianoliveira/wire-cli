@@ -16,7 +16,7 @@ import wirecli.sync.SyncStatusResult
 class SyncCommand(
     private val syncServiceProvider: () -> SyncService,
 ) : CliktCommand(
-        name = "sync",
+        name = "doctor",
         help = "Check account health and sync status.",
         invokeWithoutSubcommand = true,
     ) {

@@ -37,6 +37,7 @@ object SyncOutputFormatter {
                                 pending_messages = result.view.metrics.pending_messages,
                                 mls_pct = result.view.metrics.mls_pct,
                                 timestamp = result.view.metrics.timestamp,
+                                last_message_received_ms = result.view.metrics.last_message_received_ms,
                             ),
                         uptime_ms = result.view.metrics.uptime_ms,
                     ),
@@ -106,14 +107,49 @@ object SyncOutputFormatter {
     private fun formatVerboseStatus(view: SyncStatusView): String =
         buildString {
             val statusIcon = getStatusIcon(view.status.value)
-            appendLine("$statusIcon Sync Status: ${view.status}")
+            appendLine("$statusIcon Account Health: ${view.status}")
             appendLine("")
             appendLine("Health Metrics:")
             appendLine("  • Event Queue Lag: ${view.metrics.lag_ms}ms")
-            appendLine("  • Pending Messages: ${view.metrics.pending_messages}")
+            if (view.metrics.last_message_received_ms != null) {
+                val secondsAgo = (System.currentTimeMillis() - view.metrics.last_message_received_ms) / 1000
+                appendLine("  • Messages: ${view.metrics.pending_messages} pending (last received ${secondsAgo}s ago)")
+            } else {
+                appendLine("  • Pending Messages: ${view.metrics.pending_messages}")
+            }
             appendLine("  • MLS Migration: ${view.metrics.mls_pct}% complete")
             appendLine("  • Last Sync: ${view.metrics.timestamp}")
+
+            // Add MLS details if available
+            if (view.metrics.mls != null) {
+                appendLine("")
+                val mlsMetrics = view.metrics.mls
+                val keyPackageStatus = when {
+                    mlsMetrics.key_package_exhausted -> "exhausted, refresh needed"
+                    mlsMetrics.key_package_available < 50 -> "low, refilling"
+                    else -> "${mlsMetrics.key_package_available} available"
+                }
+                if (mlsMetrics.device_name != null && mlsMetrics.key_package_total != null) {
+                    appendLine("  • ${mlsMetrics.device_name}: ${mlsMetrics.key_package_available}/${mlsMetrics.key_package_total} ($keyPackageStatus)")
+                } else {
+                    appendLine("  • Key Packages: $keyPackageStatus")
+                }
+                if (mlsMetrics.estimated_remaining_ms != null) {
+                    val secondsRemaining = mlsMetrics.estimated_remaining_ms / 1000
+                    appendLine("  • estimated: ${secondsRemaining}s remaining")
+                }
+            }
             appendLine("")
+
+            // Add recovery hints if available
+            if (view.diagnosticsReport != null && view.diagnosticsReport.recoveryHints.isNotEmpty()) {
+                appendLine("Recovery Actions:")
+                view.diagnosticsReport.recoveryHints.forEach { hint ->
+                    appendLine("  • ${hint.description}")
+                    appendLine("    Command: ${hint.command}")
+                }
+                appendLine("")
+            }
 
             // Add interpretation
             val interpretation =
@@ -215,6 +251,7 @@ data class MetricsJson(
     val pending_messages: Int,
     val mls_pct: Int,
     val timestamp: String,
+    val last_message_received_ms: Long? = null,
 )
 
 @Serializable

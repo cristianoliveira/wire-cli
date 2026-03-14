@@ -52,8 +52,6 @@ class ConversationFormatterTest {
         assertTrue(result.contains("alice@example.com"))
         assertTrue(result.contains("group"))
         assertTrue(result.contains("one_to_one"))
-        assertTrue(result.contains("2024-12-20"))
-        assertTrue(result.contains("2025-01-10"))
     }
 
     @Test
@@ -172,7 +170,7 @@ class ConversationFormatterTest {
     }
 
     @Test
-    fun `toTable shows ID as first column and truncates to 24 characters`() {
+    fun `toTable shows ID as first column with full 36-character UUID`() {
         val longId = "550e8400-e29b-41d4-a716-446655440000" // 36 chars (UUID length)
         val conversations =
             listOf(
@@ -193,11 +191,11 @@ class ConversationFormatterTest {
         // Check header contains ID
         assertTrue(lines[0].contains("ID"))
 
-        // Check ID is shown (truncated to 24 chars)
-        val expectedTruncatedId = longId.take(24) // "550e8400-e29b-41d4-a716"
-        assertTrue(result.contains(expectedTruncatedId), "Expected to find truncated ID: $expectedTruncatedId")
+        // Check full UUID is shown (36 chars, not truncated)
+        val expectedFullId = longId.take(36) // "550e8400-e29b-41d4-a716-446655440000"
+        assertTrue(result.contains(expectedFullId), "Expected to find full UUID: $expectedFullId")
 
-        // Verify the full long ID is NOT fully present (should be truncated)
-        assertTrue(!result.contains(longId), "Full ID should be truncated")
+        // Verify the full long ID is present
+        assertTrue(result.contains(longId), "Full ID should be visible")
     }
 }

@@ -64,6 +64,12 @@ sealed interface DeviceDeleteResult {
     data class Failure(val message: String, val exitCode: Int) : DeviceDeleteResult
 }
 
+sealed interface DeviceVerifyResult {
+    data class Success(val message: String, val fingerprint: String) : DeviceVerifyResult
+
+    data class Failure(val message: String, val exitCode: Int) : DeviceVerifyResult
+}
+
 interface DeviceApiClient {
     fun listDevices(session: AuthSession): DeviceListResult
 
@@ -81,6 +87,11 @@ interface DeviceApiClient {
         session: AuthSession,
         deviceId: String,
     ): DeviceDeleteResult
+
+    fun verifyDevice(
+        session: AuthSession,
+        deviceId: String,
+    ): DeviceVerifyResult
 }
 
 interface DeviceService {
@@ -91,6 +102,8 @@ interface DeviceService {
     fun getDetail(deviceId: String): DeviceDetailResult
 
     fun remove(deviceId: String): DeviceDeleteResult
+
+    fun verify(deviceId: String): DeviceVerifyResult
 }
 
 // Exit codes for device operations following standard CLI conventions
@@ -111,6 +124,9 @@ internal object DeviceMessages {
     const val DELETE_NETWORK_FAILURE = "Device deletion failed: network is unreachable. Check your connection and retry."
     const val DELETE_SERVER_FAILURE = "Device deletion could not be completed. Retry later or check server settings."
     const val DELETE_UNKNOWN_FAILURE = "Device deletion failed unexpectedly. Retry and check your setup."
+    const val VERIFY_NETWORK_FAILURE = "Device verification failed: network is unreachable. Check your connection and retry."
+    const val VERIFY_SERVER_FAILURE = "Device verification could not be completed. Retry later or check server settings."
+    const val VERIFY_UNKNOWN_FAILURE = "Device verification failed unexpectedly. Retry and check your setup."
     const val PERMISSION_DENIED = "You do not have permission to access this device. Contact your administrator."
     const val INVALID_INPUT = "Invalid device ID or parameters provided."
 }

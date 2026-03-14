@@ -51,4 +51,15 @@ class SessionBackedDeviceService(
 
         return apiClient.deleteDevice(session, deviceId)
     }
+
+    override fun verify(deviceId: String): DeviceVerifyResult {
+        val session =
+            sessionStore.readActiveSession()
+                ?: return DeviceVerifyResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+        return apiClient.verifyDevice(session, deviceId)
+    }
 }

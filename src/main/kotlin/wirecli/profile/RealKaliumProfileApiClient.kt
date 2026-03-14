@@ -132,21 +132,20 @@ internal class SdkKaliumProfileRuntime(
 
         return runBlocking {
             try {
-                val selfUser: SelfUser? =
+                val selfUser: SelfUser =
                     coreLogic.sessionScope(qualifiedId) {
                         users.getSelfUser()
                     }
-                if (selfUser == null) {
-                    ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
-                } else {
-                    ProfileStepResult.Success(
-                        KaliumSelfUser(
-                            name = selfUser.name,
-                            email = selfUser.email,
-                            handle = selfUser.handle,
-                        ),
-                    )
-                }
+                        ?: throw IllegalStateException(
+                            "Self user data is unavailable - this indicates a failure to fetch profile information.",
+                        )
+                ProfileStepResult.Success(
+                    KaliumSelfUser(
+                        name = selfUser.name,
+                        email = selfUser.email,
+                        handle = selfUser.handle,
+                    ),
+                )
             } catch (error: Throwable) {
                 ProfileStepResult.Failure(categoryFromThrowable(error))
             }

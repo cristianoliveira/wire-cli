@@ -10,7 +10,10 @@ class AuthSessionServiceImpl(
                 try {
                     sessionStore.writeActiveSession(loginResult.session)
                     AuthResult.Success("Login successful.")
-                } catch (_: RuntimeException) {
+                } catch (e: RuntimeException) {
+                    // Explicitly capture the error context for debugging
+                    System.err.println("Session write failed during login: ${e.message}")
+                    e.printStackTrace(System.err)
                     AuthResult.Failure(
                         message = "Login succeeded, but local session could not be saved. Try again.",
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -36,7 +39,10 @@ class AuthSessionServiceImpl(
                 try {
                     sessionStore.clearActiveSession()
                     AuthResult.Success("Logged out.")
-                } catch (_: RuntimeException) {
+                } catch (e: RuntimeException) {
+                    // Explicitly capture the error context for debugging
+                    System.err.println("Session cleanup failed during logout: ${e.message}")
+                    e.printStackTrace(System.err)
                     AuthResult.Failure(
                         message = "Logout completed remotely, but local session cleanup failed.",
                         exitCode = ExitCodes.SERVER_ERROR,

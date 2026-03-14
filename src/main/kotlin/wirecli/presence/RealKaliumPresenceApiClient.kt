@@ -58,7 +58,7 @@ internal class RealKaliumPresenceApiClient(
 internal interface RealKaliumPresenceRuntime {
     fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope>
 
-    fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus?>
+    fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus>
 
     fun setSelfAvailabilityStatus(
         sessionScope: KaliumPresenceSessionScope,
@@ -131,7 +131,7 @@ internal class SdkKaliumPresenceRuntime(
         }
     }
 
-    override fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus?> {
+    override fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus> {
         val qualifiedId =
             sessionScope.userId.toQualifiedIdOrNull()
                 ?: return PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
@@ -142,12 +142,18 @@ internal class SdkKaliumPresenceRuntime(
                     coreLogic.sessionScope(qualifiedId) {
                         users.getSelfUser()
                     }
-
-                if (selfUser == null) {
-                    PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
-                } else {
-                    PresenceStepResult.Success(selfUser.availabilityStatus)
+                        ?: throw IllegalStateException(
+                            "Self user data is unavailable - this indicates a failure to fetch presence information.",
+                        )
+                // Explicitly fail if availability status is null instead of returning it
+                val status = selfUser.availabilityStatus
+                if (status == null) {
+                    throw IllegalStateException(
+                        "Availability status is null - cannot determine presence state. " +
+                            "This indicates a failure to fetch user availability data.",
+                    )
                 }
+                PresenceStepResult.Success(status)
             } catch (error: Throwable) {
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }
@@ -204,13 +210,12 @@ internal class SdkKaliumPresenceRuntime(
     }
 }
 
-private fun UserAvailabilityStatus?.toWirePresenceRawValue(): String? {
+private fun UserAvailabilityStatus.toWirePresenceRawValue(): String {
     return when (this) {
         UserAvailabilityStatus.AVAILABLE -> "online"
         UserAvailabilityStatus.BUSY -> "busy"
         UserAvailabilityStatus.AWAY -> "away"
         UserAvailabilityStatus.NONE -> "offline"
-        null -> null
     }
 }
 

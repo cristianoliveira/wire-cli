@@ -41,7 +41,10 @@ class SessionBackedDeviceService(
         return apiClient.getDeviceDetail(session, deviceId)
     }
 
-    override fun remove(deviceId: String): DeviceDeleteResult {
+    override fun remove(
+        deviceId: String,
+        password: String?,
+    ): DeviceDeleteResult {
         val session =
             sessionStore.readActiveSession()
                 ?: return DeviceDeleteResult.Failure(
@@ -49,7 +52,7 @@ class SessionBackedDeviceService(
                     exitCode = ExitCodes.UNAUTHORIZED,
                 )
 
-        return apiClient.deleteDevice(session, deviceId)
+        return apiClient.deleteDevice(session, deviceId, password)
     }
 
     override fun verify(deviceId: String): DeviceVerifyResult {

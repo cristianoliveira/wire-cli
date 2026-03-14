@@ -177,7 +177,10 @@ class AuthGuardedDeviceServiceTest {
 
         override fun getDetail(deviceId: String): DeviceDetailResult = detailResult
 
-        override fun remove(deviceId: String): DeviceDeleteResult = deleteResult
+        override fun remove(
+            deviceId: String,
+            password: String?,
+        ): DeviceDeleteResult = deleteResult
 
         override fun verify(deviceId: String): DeviceVerifyResult = verifyResult
     }

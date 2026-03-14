@@ -50,4 +50,15 @@ class AuthGuardedDeviceService(
                 )
         }
     }
+
+    override fun verify(deviceId: String): DeviceVerifyResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.verify(deviceId)
+            is AuthResult.Failure ->
+                DeviceVerifyResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
 }

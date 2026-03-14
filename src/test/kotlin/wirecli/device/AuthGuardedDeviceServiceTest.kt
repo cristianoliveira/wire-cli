@@ -168,6 +168,8 @@ class AuthGuardedDeviceServiceTest {
                 ),
             ),
         private val deleteResult: DeviceDeleteResult = DeviceDeleteResult.Success("Deleted"),
+        private val verifyResult: DeviceVerifyResult =
+            DeviceVerifyResult.Success("Verified", "a1b2c3d4e5f6g7h8i9j0"),
     ) : DeviceService {
         override fun listCurrentDevices(): DeviceListResult = listResult
 
@@ -176,5 +178,7 @@ class AuthGuardedDeviceServiceTest {
         override fun getDetail(deviceId: String): DeviceDetailResult = detailResult
 
         override fun remove(deviceId: String): DeviceDeleteResult = deleteResult
+
+        override fun verify(deviceId: String): DeviceVerifyResult = verifyResult
     }
 }

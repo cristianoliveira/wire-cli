@@ -191,9 +191,11 @@ class SessionBackedDeviceServiceTest {
         private val listResult: DeviceListResult? = null,
         private val detailResult: DeviceDetailResult? = null,
         private val deleteResult: DeviceDeleteResult? = null,
+        private val verifyResult: DeviceVerifyResult? = null,
     ) : DeviceApiClient {
         var lastDetailDeviceId: String? = null
         var lastDeleteDeviceId: String? = null
+        var lastVerifyDeviceId: String? = null
 
         override fun listDevices(session: AuthSession): DeviceListResult =
             listResult ?: DeviceListResult.Success(DeviceListView(emptyList()))
@@ -230,6 +232,14 @@ class SessionBackedDeviceServiceTest {
         ): DeviceDeleteResult {
             lastDeleteDeviceId = deviceId
             return deleteResult ?: DeviceDeleteResult.Success("Deleted")
+        }
+
+        override fun verifyDevice(
+            session: AuthSession,
+            deviceId: String,
+        ): DeviceVerifyResult {
+            lastVerifyDeviceId = deviceId
+            return verifyResult ?: DeviceVerifyResult.Success("Verified", "a1b2c3d4e5f6g7h8i9j0")
         }
     }
 }

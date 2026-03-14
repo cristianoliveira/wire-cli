@@ -207,4 +207,45 @@ class StubDeviceApiClient(
                 )
         }
     }
+
+    override fun verifyDevice(
+        session: AuthSession,
+        deviceId: String,
+    ): DeviceVerifyResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "not_found" ->
+                DeviceVerifyResult.Failure(
+                    message = DeviceMessages.DEVICE_NOT_FOUND,
+                    exitCode = DeviceExitCodes.NOT_FOUND,
+                )
+
+            "server_error" ->
+                DeviceVerifyResult.Failure(
+                    message = DeviceMessages.VERIFY_SERVER_FAILURE,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            "unauthorized" ->
+                DeviceVerifyResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            else -> {
+                val device =
+                    defaultDevices.find { it.id == deviceId }
+                        ?: return DeviceVerifyResult.Failure(
+                            message = DeviceMessages.DEVICE_NOT_FOUND,
+                            exitCode = DeviceExitCodes.NOT_FOUND,
+                        )
+
+                DeviceVerifyResult.Success(
+                    message = "Device verified successfully.",
+                    fingerprint = device.fingerprint,
+                )
+            }
+        }
+    }
 }

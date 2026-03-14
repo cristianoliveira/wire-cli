@@ -97,6 +97,27 @@ internal class RealKaliumDeviceApiClient(
             is DeviceStepResult.Failure -> result.toDeviceDeleteFailure()
         }
     }
+
+    override fun verifyDevice(
+        session: AuthSession,
+        deviceId: String,
+    ): DeviceVerifyResult {
+        val sessionScope =
+            when (val scope = runtime.resolveSessionScope(session)) {
+                is DeviceStepResult.Success -> scope.value
+                is DeviceStepResult.Failure -> return scope.toDeviceVerifyFailure()
+            }
+
+        return when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
+            is DeviceStepResult.Success ->
+                DeviceVerifyResult.Success(
+                    message = "Device verified successfully.",
+                    fingerprint = device.value.fingerprint,
+                )
+
+            is DeviceStepResult.Failure -> device.toDeviceVerifyFailure()
+        }
+    }
 }
 
 internal interface RealKaliumDeviceRuntime {
@@ -474,4 +495,26 @@ private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult
         }
 
     return DeviceDeleteResult.Failure(message = message, exitCode = exitCode)
+}
+
+private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): DeviceVerifyResult.Failure {
+    val message =
+        when (category) {
+            DeviceFailureCategory.NETWORK -> DeviceMessages.VERIFY_NETWORK_FAILURE
+            DeviceFailureCategory.SERVER -> DeviceMessages.VERIFY_SERVER_FAILURE
+            DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
+            DeviceFailureCategory.UNKNOWN -> DeviceMessages.VERIFY_UNKNOWN_FAILURE
+        }
+
+    val exitCode =
+        when (category) {
+            DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
+            DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
+            DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
+            DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
+        }
+
+    return DeviceVerifyResult.Failure(message = message, exitCode = exitCode)
 }

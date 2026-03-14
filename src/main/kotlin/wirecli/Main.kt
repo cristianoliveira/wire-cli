@@ -2,6 +2,7 @@ package wirecli
 
 import com.github.ajalt.clikt.core.subcommands
 import wirecli.commands.ClientCommand
+import wirecli.commands.DeviceCommand
 import wirecli.commands.LoginCommand
 import wirecli.commands.LogoutCommand
 import wirecli.commands.PresenceCommand
@@ -23,6 +24,7 @@ fun main(args: Array<String>) {
                 ProfileCommand { runtime.profileService },
                 PresenceCommand { runtime.presenceService },
                 ClientCommand { runtime.deviceService },
+                DeviceCommand { runtime.deviceService },
                 SyncCommand { runtime.syncService },
             )
             .main(args)

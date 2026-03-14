@@ -2,6 +2,40 @@ package wirecli.sync
 
 import wirecli.auth.AuthSession
 
+// ==================== NETWORK METRICS ====================
+
+/**
+ * Represents the type of network connection detected.
+ */
+enum class NetworkType(val value: String) {
+    WIFI("wifi"),
+    CELLULAR("cellular"),
+    WIRED("wired"),
+    UNKNOWN("unknown"),
+    DISCONNECTED("disconnected"),
+    ;
+
+    override fun toString(): String = value
+}
+
+/**
+ * Network connectivity and quality metrics.
+ *
+ * Tracks:
+ * - Connection status and type
+ * - Network latency measurements
+ * - Connection stability (error rates, recovery time)
+ * - Reachability checks
+ */
+data class NetworkMetrics(
+    val connected: Boolean,
+    val network_type: NetworkType,
+    val estimated_latency_ms: Long,
+    val error_rate: Double,
+    val last_recovery_time_ms: Long?,
+    val reachability_check_timestamp: String,
+)
+
 enum class SyncStatus(val value: String) {
     READY("ready"),
     INITIALIZING("initializing"),
@@ -17,6 +51,7 @@ data class HealthMetrics(
     val pending_messages: Int,
     val mls_pct: Int,
     val timestamp: String,
+    val network: NetworkMetrics? = null,
 )
 
 data class Check(
@@ -85,6 +120,7 @@ data class ConversationMetrics(
     val pending_messages: Int,
     val sync_completeness_pct: Int,
     val timestamp: String,
+    val network: NetworkMetrics? = null,
 )
 
 data class ConversationSyncStatus(

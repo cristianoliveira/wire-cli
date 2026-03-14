@@ -9,11 +9,12 @@ class ConversationFormatter {
         val sb = StringBuilder()
 
         // Print header with column names and separator
-        sb.append(String.format("%-24s %-15s %-10s %7s  %10s\n", "NAME", "TYPE", "STATUS", "MEMBERS", "CREATED"))
-        sb.append("-".repeat(75)).append("\n")
+        sb.append(String.format("%-24s %-24s %-15s %-10s %7s  %10s\n", "ID", "NAME", "TYPE", "STATUS", "MEMBERS", "CREATED"))
+        sb.append("-".repeat(100)).append("\n")
 
         // Print each conversation as a row
         for (conv in conversations) {
+            val id = conv.id.take(24)
             val name = conv.name.take(23)
             val type = conv.type.toString().take(14)
             val status = conv.status.toString().take(9)
@@ -22,7 +23,8 @@ class ConversationFormatter {
 
             sb.append(
                 String.format(
-                    "%-24s %-15s %-10s %7s  %10s\n",
+                    "%-24s %-24s %-15s %-10s %7s  %10s\n",
+                    id,
                     name,
                     type,
                     status,

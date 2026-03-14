@@ -29,13 +29,17 @@ object SyncOutputFormatter {
                 json.encodeToString(
                     StatusJsonOutput.Success(
                         status = result.view.status.value,
+                        auth = result.view.metrics.auth_status,
+                        encryption = result.view.metrics.encryption_status,
                         metrics =
                             MetricsJson(
                                 lag_ms = result.view.metrics.lag_ms,
                                 pending_messages = result.view.metrics.pending_messages,
                                 mls_pct = result.view.metrics.mls_pct,
                                 timestamp = result.view.metrics.timestamp,
+                                last_message_received_ms = result.view.metrics.last_message_received_ms,
                             ),
+                        uptime_ms = result.view.metrics.uptime_ms,
                     ),
                 )
             is SyncStatusResult.Failure ->
@@ -89,7 +93,11 @@ object SyncOutputFormatter {
     private fun formatSuccessStatus(view: SyncStatusView): String =
         buildString {
             val statusIcon = getStatusIcon(view.status.value)
-            appendLine("$statusIcon Sync Status: ${view.status}")
+            appendLine("$statusIcon Account Health: ${view.status}")
+            appendLine("")
+            appendLine("  Auth: ${formatAuthStatus(view.metrics.auth_status)}")
+            appendLine("  Encryption: ${formatEncryptionStatus(view.metrics.encryption_status, view.metrics.mls_pct)}")
+            appendLine("")
             appendLine("  Lag: ${view.metrics.lag_ms}ms")
             appendLine("  Pending: ${view.metrics.pending_messages} messages")
             appendLine("  MLS: ${view.metrics.mls_pct}%")
@@ -99,14 +107,52 @@ object SyncOutputFormatter {
     private fun formatVerboseStatus(view: SyncStatusView): String =
         buildString {
             val statusIcon = getStatusIcon(view.status.value)
-            appendLine("$statusIcon Sync Status: ${view.status}")
+            appendLine("$statusIcon Account Health: ${view.status}")
             appendLine("")
             appendLine("Health Metrics:")
             appendLine("  • Event Queue Lag: ${view.metrics.lag_ms}ms")
-            appendLine("  • Pending Messages: ${view.metrics.pending_messages}")
+            if (view.metrics.last_message_received_ms != null) {
+                val secondsAgo = (System.currentTimeMillis() - view.metrics.last_message_received_ms) / 1000
+                appendLine("  • Messages: ${view.metrics.pending_messages} pending (last received ${secondsAgo}s ago)")
+            } else {
+                appendLine("  • Pending Messages: ${view.metrics.pending_messages}")
+            }
             appendLine("  • MLS Migration: ${view.metrics.mls_pct}% complete")
             appendLine("  • Last Sync: ${view.metrics.timestamp}")
+
+            // Add MLS details if available
+            if (view.metrics.mls != null) {
+                appendLine("")
+                val mlsMetrics = view.metrics.mls
+                val keyPackageStatus =
+                    when {
+                        mlsMetrics.key_package_exhausted -> "exhausted, refresh needed"
+                        mlsMetrics.key_package_available < 50 -> "low, refilling"
+                        else -> "${mlsMetrics.key_package_available} available"
+                    }
+                if (mlsMetrics.device_name != null && mlsMetrics.key_package_total != null) {
+                    val keyPackageInfo =
+                        "  • ${mlsMetrics.device_name}: ${mlsMetrics.key_package_available}/${mlsMetrics.key_package_total} ($keyPackageStatus)"
+                    appendLine(keyPackageInfo)
+                } else {
+                    appendLine("  • Key Packages: $keyPackageStatus")
+                }
+                if (mlsMetrics.estimated_remaining_ms != null) {
+                    val secondsRemaining = mlsMetrics.estimated_remaining_ms / 1000
+                    appendLine("  • estimated: ${secondsRemaining}s remaining")
+                }
+            }
             appendLine("")
+
+            // Add recovery hints if available
+            if (view.diagnosticsReport != null && view.diagnosticsReport.recoveryHints.isNotEmpty()) {
+                appendLine("Recovery Actions:")
+                view.diagnosticsReport.recoveryHints.forEach { hint ->
+                    appendLine("  • ${hint.description}")
+                    appendLine("    Command: ${hint.command}")
+                }
+                appendLine("")
+            }
 
             // Add interpretation
             val interpretation =
@@ -142,15 +188,44 @@ object SyncOutputFormatter {
                     appendLine("    Command: ${hint.command}")
                 }
             }
+
+            // Add summary message
+            appendLine("")
+            val passedChecks = report.checks.count { it.status in listOf("ok", "healthy", "ready") }
+            val totalChecks = report.checks.size
+            val allPassed = report.checks.all { it.status !in listOf("error", "fail", "degraded") }
+            val summaryIcon = if (allPassed) "✓" else "⚠"
+            if (allPassed) {
+                appendLine("Diagnosis complete: All $totalChecks checks passed $summaryIcon")
+            } else {
+                appendLine("Diagnosis complete: $passedChecks/$totalChecks checks passed, issues detected ⚠")
+            }
         }
 
     private fun getStatusIcon(status: String): String =
         when (status) {
-            "healthy", "ready" -> "✓"
+            "healthy", "ready", "ok" -> "✓"
             "initializing" -> "⟳"
-            "degraded" -> "⚠"
-            "error" -> "✗"
+            "degraded", "warning" -> "⚠"
+            "error", "fail" -> "✗"
             else -> "?"
+        }
+
+    private fun formatAuthStatus(authStatus: String): String =
+        when (authStatus.lowercase()) {
+            "ok", "connected", "authenticated" -> "✓ Connected"
+            "not_authenticated", "disconnected" -> "✗ Not authenticated"
+            else -> "? Unknown ($authStatus)"
+        }
+
+    private fun formatEncryptionStatus(
+        encryptionStatus: String,
+        mlsPct: Int,
+    ): String =
+        when (encryptionStatus.lowercase()) {
+            "ready" -> "✓ Ready"
+            "pending" -> "⟳ Pending ($mlsPct% complete)"
+            else -> "? Unknown ($encryptionStatus)"
         }
 }
 
@@ -160,7 +235,10 @@ sealed class StatusJsonOutput {
     @Serializable
     data class Success(
         val status: String,
+        val auth: String,
+        val encryption: String,
         val metrics: MetricsJson,
+        val uptime_ms: Long? = null,
     ) : StatusJsonOutput()
 
     @Serializable
@@ -176,6 +254,7 @@ data class MetricsJson(
     val pending_messages: Int,
     val mls_pct: Int,
     val timestamp: String,
+    val last_message_received_ms: Long? = null,
 )
 
 @Serializable

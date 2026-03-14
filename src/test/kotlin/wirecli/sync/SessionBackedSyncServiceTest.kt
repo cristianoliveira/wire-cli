@@ -221,6 +221,13 @@ class SessionBackedSyncServiceTest {
                     ),
                 )
 
+        override fun resetSync(
+            session: AuthSession,
+            force: Boolean,
+        ): ResetResult {
+            return ResetResult.Success("Reset successful (test mode)")
+        }
+
         override fun getConversationSyncStatus(
             session: AuthSession,
             conversationId: String,

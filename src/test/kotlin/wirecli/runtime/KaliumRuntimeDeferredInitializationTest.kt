@@ -104,6 +104,10 @@ private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFac
                         return NoopSyncApiClient
                     }
 
+                override val conversationApiClient: ConversationApiClient by lazy {
+                    StubConversationApiClient(environment)
+                }
+
                 override fun shutdown() {
                     counters.shutdownCalls += 1
                 }

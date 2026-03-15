@@ -86,11 +86,11 @@
             # Remove repositories block from buildSrc/build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
             sed -i '/^repositories {/,/^}/d' $out/vendor/kalium/buildSrc/build.gradle.kts
 
-            # Remove com.wire:detekt-rules dependency - it's hosted on a custom Ivy repo (GitHub raw)
-            # which doesn't follow Maven patterns. Since detekt is only for linting and nix build
-            # doesn't run detekt, we can safely remove this dependency.
-            # Remove the entire block: detektPlugins("com.wire:detekt-rules:...") { isChanging = true }
-            sed -i '/detektPlugins("com.wire:detekt-rules:/,/}/d' $out/vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
+            # NOTE: com.wire:detekt-rules dependency has been permanently removed from
+            # vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
+            # It was hosted on a custom Ivy repo (GitHub raw) which doesn't follow Maven patterns
+            # and was causing 404 errors in Nix builds. Since detekt is only for linting and nix
+            # build doesn't run detekt, the dependency is no longer needed.
 
             # Patch main kalium settings.gradle.kts to use centralized repository management
             # This is required for buildGradleApplication to replace repositories with the offline maven repo

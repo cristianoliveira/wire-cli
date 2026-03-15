@@ -4,6 +4,7 @@ import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.id.ConversationId
 import com.wire.kalium.logic.data.message.Message
 import com.wire.kalium.logic.data.user.UserId
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthSession
@@ -212,15 +213,23 @@ internal class SdkKaliumMessageRuntime(
 
     override fun shutdown() {
         if (coreLogicLazy.isInitialized()) {
-            activeSessionUserIds.forEach { userId ->
-                runBlocking {
-                    try {
-                        coreLogic.sessionScope(userId) {
-                            // Clear the session
+            runBlocking {
+                try {
+                    // Cancel all active session scopes
+                    activeSessionUserIds.forEach { userId ->
+                        try {
+                            coreLogic.sessionScope(userId) {
+                                // Cancel the scope to terminate background tasks
+                                cancel()
+                            }
+                        } catch (e: Exception) {
+                            // Ignore errors during scope cancellation
                         }
-                    } catch (e: Exception) {
-                        // Ignore errors during shutdown
                     }
+                    // Cancel the global scope to terminate all background tasks
+                    coreLogic.getGlobalScope().cancel()
+                } catch (e: Exception) {
+                    // Ignore errors during global scope cancellation
                 }
             }
             activeSessionUserIds.clear()

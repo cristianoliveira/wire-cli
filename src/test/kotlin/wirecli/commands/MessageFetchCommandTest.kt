@@ -468,40 +468,44 @@ class MessageFetchCommandTest {
             val messageService = serviceProvider()
             val limitValue = limit.toIntOrNull() ?: 50
 
-            val result = messageService.fetch(
-                conversationId = conversationId,
-                limit = limitValue,
-                from = from,
-            )
+            val result =
+                messageService.fetch(
+                    conversationId = conversationId,
+                    limit = limitValue,
+                    from = from,
+                )
 
             return when (result) {
                 is MessageListResult.Success -> {
                     if (result.view.messages.isEmpty()) {
                         outputCapture.add("No messages found")
                     } else {
-                        val output = when (format.lowercase()) {
-                            "json" -> {
-                                // JSON array format
-                                val messages = result.view.messages.joinToString(",") { message ->
-                                    """{"id":"${message.id}","text":"${message.text}","from":"${message.from}"}"""
+                        val output =
+                            when (format.lowercase()) {
+                                "json" -> {
+                                    // JSON array format
+                                    val messages =
+                                        result.view.messages.joinToString(",") { message ->
+                                            """{"id":"${message.id}","text":"${message.text}","from":"${message.from}"}"""
+                                        }
+                                    "[$messages]"
                                 }
-                                "[$messages]"
-                            }
-                            "jsonlines" -> {
-                                // JSON lines format
-                                result.view.messages.map { message ->
-                                    """{"id":"${message.id}","text":"${message.text}","from":"${message.from}"}"""
-                                }.joinToString("\n")
-                            }
-                            else -> {
-                                // Text table format
-                                val header = "ID\tFROM\tTEXT"
-                                val rows = result.view.messages.map { msg ->
-                                    "${msg.id}\t${msg.from}\t${msg.text}"
+                                "jsonlines" -> {
+                                    // JSON lines format
+                                    result.view.messages.map { message ->
+                                        """{"id":"${message.id}","text":"${message.text}","from":"${message.from}"}"""
+                                    }.joinToString("\n")
                                 }
-                                (listOf(header) + rows).joinToString("\n")
+                                else -> {
+                                    // Text table format
+                                    val header = "ID\tFROM\tTEXT"
+                                    val rows =
+                                        result.view.messages.map { msg ->
+                                            "${msg.id}\t${msg.from}\t${msg.text}"
+                                        }
+                                    (listOf(header) + rows).joinToString("\n")
+                                }
                             }
-                        }
                         outputCapture.add(output)
                     }
 

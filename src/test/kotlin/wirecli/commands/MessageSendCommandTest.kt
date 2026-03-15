@@ -389,20 +389,21 @@ class MessageSendCommandTest {
 
             return when (result) {
                 is MessageSendResult.Success -> {
-                    val output = when (format.lowercase()) {
-                        "json" -> {
-                            // JSON format
-                            """{"id":"${result.message.id}","text":"${result.message.text}","from":"${result.message.from}"}"""
+                    val output =
+                        when (format.lowercase()) {
+                            "json" -> {
+                                // JSON format
+                                """{"id":"${result.message.id}","text":"${result.message.text}","from":"${result.message.from}"}"""
+                            }
+                            "jsonlines" -> {
+                                // JSON lines format
+                                """{"id":"${result.message.id}","text":"${result.message.text}","from":"${result.message.from}"}"""
+                            }
+                            else -> {
+                                // Text format
+                                "ID: ${result.message.id}\nFrom: ${result.message.from}\nText: ${result.message.text}"
+                            }
                         }
-                        "jsonlines" -> {
-                            // JSON lines format
-                            """{"id":"${result.message.id}","text":"${result.message.text}","from":"${result.message.from}"}"""
-                        }
-                        else -> {
-                            // Text format
-                            "ID: ${result.message.id}\nFrom: ${result.message.from}\nText: ${result.message.text}"
-                        }
-                    }
                     outputCapture.add(output)
                     ExitCodes.OK
                 }

@@ -34,8 +34,17 @@ fun main(args: Array<String>) {
     } finally {
         runCatching { runtime.close() }
 
-        if (completed) {
-            exitProcess(0)
+        // Give threads 100ms to shutdown gracefully before forcing JVM exit
+        // This ensures background Kalium SDK threads have time to wind down
+        try {
+            Thread.sleep(100)
+        } catch (e: InterruptedException) {
+            // Ignore interruption
         }
+
+        // Force JVM exit to ensure background threads don't prevent process termination
+        // This is necessary because Kalium SDK may spawn background threads that don't
+        // respond to normal shutdown signals
+        exitProcess(if (completed) 0 else 1)
     }
 }

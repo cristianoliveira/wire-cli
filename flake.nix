@@ -86,11 +86,11 @@
             # Remove repositories block from buildSrc/build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
             sed -i '/^repositories {/,/^}/d' $out/vendor/kalium/buildSrc/build.gradle.kts
 
-            # Remove com.wire:detekt-rules dependency - it's hosted on a custom Ivy repo (GitHub raw)
-            # which doesn't follow Maven patterns. Since detekt is only for linting and nix build
-            # doesn't run detekt, we can safely remove this dependency.
-            # Remove the entire block: detektPlugins("com.wire:detekt-rules:...") { isChanging = true }
-            sed -i '/detektPlugins("com.wire:detekt-rules:/,/}/d' $out/vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
+            # NOTE: com.wire:detekt-rules dependency has been permanently removed from
+            # vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
+            # It was hosted on a custom Ivy repo (GitHub raw) which doesn't follow Maven patterns
+            # and was causing 404 errors in Nix builds. Since detekt is only for linting and nix
+            # build doesn't run detekt, the dependency is no longer needed.
 
             # Patch main kalium settings.gradle.kts to use centralized repository management
             # This is required for buildGradleApplication to replace repositories with the offline maven repo
@@ -138,6 +138,13 @@
             # This is needed because downloaded executables don't have execute permissions in nix store
             sed -i 's|artifact = "com.google.protobuf:protoc:3.24.0"|path = "${pkgs.protobuf}/bin/protoc"|' \
               $out/vendor/kalium/tools/protobuf-codegen/build.gradle.kts
+
+                        # Disable Android Gradle Plugin analytics to avoid sandbox issues
+                        echo "android.disableAnalytics=true" >> $out/gradle.properties
+
+                        # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
+                        # The logic module explicitly creates iOS targets which fail in sandbox without SDK
+                        sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
           '';
         in
         {
@@ -161,13 +168,20 @@
             # Java toolchain, git, and protobuf for the build
             # git is needed by kalium's build
             # protobuf is needed for protoc (protobuf compiler)
-            nativeBuildInputs = [ jdk pkgs.git pkgs.protobuf ];
+            nativeBuildInputs = [
+              jdk
+              pkgs.git
+              pkgs.protobuf
+            ];
 
             # Set JAVA_HOME so Gradle's toolchain detection can find the JDK
             # Set GITHUB_SHA to avoid git command for version detection in kalium
+            # Set GRADLE_OPTS to disable Apple/iOS targets in Nix builds
             env = {
               JAVA_HOME = "${jdk}";
               GITHUB_SHA = "nixbuild";
+              GRADLE_OPTS = "-Dnix.build=true";
+              ANDROID_USER_HOME = "/tmp/.android_nix";
             };
 
             meta = with pkgs.lib; {

@@ -21,9 +21,33 @@ import kotlinx.coroutines.runBlocking
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 
+/**
+ * Real Kalium-backed implementation of the authentication client.
+ *
+ * This class delegates authentication operations to the Kalium SDK through the [RealKaliumAuthRuntime]
+ * interface, handling login and logout flows with proper error mapping.
+ *
+ * @invariant runtime is never null and properly initialized
+ * @invariant All public methods return non-null AuthApiResult
+ */
 internal class RealKaliumAuthClient(
     private val runtime: RealKaliumAuthRuntime,
 ) : AuthApiClient {
+    /**
+     * Authenticates a user with email and password against a Wire backend.
+     *
+     * @param input Login credentials and server configuration
+     * @return AuthApiResult.Success with authenticated session if successful; AuthApiResult.Failure with error details otherwise
+     * @throws Nothing - All errors are wrapped in AuthApiResult
+     *
+     * @pre input.email must be non-null and non-empty
+     * @pre input.password must be non-null and non-empty
+     * @post result is either Success with valid AuthSession or Failure with appropriate error code
+     * @post If Success, returned session has non-null userId and accessToken
+     *
+     * @see AuthApiResult.Success
+     * @see AuthApiResult.Failure
+     */
     override fun login(input: LoginInput): AuthApiResult {
         return when (val authScope = runtime.resolveAuthScope(input.server)) {
             is AuthStepResult.Success -> continueLogin(input, authScope.value)
@@ -31,6 +55,21 @@ internal class RealKaliumAuthClient(
         }
     }
 
+    /**
+     * Logs out the currently authenticated user, invalidating their session.
+     *
+     * @param session The authenticated session to logout (must be valid and active)
+     * @return AuthApiResult.Success if logout completed successfully; AuthApiResult.Failure with error details otherwise
+     * @throws Nothing - All errors are wrapped in AuthApiResult
+     *
+     * @pre session must be non-null with valid userId and accessToken
+     * @pre session must represent an active authenticated state
+     * @post result is either Success (even if logout already happened) or Failure with error details
+     * @post If Success, the session tokens are invalidated on the server
+     *
+     * @see AuthApiResult.Success
+     * @see AuthApiResult.Failure
+     */
     override fun logout(session: AuthSession): AuthApiResult {
         return when (val result = runtime.logout(session)) {
             is AuthStepResult.Success -> AuthApiResult.Success(session)
@@ -38,6 +77,17 @@ internal class RealKaliumAuthClient(
         }
     }
 
+    /**
+     * Continues login flow after authentication scope is established.
+     *
+     * @param input The login credentials and server configuration
+     * @param authScope The resolved authentication scope from Kalium
+     * @return AuthApiResult with success or failure details
+     *
+     * @pre input must have non-null email and password
+     * @pre authScope must be properly initialized and functional
+     * @post Returns either AuthApiResult.Success or AuthApiResult.Failure
+     */
     private fun continueLogin(
         input: LoginInput,
         authScope: KaliumAuthScope,
@@ -48,6 +98,18 @@ internal class RealKaliumAuthClient(
         }
     }
 
+    /**
+     * Persists the authenticated principal to local storage for future session resumption.
+     *
+     * @param input The original login input with server configuration
+     * @param success The authenticated principal from the server
+     * @return AuthApiResult with success or failure details
+     * @throws Nothing - All errors wrapped in AuthApiResult
+     *
+     * @pre success must have valid userId, tokens, and server config
+     * @post If successful, account is persisted and session bootstrap begins
+     * @post Account can be recovered from local storage on subsequent CLI invocations
+     */
     private fun persistAuthenticatedAccount(
         input: LoginInput,
         success: AuthenticatedPrincipal,
@@ -78,6 +140,19 @@ internal class RealKaliumAuthClient(
         }
     }
 
+    /**
+     * Bootstraps a session by registering a client device and initializing session state.
+     *
+     * @param input The original login input containing password for client registration
+     * @param success The authenticated principal with tokens
+     * @return AuthApiResult with complete authenticated session or failure details
+     * @throws Nothing - All errors wrapped in AuthApiResult
+     *
+     * @pre success must have valid userId and accessToken
+     * @pre input.password must be non-null and match user's credentials
+     * @post If successful, client device is registered and AuthSession is returned
+     * @post Returned AuthSession contains non-null userId, accessToken, and server
+     */
     private fun bootstrapSession(
         input: LoginInput,
         success: AuthenticatedPrincipal,
@@ -118,34 +193,132 @@ internal class RealKaliumAuthClient(
     }
 }
 
+/**
+ * Contract for Kalium SDK authentication runtime operations.
+ *
+ * This interface abstracts Kalium SDK interactions for authentication flows,
+ * enabling testability and separation between CLI and SDK concerns.
+ *
+ * @invariant All methods return non-null AuthStepResult
+ * @invariant Shutdown must be called to cleanup resources
+ */
 internal interface RealKaliumAuthRuntime {
+    /**
+     * Resolves the authentication scope for the given server.
+     *
+     * @param server Optional server URL/domain (null uses default server)
+     * @return AuthStepResult with KaliumAuthScope for login operations or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre server must be null or a valid URL/domain string
+     * @post Result is either Success with functional KaliumAuthScope or Failure
+     */
     fun resolveAuthScope(server: String?): AuthStepResult<KaliumAuthScope>
 
+    /**
+     * Persists an authenticated account to local Kalium storage.
+     *
+     * @param account The account details with tokens and configuration to persist
+     * @return AuthStepResult with Unit on success or Failure with error details
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre account must have valid userId, tokens, and serverConfigId
+     * @post If successful, account can be recovered by subsequent CLI invocations
+     */
     fun addAuthenticatedAccount(account: PersistedAccount): AuthStepResult<Unit>
 
+    /**
+     * Resolves the session scope for a specific user.
+     *
+     * @param userId The qualified user ID (format: value@domain)
+     * @return AuthStepResult with KaliumSessionScope or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre userId must be non-null and in qualified format (value@domain)
+     * @post Result is either Success with functional session scope or Failure
+     */
     fun resolveSessionScope(userId: String): AuthStepResult<KaliumSessionScope>
 
+    /**
+     * Registers or retrieves a client device for the authenticated session.
+     *
+     * @param sessionScope The session context for the authenticated user
+     * @param password The user's password for client registration
+     * @return AuthStepResult with Unit on success or Failure with error details
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre sessionScope must represent a valid authenticated user
+     * @pre password must match the user's credentials
+     * @post If successful, a device is registered and ready for use
+     */
     fun ensureClient(
         sessionScope: KaliumSessionScope,
         password: String,
     ): AuthStepResult<Unit>
 
+    /**
+     * Logs out the authenticated user and invalidates session state.
+     *
+     * @param session The session to logout
+     * @return AuthStepResult with Unit on success or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre session must represent a valid authenticated user
+     * @post If successful, session tokens are invalidated server-side
+     */
     fun logout(session: AuthSession): AuthStepResult<Unit>
 
+    /**
+     * Closes the runtime and releases all resources.
+     * Delegates to shutdown() for implementation.
+     */
     fun close() {
         shutdown()
     }
 
+    /**
+     * Shuts down the Kalium runtime, cleaning up resources and active sessions.
+     */
     fun shutdown()
 }
 
+/**
+ * Contract for Kalium authentication scope operations.
+ *
+ * This interface represents an established authentication context with the Kalium SDK,
+ * allowing login operations without re-establishing connection to the server.
+ *
+ * @invariant Represents a single authentication attempt/scope
+ */
 internal interface KaliumAuthScope {
+    /**
+     * Performs email/password login within this authentication scope.
+     *
+     * @param email User email address (non-null, valid format)
+     * @param password User password (non-null, ≥8 chars recommended)
+     * @return AuthStepResult with AuthenticatedPrincipal on success or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre email must be non-null and non-empty
+     * @pre password must be non-null and non-empty
+     * @post Result is either Success with valid tokens or Failure with error details
+     */
     fun login(
         email: String,
         password: String,
     ): AuthStepResult<AuthenticatedPrincipal>
 }
 
+/**
+ * Principal returned after successful authentication against the Wire server.
+ *
+ * Contains all tokens and metadata required to establish a user session and
+ * register a client device.
+ *
+ * @invariant userId is in qualified format (value@domain)
+ * @invariant accessToken and refreshToken are non-empty and valid JWT
+ * @invariant serverConfigId matches a valid Kalium server configuration
+ */
 internal data class AuthenticatedPrincipal(
     val userId: String,
     val accessToken: String,
@@ -158,6 +331,15 @@ internal data class AuthenticatedPrincipal(
     val proxyCredentials: ProxyCredentials?,
 )
 
+/**
+ * Account information persisted to local storage for session resumption.
+ *
+ * All fields from the authenticated principal plus server configuration,
+ * allowing the CLI to resume sessions without re-authenticating.
+ *
+ * @invariant userId is in qualified format (value@domain)
+ * @invariant All token fields are non-empty strings
+ */
 internal data class PersistedAccount(
     val userId: String,
     val server: String?,
@@ -171,19 +353,54 @@ internal data class PersistedAccount(
     val proxyCredentials: ProxyCredentials?,
 )
 
+/**
+ * Scoped context for session operations on a specific authenticated user.
+ *
+ * @invariant userId is in qualified format (value@domain)
+ */
 internal data class KaliumSessionScope(
     val userId: String,
 )
 
+/**
+ * Result type for authentication step operations (sealed interface).
+ *
+ * Represents either a successful step result with typed value or a failure
+ * with category and optional diagnostic message.
+ *
+ * @invariant Each operation returns exactly one sealed subtype
+ */
 internal sealed interface AuthStepResult<out T> {
+    /**
+     * Successful step result with associated value.
+     *
+     * @param value The result value from the successful step
+     */
     data class Success<T>(val value: T) : AuthStepResult<T>
 
+    /**
+     * Failed step result with error details.
+     *
+     * @param category The category of failure (determines error message and exit code)
+     * @param message Optional diagnostic message providing additional context
+     */
     data class Failure(
         val category: AuthFailureCategory,
         val message: String? = null,
     ) : AuthStepResult<Nothing>
 }
 
+/**
+ * Enumeration of possible authentication failure categories.
+ *
+ * Each category maps to specific user-facing messages and exit codes.
+ * INVALID_CREDENTIALS: Email/password mismatch
+ * PASSWORD_REQUIRED: Device registration requires password re-entry
+ * NETWORK: Network connectivity issues
+ * SERVER: Server errors (5xx, unavailable)
+ * UNAUTHORIZED: Account suspended, pending activation, or other auth failures
+ * UNKNOWN: Unexpected/unclassifiable errors
+ */
 internal enum class AuthFailureCategory {
     INVALID_CREDENTIALS,
     PASSWORD_REQUIRED,
@@ -193,6 +410,17 @@ internal enum class AuthFailureCategory {
     UNKNOWN,
 }
 
+/**
+ * Kalium SDK-based implementation of the authentication runtime.
+ *
+ * This class manages CoreLogic initialization and delegates authentication
+ * operations to the Kalium SDK, handling all Kalium-specific error mappings
+ * and session lifecycle management.
+ *
+ * @invariant coreLogic is lazily initialized and properly shut down
+ * @invariant activeSessionUserIds tracks all open sessions for cleanup
+ * @invariant All methods return non-null AuthStepResult
+ */
 internal class SdkKaliumAuthRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
@@ -209,6 +437,17 @@ internal class SdkKaliumAuthRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
+    /**
+     * Resolves the authentication scope for the specified server.
+     *
+     * @param server Optional server domain or URL (null uses default production server)
+     * @return AuthStepResult with SdkKaliumAuthScope on success or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre server must be null, empty, "staging", "production", or valid URL
+     * @post Result is either Success with functional auth scope or Failure
+     * @post On Success, scope can perform login operations without re-connecting
+     */
     override fun resolveAuthScope(server: String?): AuthStepResult<KaliumAuthScope> {
         return runBlocking {
             when (val links = resolveServerLinks(server)) {
@@ -237,6 +476,19 @@ internal class SdkKaliumAuthRuntime(
         }
     }
 
+    /**
+     * Adds an authenticated account to the Kalium persistence storage.
+     *
+     * @param account The account details to persist
+     * @return AuthStepResult with Unit on success or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre account.userId must be in qualified format (value@domain)
+     * @pre account.accessToken and refreshToken must be non-empty valid JWTs
+     * @pre account.serverConfigId must match a valid server configuration
+     * @post If successful, account is persisted and can be retrieved by CLI
+     * @post Subsequent addAuthenticatedAccount calls with same userId replace previous account
+     */
     override fun addAuthenticatedAccount(account: PersistedAccount): AuthStepResult<Unit> {
         return runBlocking {
             val userId =
@@ -280,6 +532,19 @@ internal class SdkKaliumAuthRuntime(
         }
     }
 
+    /**
+     * Resolves a session scope for the specified user ID.
+     *
+     * This is a lightweight operation that validates the user ID format and
+     * creates a session context without connecting to the server.
+     *
+     * @param userId The qualified user ID (format: value@domain)
+     * @return AuthStepResult with KaliumSessionScope on success or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre userId must be in qualified format (value@domain)
+     * @post Result is either Success with functional session scope or Failure
+     */
     override fun resolveSessionScope(userId: String): AuthStepResult<KaliumSessionScope> {
         return if (userId.toQualifiedIdOrNull() == null) {
             AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
@@ -288,6 +553,20 @@ internal class SdkKaliumAuthRuntime(
         }
     }
 
+    /**
+     * Ensures a client device is registered for the session.
+     *
+     * @param sessionScope The session context for the authenticated user
+     * @param password The user's password for device registration
+     * @return AuthStepResult with Unit on success or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre sessionScope.userId must be valid and authenticated
+     * @pre password must match the user's credentials
+     * @post If successful, a device is registered and ready for API calls
+     * @post If PASSWORD_REQUIRED, user must re-enter password and retry
+     * @post activeSessionUserIds is updated to track this session for cleanup
+     */
     override fun ensureClient(
         sessionScope: KaliumSessionScope,
         password: String,
@@ -326,6 +605,17 @@ internal class SdkKaliumAuthRuntime(
         }
     }
 
+    /**
+     * Logs out the authenticated user, invalidating their session.
+     *
+     * @param session The session to logout
+     * @return AuthStepResult with Unit on success or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre session.userId must be in qualified format and represent active user
+     * @post If successful, user is logged out server-side and tokens invalidated
+     * @post activeSessionUserIds is updated to track this session for cleanup
+     */
     override fun logout(session: AuthSession): AuthStepResult<Unit> {
         val userId =
             session.userId.toQualifiedIdOrNull()
@@ -344,6 +634,18 @@ internal class SdkKaliumAuthRuntime(
         }
     }
 
+    /**
+     * Shuts down the Kalium runtime and releases all resources.
+     *
+     * Cancels all active session scopes and the global scope, ensuring proper
+     * cleanup of network connections and file handles.
+     *
+     * @throws Nothing - Silently handles errors during cleanup
+     *
+     * @post All active sessions are cancelled
+     * @post CoreLogic is cleaned up and resources released
+     * @post Safe to call multiple times (checks lazy initialization)
+     */
     override fun shutdown() {
         if (!coreLogicLazy.isInitialized()) return
 
@@ -355,6 +657,16 @@ internal class SdkKaliumAuthRuntime(
         coreLogic.getGlobalScope().cancel()
     }
 
+    /**
+     * Resolves server configuration links from the server identifier.
+     *
+     * @param server Optional server identifier (null/empty=default, "staging", "production", or URL)
+     * @return AuthStepResult with ServerConfig.Links or Failure
+     * @throws Nothing - All errors wrapped in AuthStepResult
+     *
+     * @pre server must be null, empty, "staging", "production", or valid deeplink URL
+     * @post Result contains server configuration for connection setup
+     */
     private suspend fun resolveServerLinks(server: String?): AuthStepResult<ServerConfig.Links> {
         val target = server?.trim().orEmpty()
         if (target.isEmpty()) {
@@ -377,6 +689,14 @@ internal class SdkKaliumAuthRuntime(
         }
     }
 
+    /**
+     * Maps Kalium CoreFailure to authentication failure category.
+     *
+     * @param failure The CoreFailure from Kalium SDK
+     * @return AuthFailureCategory appropriate for the failure type
+     *
+     * @post Returns a non-null AuthFailureCategory
+     */
     private fun coreFailureToCategory(failure: CoreFailure): AuthFailureCategory {
         return when (failure) {
             is NetworkFailure.NoNetworkConnection,
@@ -394,6 +714,16 @@ internal class SdkKaliumAuthRuntime(
         }
     }
 
+    /**
+     * Maps a Throwable exception to an authentication failure category.
+     *
+     * Uses heuristic analysis of exception message to categorize error.
+     *
+     * @param error The Throwable to categorize
+     * @return AuthFailureCategory based on error message content
+     *
+     * @post Returns a non-null AuthFailureCategory
+     */
     private fun categoryFromThrowable(error: Throwable): AuthFailureCategory {
         val message = error.message.orEmpty()
         return when {
@@ -405,9 +735,26 @@ internal class SdkKaliumAuthRuntime(
         }
     }
 
+    /**
+     * Kalium SDK-based implementation of KaliumAuthScope.
+     *
+     * Wraps the Kalium SDK's AuthenticationScope to provide login operations
+     * within a single authentication context.
+     */
     private class SdkKaliumAuthScope(
         private val authScope: com.wire.kalium.logic.feature.auth.AuthenticationScope,
     ) : KaliumAuthScope {
+        /**
+         * Performs email/password authentication against the Wire server.
+         *
+         * @param email User email address
+         * @param password User password
+         * @return AuthStepResult with AuthenticatedPrincipal on success or Failure
+         * @throws Nothing - All errors wrapped in AuthStepResult
+         *
+         * @pre email and password must be non-null and non-empty
+         * @post Result contains auth tokens and user ID on success
+         */
         override fun login(
             email: String,
             password: String,
@@ -463,6 +810,14 @@ internal class SdkKaliumAuthRuntime(
         }
     }
 
+    /**
+     * Resolves the home directory from environment or system properties.
+     *
+     * @param env The environment map to check for HOME variable
+     * @return The home directory path
+     *
+     * @post Returns non-null valid directory path
+     */
     private fun resolveHomeDirectory(env: Map<String, String>): String {
         val home = env["HOME"]?.trim()
         if (!home.isNullOrEmpty()) return home
@@ -470,6 +825,17 @@ internal class SdkKaliumAuthRuntime(
     }
 }
 
+/**
+ * Parses a qualified user ID string into a UserId or returns null if invalid.
+ *
+ * Expected format: "value@domain" where both value and domain are non-blank.
+ *
+ * @receiver The string to parse
+ * @return UserId if valid qualified format, null otherwise
+ *
+ * @pre receiver must be non-null
+ * @post If successful, result.value and result.domain are both non-blank
+ */
 private fun String.toQualifiedIdOrNull(): UserId? {
     val trimmed = trim()
     val atIndex = trimmed.lastIndexOf('@')
@@ -480,8 +846,29 @@ private fun String.toQualifiedIdOrNull(): UserId? {
     return UserId(value = value, domain = domain)
 }
 
+/**
+ * Serializes a UserId into qualified string format.
+ *
+ * @receiver The UserId to serialize
+ * @return Qualified string in format "value@domain"
+ *
+ * @post Returns non-null non-empty string in "value@domain" format
+ */
 private fun UserId.serialize(): String = "$value@$domain"
 
+/**
+ * Converts an AuthStepResult.Failure to an AuthApiResult.Failure with appropriate messaging.
+ *
+ * Maps failure categories to user-facing messages and exit codes.
+ *
+ * @receiver The failure result to convert
+ * @param action The action being performed (used in error messages)
+ * @param defaultMessage Optional message override for specific failure categories
+ * @return AuthApiResult.Failure with message and exit code
+ *
+ * @pre action must be non-null and non-empty
+ * @post Result contains appropriate user-facing message and exit code
+ */
 private fun AuthStepResult.Failure.toAuthFailure(
     action: String,
     defaultMessage: String? = null,

@@ -10,6 +10,20 @@ import wirecli.auth.AuthRedactor
 import wirecli.device.DeviceListResult
 import wirecli.device.DeviceService
 
+/**
+ * CLI command to list devices registered to the current user or another user.
+ *
+ * Supports multiple output formats:
+ * - Table format (default, human-readable)
+ * - JSON format (single object with devices array)
+ * - JSON Lines format (one device per line)
+ *
+ * If no user ID is specified, lists devices for the authenticated session user.
+ * If user ID is specified, lists devices for that user (if permitted).
+ *
+ * @invariant deviceServiceProvider returns non-null DeviceService
+ * @invariant Output format is exactly one of: table, json, or json-lines
+ */
 class DeviceListCommand(
     private val deviceServiceProvider: () -> DeviceService,
 ) : CliktCommand(name = "list", help = "List devices. Optionally specify a user ID to list their devices.") {
@@ -17,6 +31,18 @@ class DeviceListCommand(
     private val json by option("--json", help = "Output as JSON").flag(default = false)
     private val jsonLines by option("--json-lines", help = "Output as JSON lines").flag(default = false)
 
+    /**
+     * Executes the device list command.
+     *
+     * Fetches devices from the service and outputs in the requested format.
+     * On success, outputs formatted device list. On failure, prints error and exits.
+     *
+     * @throws ProgramResult on API failure with appropriate exit code
+     *
+     * @pre deviceServiceProvider must return non-null service
+     * @post Output is exactly one format: table, JSON, or JSON Lines
+     * @post If failure, error message is redacted before output
+     */
     override fun run() {
         val deviceService = deviceServiceProvider()
         val result =
@@ -42,6 +68,14 @@ class DeviceListCommand(
         }
     }
 
+    /**
+     * Outputs device list in human-readable table format.
+     *
+     * @param result The successful device list result
+     *
+     * @post Output includes header row and device rows with columns:
+     *       ID | Type | Fingerprint | Last Active
+     */
     private fun outputAsTable(result: DeviceListResult.Success) {
         val devices = result.view.devices
         if (devices.isEmpty()) {
@@ -67,6 +101,16 @@ class DeviceListCommand(
         }
     }
 
+    /**
+     * Outputs device list as a single JSON object with devices array.
+     *
+     * Format: {"devices": [{...}, {...}]}
+     *
+     * @param result The successful device list result
+     *
+     * @post Output is valid JSON with root object containing "devices" array
+     * @post All string values are properly escaped for JSON
+     */
     private fun outputAsJson(result: DeviceListResult.Success) {
         val devices = result.view.devices
         val jsonDevices =
@@ -79,6 +123,16 @@ class DeviceListCommand(
         echo("""{"devices":[$jsonDevices]}""")
     }
 
+    /**
+     * Outputs device list as JSON Lines format (one device per line).
+     *
+     * Each line is a complete JSON object, suitable for streaming/piping.
+     *
+     * @param result The successful device list result
+     *
+     * @post Each output line is valid JSON representing one device
+     * @post All string values are properly escaped for JSON
+     */
     private fun outputAsJsonLines(result: DeviceListResult.Success) {
         val devices = result.view.devices
         for (device in devices) {
@@ -86,6 +140,15 @@ class DeviceListCommand(
         }
     }
 
+    /**
+     * Builds a JSON object string for a single device.
+     *
+     * @param device The device to serialize
+     * @return Valid JSON string with device properties
+     *
+     * @post Result is valid JSON with all string values escaped
+     * @post Properties: id, type, fingerprint, lastActive
+     */
     private fun buildDeviceJsonObject(device: wirecli.device.Device): String {
         val id = escapeJson(device.id)
         val type = escapeJson(device.type.toString())
@@ -95,6 +158,17 @@ class DeviceListCommand(
         return json
     }
 
+    /**
+     * Escapes a string value for safe inclusion in JSON.
+     *
+     * Escapes: backslash, quote, newline, carriage return, tab
+     *
+     * @param value The string to escape
+     * @return Escaped string safe for JSON inclusion
+     *
+     * @post Result contains no unescaped special characters
+     * @post Result is safe to include in JSON strings
+     */
     private fun escapeJson(value: String): String {
         return value
             .replace("\\", "\\\\")

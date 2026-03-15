@@ -12,6 +12,21 @@ import wirecli.auth.AuthSessionService
 import wirecli.auth.ExitCodes
 import wirecli.auth.LoginInput
 
+/**
+ * CLI command to authenticate a user and persist their session locally.
+ *
+ * Supports multiple password input methods:
+ * - Interactive console prompt (default, most secure)
+ * - stdin input (for automation via --password-stdin)
+ * - Command-line option (deprecated, may expose credentials in process args)
+ *
+ * The resulting session is stored with restricted file permissions (0600)
+ * and can be resumed on subsequent CLI invocations without re-authenticating.
+ *
+ * @invariant authSessionService is never null
+ * @invariant Only one password method is used per invocation
+ * @invariant Password is securely handled and never logged
+ */
 class LoginCommand(
     private val authSessionService: AuthSessionService,
 ) : CliktCommand(name = "login", help = "Authenticate and persist a local session.") {
@@ -27,6 +42,19 @@ class LoginCommand(
             .flag(default = false)
     private val server by option("--server", help = "Wire backend URL override.")
 
+    /**
+     * Executes the login command.
+     *
+     * Resolves password input method, validates credentials with Wire backend,
+     * registers a device, and persists the resulting session.
+     *
+     * @throws ProgramResult on validation error or authentication failure
+     *
+     * @pre email option must be provided via --email flag
+     * @pre One of: interactive prompt, --password-stdin, or --password must provide password
+     * @post If successful, session is persisted and success message printed
+     * @post If failed, error message is printed and exit code indicates failure type
+     */
     override fun run() {
         if (passwordStdin && password != null) {
             echo("Use either --password or --password-stdin, not both.", err = true)
@@ -71,6 +99,16 @@ class LoginCommand(
         }
     }
 
+    /**
+     * Reads password from stdin stream (non-interactive).
+     *
+     * Used for automation scenarios where password is piped from another process.
+     * Strips trailing carriage returns for cross-platform compatibility.
+     *
+     * @return Password string from stdin or null if no input available
+     *
+     * @post If successful, return is trimmed (no trailing \\r)
+     */
     private fun readPasswordFromStdin(): String? {
         return System.`in`
             .bufferedReader()
@@ -78,6 +116,17 @@ class LoginCommand(
             ?.trimEnd('\r')
     }
 
+    /**
+     * Reads password from console with echo suppression.
+     *
+     * Uses System.console() for secure interactive password input.
+     * This is the most secure method as password characters are not echoed to terminal.
+     *
+     * @return Password string from console or null if console not available
+     *
+     * @post Characters are not echoed to terminal during input
+     * @post If successful, returned password is non-empty
+     */
     private fun readPasswordFromConsole(): String? {
         val console = System.console() ?: return null
         val passwordChars = console.readPassword("Password: ") ?: return null

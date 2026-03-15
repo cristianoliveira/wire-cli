@@ -129,6 +129,50 @@ If you see errors about Gradle version:
    nix build --rebuild
    ```
 
+### Missing Dependency Errors
+
+When you see an error like:
+```
+Could not find org.jetbrains.kotlinx:kotlinx-datetime:0.6.0.
+```
+
+This typically means the version specified in `build.gradle.kts` or `gradle/libs.versions.toml` doesn't match what's available in `verification-metadata.xml`.
+
+**Option 1: Check if a different version is already in verification-metadata.xml**
+
+First, check if a newer version already exists in the verification metadata:
+
+```bash
+# Search for the artifact in verification-metadata.xml
+grep "kotlinx-datetime" gradle/verification-metadata.xml
+```
+
+If a different version exists (e.g., 0.6.1 instead of 0.6.0), update your `build.gradle.kts` to use that version instead:
+
+```kotlin
+// In build.gradle.kts
+implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")  // Use version from verification-metadata.xml
+```
+
+**Option 2: Add the missing artifact to verification-metadata.xml**
+
+If the dependency truly doesn't exist in verification metadata:
+
+1. Find the artifact on [Maven Central](https://central.sonatype.com/)
+2. Download it and calculate SHA256:
+   ```bash
+   nix hash-file --base64 --sri /path/to/artifact.jar
+   ```
+3. Add entry to `gradle/verification-metadata.xml` following the existing pattern
+
+**Option 3: Regenerate verification-metadata.xml completely**
+
+If you're adding multiple new dependencies or updating versions:
+
+```bash
+nix develop --command ./gradlew --refresh-dependencies --write-verification-metadata sha256 --write-locks build installDist
+```
+
 ## Files to Commit After Dependency Upgrade
 
 After updating dependencies and regenerating verification metadata, commit these files:

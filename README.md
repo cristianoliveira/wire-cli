@@ -23,6 +23,32 @@ alias wire="./build/install/wire-cli/bin/wire-cli"
 wire --help
 ```
 
+## Building with Nix
+
+This project supports reproducible builds with Nix flakes.
+
+### Quick Start
+
+```bash
+# Build the project
+nix build .
+
+# Run the CLI directly
+nix run .
+
+# Development environment
+nix develop
+```
+
+### Documentation
+
+For detailed instructions on:
+- Upgrading dependencies
+- Troubleshooting build issues
+- Regenerating verification-metadata.xml
+
+See [docs/NIX_BUILD.md](docs/NIX_BUILD.md)
+
 ## Core Commands
 
 ```bash

@@ -47,18 +47,19 @@ class RealKaliumPresenceApiClientTest {
     }
 
     @Test
-    fun `maps null availability to unknown`() {
+    fun `fails explicitly when availability status is null`() {
         val runtime =
             FakeRuntime(
                 sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
-                statusResult = PresenceStepResult.Success(null),
+                statusResult = PresenceStepResult.Failure(PresenceFailureCategory.UNKNOWN),
             )
         val client = RealKaliumPresenceApiClient(runtime)
 
         val result = client.fetchPresence(session)
 
-        val success = assertIs<PresenceResult.Success>(result)
-        assertEquals(PresenceState.UNKNOWN, success.presence.state)
+        // Now explicitly fails instead of silently returning null
+        val failure = assertIs<PresenceResult.Failure>(result)
+        assertEquals(ExitCodes.UNKNOWN_ERROR, failure.exitCode)
     }
 
     @Test
@@ -191,7 +192,7 @@ class RealKaliumPresenceApiClientTest {
 
     private class FakeRuntime(
         private val sessionScopeResult: PresenceStepResult<KaliumPresenceSessionScope>,
-        private val statusResult: PresenceStepResult<UserAvailabilityStatus?>,
+        private val statusResult: PresenceStepResult<UserAvailabilityStatus>,
         private val setResult: PresenceStepResult<Unit> = PresenceStepResult.Success(Unit),
     ) : RealKaliumPresenceRuntime {
         var lastSetStatus: UserAvailabilityStatus? = null
@@ -200,7 +201,7 @@ class RealKaliumPresenceApiClientTest {
             return sessionScopeResult
         }
 
-        override fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus?> {
+        override fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus> {
             return statusResult
         }
 

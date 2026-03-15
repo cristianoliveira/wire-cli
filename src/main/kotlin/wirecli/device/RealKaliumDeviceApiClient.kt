@@ -267,16 +267,12 @@ internal class SdkKaliumDeviceRuntime(
 
         return runBlocking {
             try {
-                val result =
-                    coreLogic.sessionScope(sessionUserId) {
-                        // Use the public ClientScope API to fetch other user's clients
-                        // First fetch from remote to get the latest data
-                        client.fetchUsersClients(listOf(targetUserId))
-                        // Return empty list for now; proper implementation would collect from Flow
-                        emptyList<com.wire.kalium.logic.data.client.Client>()
-                    }
-
-                DeviceStepResult.Success(emptyList())
+                // This feature requires proper Flow collection from Kalium SDK
+                // Currently unsupported - explicitly fail rather than return empty list
+                throw UnsupportedOperationException(
+                    "Fetching devices for other users is not yet implemented. " +
+                        "This requires proper Flow-based device collection from Kalium SDK.",
+                )
             } catch (error: Throwable) {
                 DeviceStepResult.Failure(categoryFromThrowable(error))
             }

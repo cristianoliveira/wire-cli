@@ -139,9 +139,9 @@ internal class SdkKaliumSyncRuntime(
                     }
 
                 if (syncState == null) {
-                    return@runBlocking SyncStatusResult.Failure(
-                        message = SyncExitMessages.NETWORK_FAILURE,
-                        exitCode = SyncExitCodes.DEGRADED,
+                    throw IllegalStateException(
+                        "Unable to observe sync state - the sync engine failed to provide initial state. " +
+                            "This may indicate a session initialization failure or internal Kalium SDK error.",
                     )
                 }
 
@@ -187,6 +187,9 @@ internal class SdkKaliumSyncRuntime(
                         observeSyncState().firstOrNull()
                     }
 
+                // Note: buildSyncEngineCheck and other methods handle null syncState gracefully
+                // by treating it as a failed state, so we don't throw here. The diagnostics
+                // report will explicitly show the sync engine as failed.
                 val checks = mutableListOf<Check>()
                 checks.add(buildAuthenticationCheck())
                 checks.add(buildSyncEngineCheck(syncState))
@@ -238,9 +241,9 @@ internal class SdkKaliumSyncRuntime(
                     }
 
                 if (syncState == null) {
-                    return@runBlocking ConversationSyncStatusResult.Failure(
-                        message = SyncExitMessages.CONVERSATION_SYNC_NETWORK_FAILURE,
-                        exitCode = SyncExitCodes.DEGRADED,
+                    throw IllegalStateException(
+                        "Unable to observe sync state for conversation $conversationId - " +
+                            "the sync engine failed to provide state. This may indicate a session initialization failure.",
                     )
                 }
 

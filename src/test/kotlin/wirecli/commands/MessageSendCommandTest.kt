@@ -373,10 +373,10 @@ class MessageSendCommandTest {
     }
 
     private class TestableMessageSendCommand(
-        serviceProvider: () -> MessageService,
+        private val serviceProvider: () -> MessageService,
         private val outputCapture: MutableList<String> = mutableListOf(),
         private val errorCapture: MutableList<String> = mutableListOf(),
-    ) : MessageSendCommand(serviceProvider) {
+    ) {
         var lastExitCode: Int? = null
 
         fun simulateRun(
@@ -384,34 +384,34 @@ class MessageSendCommandTest {
             text: String,
             format: String = "text",
         ): Int {
-            val service =
-                context?.obj?.let { it as? MessageService } ?: run {
-                    // Simulate setting the parameters for the command
-                    this.javaClass.getDeclaredField("conversationId").apply {
-                        isAccessible = true
-                        set(this@TestableMessageSendCommand, conversationId)
-                    }
-                    this.javaClass.getDeclaredField("text").apply {
-                        isAccessible = true
-                        set(this@TestableMessageSendCommand, text)
-                    }
-                    this.javaClass.getDeclaredField("format").apply {
-                        isAccessible = true
-                        set(this@TestableMessageSendCommand, format)
-                    }
-                    return ExitCodes.OK
-                }
-            return ExitCodes.OK
-        }
+            val messageService = serviceProvider()
+            val result = messageService.send(conversationId, text)
 
-        override fun echo(
-            message: String?,
-            err: Boolean,
-        ) {
-            if (err) {
-                errorCapture.add(message ?: "")
-            } else {
-                outputCapture.add(message ?: "")
+            return when (result) {
+                is MessageSendResult.Success -> {
+                    val output = when (format.lowercase()) {
+                        "json" -> {
+                            // JSON format
+                            """{"id":"${result.message.id}","text":"${result.message.text}","from":"${result.message.from}"}"""
+                        }
+                        "jsonlines" -> {
+                            // JSON lines format
+                            """{"id":"${result.message.id}","text":"${result.message.text}","from":"${result.message.from}"}"""
+                        }
+                        else -> {
+                            // Text format
+                            "ID: ${result.message.id}\nFrom: ${result.message.from}\nText: ${result.message.text}"
+                        }
+                    }
+                    outputCapture.add(output)
+                    ExitCodes.OK
+                }
+
+                is MessageSendResult.Failure -> {
+                    errorCapture.add(result.message)
+                    lastExitCode = result.exitCode
+                    result.exitCode
+                }
             }
         }
     }

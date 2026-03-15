@@ -6,6 +6,7 @@ import wirecli.auth.AuthSession
 import wirecli.auth.AuthSessionService
 import wirecli.auth.AuthSessionStore
 import wirecli.auth.ExitCodes
+import wirecli.auth.LoginInput
 import wirecli.auth.SessionInventory
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -55,7 +56,7 @@ class SessionBackedMessageServiceTest {
         val service =
             SessionBackedMessageService(
                 sessionStore = FakeSessionStore(null),
-                apiClient = FakeMessageApiClient(MessageSendResult.Success(testMessage)),
+                apiClient = FakeMessageApiClient(sendResult = MessageSendResult.Success(testMessage)),
             )
 
         val result = service.send("conv-001", "Hello")
@@ -91,7 +92,7 @@ class SessionBackedMessageServiceTest {
         val service =
             SessionBackedMessageService(
                 sessionStore = FakeSessionStore(null),
-                apiClient = FakeMessageApiClient(MessageListResult.Success(MessageListView(emptyList()))),
+                apiClient = FakeMessageApiClient(fetchResult = MessageListResult.Success(MessageListView(emptyList()))),
             )
 
         val result = service.fetch("conv-001")
@@ -165,7 +166,7 @@ class SessionBackedMessageServiceTest {
         val service =
             SessionBackedMessageService(
                 sessionStore = FakeSessionStore(null),
-                apiClient = FakeMessageApiClient(MessageDetailResult.Success(MessageDetailView(testMessage))),
+                apiClient = FakeMessageApiClient(detailResult = MessageDetailResult.Success(MessageDetailView(testMessage))),
             )
 
         val result = service.getDetail("conv-001", "msg-001")
@@ -185,6 +186,14 @@ class SessionBackedMessageServiceTest {
                 validSessions = if (activeSession == null) 0 else 1,
                 invalidSessions = 0,
             )
+
+        override fun writeActiveSession(session: AuthSession) {
+            // Not needed for tests
+        }
+
+        override fun clearActiveSession() {
+            // Not needed for tests
+        }
     }
 
     private class FakeMessageApiClient(
@@ -245,7 +254,7 @@ class AuthGuardedMessageServiceTest {
 
     @Test
     fun `shouldAcceptSendWithValidAuth`() {
-        val authService = FakeAuthSessionService(AuthResult.Success)
+        val authService = FakeAuthSessionService(AuthResult.Success("OK"))
         val delegate =
             FakeMessageService(
                 sendResult = MessageSendResult.Success(testMessage),
@@ -280,7 +289,7 @@ class AuthGuardedMessageServiceTest {
     @Test
     fun `shouldAcceptFetchWithValidAuth`() {
         val messages = listOf(testMessage)
-        val authService = FakeAuthSessionService(AuthResult.Success)
+        val authService = FakeAuthSessionService(AuthResult.Success("OK"))
         val delegate =
             FakeMessageService(
                 fetchResult = MessageListResult.Success(MessageListView(messages)),
@@ -314,7 +323,7 @@ class AuthGuardedMessageServiceTest {
 
     @Test
     fun `shouldAcceptDetailWithValidAuth`() {
-        val authService = FakeAuthSessionService(AuthResult.Success)
+        val authService = FakeAuthSessionService(AuthResult.Success("OK"))
         val delegate =
             FakeMessageService(
                 detailResult = MessageDetailResult.Success(MessageDetailView(testMessage)),
@@ -331,9 +340,9 @@ class AuthGuardedMessageServiceTest {
     private class FakeAuthSessionService(
         private val result: AuthResult,
     ) : AuthSessionService {
-        override fun login(input: Any): AuthResult = result
+        override fun login(input: LoginInput): AuthResult = result
 
-        override fun logout(): AuthResult = AuthResult.Success
+        override fun logout(): AuthResult = AuthResult.Success("Logged out")
 
         override fun requireActiveSession(): AuthResult = result
     }
@@ -451,6 +460,14 @@ class MessageServiceErrorHandlingTest {
                 validSessions = if (activeSession == null) 0 else 1,
                 invalidSessions = 0,
             )
+
+        override fun writeActiveSession(session: AuthSession) {
+            // Not needed for tests
+        }
+
+        override fun clearActiveSession() {
+            // Not needed for tests
+        }
     }
 
     private class FakeMessageApiClientWithError(

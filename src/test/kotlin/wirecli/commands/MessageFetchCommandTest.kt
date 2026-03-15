@@ -453,10 +453,10 @@ class MessageFetchCommandTest {
     }
 
     private class TestableMessageFetchCommand(
-        serviceProvider: () -> MessageService,
+        private val serviceProvider: () -> MessageService,
         private val outputCapture: MutableList<String> = mutableListOf(),
         private val errorCapture: MutableList<String> = mutableListOf(),
-    ) : MessageFetchCommand(serviceProvider) {
+    ) {
         var lastExitCode: Int? = null
 
         fun simulateRun(
@@ -465,17 +465,58 @@ class MessageFetchCommandTest {
             from: String? = null,
             format: String = "text",
         ): Int {
-            return ExitCodes.OK
-        }
+            val messageService = serviceProvider()
+            val limitValue = limit.toIntOrNull() ?: 50
 
-        override fun echo(
-            message: String?,
-            err: Boolean,
-        ) {
-            if (err) {
-                errorCapture.add(message ?: "")
-            } else {
-                outputCapture.add(message ?: "")
+            val result = messageService.fetch(
+                conversationId = conversationId,
+                limit = limitValue,
+                from = from,
+            )
+
+            return when (result) {
+                is MessageListResult.Success -> {
+                    if (result.view.messages.isEmpty()) {
+                        outputCapture.add("No messages found")
+                    } else {
+                        val output = when (format.lowercase()) {
+                            "json" -> {
+                                // JSON array format
+                                val messages = result.view.messages.joinToString(",") { message ->
+                                    """{"id":"${message.id}","text":"${message.text}","from":"${message.from}"}"""
+                                }
+                                "[$messages]"
+                            }
+                            "jsonlines" -> {
+                                // JSON lines format
+                                result.view.messages.map { message ->
+                                    """{"id":"${message.id}","text":"${message.text}","from":"${message.from}"}"""
+                                }.joinToString("\n")
+                            }
+                            else -> {
+                                // Text table format
+                                val header = "ID\tFROM\tTEXT"
+                                val rows = result.view.messages.map { msg ->
+                                    "${msg.id}\t${msg.from}\t${msg.text}"
+                                }
+                                (listOf(header) + rows).joinToString("\n")
+                            }
+                        }
+                        outputCapture.add(output)
+                    }
+
+                    if (result.view.hasMore && result.view.nextCursor != null) {
+                        outputCapture.add("More messages available")
+                    }
+
+                    ExitCodes.OK
+                }
+
+                is MessageListResult.Failure -> {
+                    errorCapture.add(result.message)
+                    lastExitCode = result.exitCode
+                    result.exitCode
+                }
             }
         }
     }

@@ -12,6 +12,11 @@ import wirecli.device.DeviceDeleteResult
 import wirecli.device.DeviceDetailResult
 import wirecli.device.DeviceListResult
 import wirecli.device.DeviceVerifyResult
+import wirecli.message.MessageApiClient
+import wirecli.message.MessageDetailResult
+import wirecli.message.MessageListResult
+import wirecli.message.MessageSendResult
+import wirecli.message.MessageSendView
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceResult
 import wirecli.presence.WritablePresenceState
@@ -105,6 +110,8 @@ private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFac
                         counters.syncApiClientAccesses += 1
                         return NoopSyncApiClient
                     }
+
+                override val messageApiClient: MessageApiClient = NoopMessageApiClient
 
                 override fun shutdown() {
                     counters.shutdownCalls += 1
@@ -206,5 +213,31 @@ private object NoopSyncApiClient : SyncApiClient {
         conversationId: String,
     ): PerConversationDiagnosticsResult {
         return PerConversationDiagnosticsResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+}
+
+private object NoopMessageApiClient : MessageApiClient {
+    override fun sendMessage(
+        session: AuthSession,
+        view: MessageSendView,
+    ): MessageSendResult {
+        return MessageSendResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun fetchMessages(
+        session: AuthSession,
+        conversationId: String,
+        limit: Int?,
+        from: String?,
+    ): MessageListResult {
+        return MessageListResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun fetchMessage(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+    ): MessageDetailResult {
+        return MessageDetailResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

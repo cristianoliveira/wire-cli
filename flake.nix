@@ -138,6 +138,13 @@
             # This is needed because downloaded executables don't have execute permissions in nix store
             sed -i 's|artifact = "com.google.protobuf:protoc:3.24.0"|path = "${pkgs.protobuf}/bin/protoc"|' \
               $out/vendor/kalium/tools/protobuf-codegen/build.gradle.kts
+
+                        # Disable Android Gradle Plugin analytics to avoid sandbox issues
+                        echo "android.disableAnalytics=true" >> $out/gradle.properties
+
+                        # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
+                        # The logic module explicitly creates iOS targets which fail in sandbox without SDK
+                        sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
           '';
         in
         {
@@ -161,13 +168,20 @@
             # Java toolchain, git, and protobuf for the build
             # git is needed by kalium's build
             # protobuf is needed for protoc (protobuf compiler)
-            nativeBuildInputs = [ jdk pkgs.git pkgs.protobuf ];
+            nativeBuildInputs = [
+              jdk
+              pkgs.git
+              pkgs.protobuf
+            ];
 
             # Set JAVA_HOME so Gradle's toolchain detection can find the JDK
             # Set GITHUB_SHA to avoid git command for version detection in kalium
+            # Set GRADLE_OPTS to disable Apple/iOS targets in Nix builds
             env = {
               JAVA_HOME = "${jdk}";
               GITHUB_SHA = "nixbuild";
+              GRADLE_OPTS = "-Dnix.build=true";
+              ANDROID_USER_HOME = "/tmp/.android_nix";
             };
 
             meta = with pkgs.lib; {

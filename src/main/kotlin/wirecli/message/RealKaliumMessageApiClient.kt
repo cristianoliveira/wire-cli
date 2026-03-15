@@ -141,18 +141,31 @@ internal class RealKaliumMessageApiClient(
      * Extracts essential message properties for CLI presentation.
      */
     private fun mapKaliumMessageToDomain(kaliumMessage: com.wire.kalium.logic.data.message.Message): Message {
+        val senderName =
+            when (kaliumMessage) {
+                is com.wire.kalium.logic.data.message.Message.Regular ->
+                    kaliumMessage.senderUserName ?: kaliumMessage.senderUserId.value
+
+                else -> kaliumMessage.senderUserId.value
+            }
+
+        val reactions =
+            (kaliumMessage as? com.wire.kalium.logic.data.message.Message.Regular)?.reactions?.reactions?.mapValues {
+                it.value.count
+            } ?: emptyMap<String, Int>()
+
         return Message(
             id = kaliumMessage.id,
             text = mapKaliumMessageContent(kaliumMessage.content),
             from = kaliumMessage.senderUserId.value,
-            fromName = kaliumMessage.senderName ?: kaliumMessage.senderUserId.value,
+            fromName = senderName,
             conversationId = kaliumMessage.conversationId.value,
             timestamp = mapInstantToString(kaliumMessage.date),
             status = mapKaliumMessageStatus(kaliumMessage.status),
             conversationType = ConversationType.ONE_ON_ONE, // Simplified; could be enhanced
-            editedTimestamp = kaliumMessage.editTimestamp?.let { mapInstantToString(it) },
-            reactions = emptyMap(), // Reactions not included in basic message view
-            mentions = emptyList(), // Mentions could be extracted from content if needed
+            editedTimestamp = null, // Timestamp not directly available in Kalium API
+            reactions = reactions,
+            mentions = emptyList<String>(), // Mentions could be extracted from content if needed
         )
     }
 
@@ -173,9 +186,9 @@ internal class RealKaliumMessageApiClient(
      */
     private fun mapKaliumMessageStatus(status: com.wire.kalium.logic.data.message.Message.Status): MessageStatus {
         return when (status) {
-            com.wire.kalium.logic.data.message.Message.Status.SENT -> MessageStatus.SENT
-            com.wire.kalium.logic.data.message.Message.Status.PENDING -> MessageStatus.PENDING
-            com.wire.kalium.logic.data.message.Message.Status.FAILED -> MessageStatus.FAILED
+            is com.wire.kalium.logic.data.message.Message.Status.Sent -> MessageStatus.SENT
+            is com.wire.kalium.logic.data.message.Message.Status.Pending -> MessageStatus.PENDING
+            is com.wire.kalium.logic.data.message.Message.Status.Failed -> MessageStatus.FAILED
             else -> MessageStatus.UNKNOWN
         }
     }

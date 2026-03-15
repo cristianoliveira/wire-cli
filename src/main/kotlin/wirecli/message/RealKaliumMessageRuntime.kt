@@ -94,14 +94,11 @@ internal class SdkKaliumMessageRuntime(
                     )
 
                 val effectiveLimit = limit ?: 50
-                // Get messages from the repository with pagination
+                // Get messages using the messages use case
                 val messages =
                     coreLogic.sessionScope(qualifiedId) {
-                        messages.getMessagesByConversationIdAndVisibility(
-                            conversationId = kaliumConvId,
-                            limit = effectiveLimit,
-                            offset = 0,
-                        ).firstOrNull() ?: emptyList()
+                        messages.getRecentMessages(kaliumConvId, effectiveLimit).firstOrNull()
+                            ?: emptyList()
                     }
 
                 MessageStepResult.Success(messages)
@@ -133,16 +130,18 @@ internal class SdkKaliumMessageRuntime(
                     coreLogic.sessionScope(qualifiedId) {
                         messages.getMessageById(
                             conversationId = kaliumConvId,
-                            messageUuid = messageId,
+                            messageId = messageId,
                         )
                     }
 
-                when (result) {
-                    is com.wire.kalium.common.functional.Either.Right ->
-                        MessageStepResult.Success(result.value)
+                return@runBlocking when (result) {
+                    is com.wire.kalium.common.functional.Either.Right<*> ->
+                        MessageStepResult.Success(result.value as Message)
 
-                    is com.wire.kalium.common.functional.Either.Left ->
+                    is com.wire.kalium.common.functional.Either.Left<*> ->
                         MessageStepResult.Failure(MessageFailureCategory.NOT_FOUND)
+
+                    else -> MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
                 }
             } catch (error: Throwable) {
                 MessageStepResult.Failure(categoryFromThrowable(error))
@@ -177,29 +176,33 @@ internal class SdkKaliumMessageRuntime(
                         )
                     }
 
-                when (result) {
-                    is com.wire.kalium.common.functional.Either.Right -> {
+                return@runBlocking when (result) {
+                    is com.wire.kalium.common.functional.Either.Right<*> -> {
                         // Message sent successfully, fetch it to get full details
-                        val messageId = result.value.messageId.value
+                        val messageId = (result.value as Message).id
                         val message =
                             coreLogic.sessionScope(qualifiedId) {
                                 messages.getMessageById(
                                     conversationId = kaliumConvId,
-                                    messageUuid = messageId,
+                                    messageId = messageId,
                                 )
                             }
 
                         when (message) {
-                            is com.wire.kalium.common.functional.Either.Right ->
-                                MessageStepResult.Success(message.value)
+                            is com.wire.kalium.common.functional.Either.Right<*> ->
+                                MessageStepResult.Success(message.value as Message)
 
-                            is com.wire.kalium.common.functional.Either.Left ->
+                            is com.wire.kalium.common.functional.Either.Left<*> ->
                                 MessageStepResult.Failure(MessageFailureCategory.NOT_FOUND)
+
+                            else -> MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
                         }
                     }
 
-                    is com.wire.kalium.common.functional.Either.Left ->
-                        MessageStepResult.Failure(categoryFromThrowable(result.value))
+                    is com.wire.kalium.common.functional.Either.Left<*> ->
+                        MessageStepResult.Failure(categoryFromThrowable(result.value as Throwable))
+
+                    else -> MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
                 }
             } catch (error: Throwable) {
                 MessageStepResult.Failure(categoryFromThrowable(error))

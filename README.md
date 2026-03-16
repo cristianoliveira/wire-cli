@@ -7,6 +7,7 @@
 Build and install locally:
 
 ```bash
+nix develop  # Enter Nix dev shell (recommended)
 gradle installDist
 ```
 
@@ -103,6 +104,33 @@ Optional CLI mode flags for real backend commands:
 
 When these flags are unset, default behavior remains unchanged.
 
+## Development
+
+### Quality Checks
+
+```bash
+# Run all checks (format, lint, test)
+make all
+
+# Individual checks
+make format-check  # ktlint
+make lint          # detekt
+make test          # unit + integration tests
+```
+
+### Pre-commit Hooks
+
+Install pre-commit hooks to automatically run checks before pushing:
+
+```bash
+pre-commit install
+pre-commit install --hook-type pre-push
+```
+
+### Continuous Integration
+
+The project uses GitHub Actions for CI with Nix for reproducible builds. See [docs/CI.md](docs/CI.md) for details.
+
 ## Testing
 
 Run the full verification suite (recommended):
@@ -116,6 +144,10 @@ Run Bats integration tests only:
 ```bash
 gradle batsTest
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to the project.
 
 ## Security Note
 

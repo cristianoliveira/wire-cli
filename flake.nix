@@ -139,12 +139,9 @@
             sed -i 's|artifact = "com.google.protobuf:protoc:3.24.0"|path = "${pkgs.protobuf}/bin/protoc"|' \
               $out/vendor/kalium/tools/protobuf-codegen/build.gradle.kts
 
-                        # Disable Android Gradle Plugin analytics to avoid sandbox issues
-                        echo "android.disableAnalytics=true" >> $out/gradle.properties
-
-                        # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
-                        # The logic module explicitly creates iOS targets which fail in sandbox without SDK
-                        sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
+            # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
+            # The logic module explicitly creates iOS targets which fail in sandbox without SDK
+            sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
           '';
         in
         {

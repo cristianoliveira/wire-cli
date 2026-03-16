@@ -4,6 +4,30 @@
 
 ## Your Questions Answered
 
+### ❓ "If we have a `wire sync --watch` daemon, wouldn't that make fetching and sending messages faster?" ⭐ BRILLIANT IDEA
+
+**Start here**: [`DAEMON_MODE_ANALYSIS.md`](DAEMON_MODE_ANALYSIS.md)
+
+**Quick answer**: 
+```
+YES! 10x faster:
+
+Current:  $ wire send "Hello"  → 1.8s (JVM startup + init)
+Daemon:   $ wire send "Hello"  → 0.1s (just IPC + send)
+
+Benefits:
+✅ No JVM startup per command (1.5s saved)
+✅ Persistent sync state (no re-sync)
+✅ Real-time events (WebSocket always connected)
+✅ Minimal code (< 500 lines)
+
+Implementation: Phase 2, after messages work
+```
+
+---
+
+## Your Questions Answered (Earlier)
+
 ### ❓ "How does message sending and receiving work with Kalium and wiretui?"
 
 **Start here**: [`MESSAGING_AND_SYNC_ARCHITECTURE.md`](MESSAGING_AND_SYNC_ARCHITECTURE.md) § 3-4
@@ -69,6 +93,29 @@
 
 ---
 
+### ❓ "For messages, don't we need to do sync before?" ⭐ CRITICAL
+
+**Start here**: [`SYNC_REQUIREMENT_FOR_MESSAGES.md`](SYNC_REQUIREMENT_FOR_MESSAGES.md)
+
+**Quick answer**: YES, absolutely! Kalium SDK **enforces** sync completion before ANY message operation:
+
+```kotlin
+// Line 79-81 of SendTextMessageUseCase.kt
+slowSyncRepository.slowSyncStatus.first {
+    it is SlowSyncStatus.Complete  // ← BLOCKS until sync is done
+}
+```
+
+**Why**:
+1. Conversation metadata needed (members, encryption protocol)
+2. Cryptographic state must be established (sessions or MLS group)
+3. User profiles required (list of recipients)
+4. Encryption keys must be available
+
+This is NOT optional - it's hard-coded in Kalium.
+
+---
+
 ## Documentation Map
 
 ### 📊 Quick References (Start Here)
@@ -92,6 +139,7 @@
 |----------|-------|-------|----------|
 | [`MESSAGING_AND_SYNC_ARCHITECTURE.md`](MESSAGING_AND_SYNC_ARCHITECTURE.md) | Complete architecture | 1,510 | Deep understanding & implementation |
 | [`STARTUP_ENTRY_POINT.md`](STARTUP_ENTRY_POINT.md) | **Where it starts** ⭐ | 600 | Understanding machine startup |
+| [`SYNC_REQUIREMENT_FOR_MESSAGES.md`](SYNC_REQUIREMENT_FOR_MESSAGES.md) | **Messages require sync** ⭐ | 450 | Understanding why sync is enforced |
 
 ---
 

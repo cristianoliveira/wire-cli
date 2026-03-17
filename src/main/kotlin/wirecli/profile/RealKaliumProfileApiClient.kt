@@ -31,7 +31,8 @@ internal class RealKaliumProfileApiClient(
         return when (val selfUser = runtime.getSelfUser(sessionScope)) {
             is ProfileStepResult.Success -> {
                 logger.info {
-                    "Successfully retrieved profile: name=${selfUser.value.name}, email=${selfUser.value.email}, handle=${selfUser.value.handle}"
+                    "Successfully retrieved profile: name=${selfUser.value.name}, " +
+                        "email=${selfUser.value.email}, handle=${selfUser.value.handle}"
                 }
                 ProfileResult.Success(
                     profile =

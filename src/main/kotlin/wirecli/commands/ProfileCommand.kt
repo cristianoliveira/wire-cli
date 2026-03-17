@@ -23,7 +23,6 @@ class ProfileCommand(
                 echo("Handle: ${result.profile.handle ?: "-"}")
                 echo("Presence: ${result.profile.presence}")
             }
-
             is ProfileResult.Failure -> {
                 logger.warn { "Failed to retrieve profile: ${AuthRedactor.redact(result.message)}" }
                 echo(AuthRedactor.redact(result.message), err = true)

@@ -38,7 +38,7 @@ jobs:
 
       - name: Build with Nix
         run: |
-          nix build .#cli
+          nix build .#wire-cli
 
       - name: Test the built binary
         run: |

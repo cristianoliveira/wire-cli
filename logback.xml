@@ -7,7 +7,7 @@
   <property name="LOG_DIR" value="${WIRECLI_LOG_DIR:-${user.home}/.cache/wire-cli/logs}"/>
 
   <!-- Single log level for both console and file output -->
-  <!-- Can be overridden with WIRECLI_LOG_LEVEL environment variable or --log-level option -->
+  <!-- Can be overridden with WIRECLI_LOG_LEVEL environment variable or log-level option -->
   <!-- Default: INFO (shows warnings and important messages) -->
   <!-- Set to DEBUG for verbose output during troubleshooting -->
   <!-- Set to TRACE for extremely detailed logging -->

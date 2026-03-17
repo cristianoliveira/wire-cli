@@ -16,46 +16,57 @@ wire-cli uses [SLF4J](https://www.slf4j.org/) with [Logback](http://logback.qos.
 ### Log Files
 - **Location**: `~/.cache/wire-cli/logs/wire-cli.log`
 - **Archives**: `~/.cache/wire-cli/logs/archive/wire-cli-YYYY-MM-DD.N.log.gz`
-- **Default Level**: `DEBUG`
+- **Default Level**: `INFO`
 - **Format**: `timestamp | level | logger | thread | message`
 
-## Configuring Log Levels
+## Configuring Logging
 
-You can configure log levels using environment variables for fine-grained control.
+You can configure logging using just two options: **log level** and **log path**.
 
-### Global Log Level Controls
+### Setting Log Level
+
+The log level controls the verbosity of both console and file output. Available levels (from least to most verbose): `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`.
+
+#### Using Command-Line Options
 
 ```bash
-# Console log level (default: INFO)
-export WIRE_CONSOLE_LOG_LEVEL=DEBUG    # Show DEBUG messages in console
-export WIRE_CONSOLE_LOG_LEVEL=ERROR    # Only show errors in console
+# Set log level explicitly
+wire-cli --log-level DEBUG sync status
 
-# File log level (default: DEBUG)
-export WIRE_FILE_LOG_LEVEL=TRACE       # Maximum detail in log file
-export WIRE_FILE_LOG_LEVEL=INFO       # Less verbose log file
-
-# Legacy fallback (affects both console and file)
-export wire.log.level=DEBUG
+# Enable debug mode (shorthand for --log-level DEBUG)
+wire-cli --verbose sync status
+wire-cli -v sync status
 ```
 
-### Module-Specific Log Levels
+#### Using Environment Variables
 
 ```bash
-# Sync operations (default: DEBUG)
-export WIRE_SYNC_LOG_LEVEL=DEBUG       # Detailed sync state changes
-export WIRE_SYNC_LOG_LEVEL=TRACE       # Maximum sync debugging
+# Set log level globally
+export WIRE_LOG_LEVEL=DEBUG
 
-# Authentication operations (default: DEBUG)
-export WIRE_AUTH_LOG_LEVEL=DEBUG       # Detailed auth flow logging
-export WIRE_AUTH_LOG_LEVEL=INFO        # Less verbose auth logging
+# Then run any command
+wire-cli sync status
+```
 
-# Network connectivity (default: DEBUG)
-export WIRE_NETWORK_LOG_LEVEL=DEBUG    # Network check details
-export WIRE_NETWORK_LOG_LEVEL=INFO     # Basic network status
+### Setting Log Path
 
-# Kalium SDK integration (default: INFO)
-export WIRE_KALIUM_LOG_LEVEL=DEBUG    # Verbose SDK internals
-export WIRE_KALIUM_LOG_LEVEL=TRACE     # Maximum SDK debugging
+Customize where logs are stored using the `--log-dir` option or `LOG_DIR` environment variable.
+
+#### Using Command-Line Options
+
+```bash
+# Custom log directory
+wire-cli --log-dir /path/to/custom/logs sync status
+```
+
+#### Using Environment Variables
+
+```bash
+# Set log directory globally
+export LOG_DIR=/path/to/custom/logs
+
+# Then run any command
+wire-cli sync status
 ```
 
 ## Common Debugging Scenarios
@@ -63,11 +74,11 @@ export WIRE_KALIUM_LOG_LEVEL=TRACE     # Maximum SDK debugging
 ### Debugging Connection Issues
 
 ```bash
-# Enable detailed network and auth logging
-export WIRE_NETWORK_LOG_LEVEL=DEBUG
-export WIRE_AUTH_LOG_LEVEL=DEBUG
-export WIRE_CONSOLE_LOG_LEVEL=DEBUG
+# Enable debug logging
+wire-cli --log-level DEBUG login --email user@example.com
 
+# Or using environment variable
+export WIRE_LOG_LEVEL=DEBUG
 wire-cli login --email user@example.com
 ```
 
@@ -80,12 +91,12 @@ Look for:
 ### Debugging Sync Problems
 
 ```bash
-# Enable detailed sync logging
-export WIRE_SYNC_LOG_LEVEL=DEBUG
-export WIRE_CONSOLE_LOG_LEVEL=DEBUG
+# Enable debug logging
+wire-cli --log-level DEBUG sync status
+wire-cli --log-level DEBUG sync diagnostics
 
-wire-cli sync status
-wire-cli sync diagnostics
+# Or with --verbose shorthand
+wire-cli --verbose sync status
 ```
 
 Look for:
@@ -97,26 +108,19 @@ Look for:
 ### Maximum Debugging Output
 
 ```bash
-# Enable TRACE level for everything
-export WIRE_CONSOLE_LOG_LEVEL=TRACE
-export WIRE_FILE_LOG_LEVEL=TRACE
-export WIRE_SYNC_LOG_LEVEL=TRACE
-export WIRE_AUTH_LOG_LEVEL=TRACE
-export WIRE_NETWORK_LOG_LEVEL=TRACE
-export WIRE_KALIUM_LOG_LEVEL=TRACE
-
+# Enable TRACE level for maximum detail
+export WIRE_LOG_LEVEL=TRACE
 wire-cli sync diagnostics
 ```
 
 ### Minimal Logging (Production)
 
 ```bash
-# Only show errors in console
-export WIRE_CONSOLE_LOG_LEVEL=ERROR
-# Keep DEBUG in log file for troubleshooting
-export WIRE_FILE_LOG_LEVEL=DEBUG
+# Only show errors and warnings
+export WIRE_LOG_LEVEL=ERROR
 
-wire-cli sync status
+# Or use --log-level
+wire-cli --log-level ERROR sync status
 ```
 
 ## Log File Management
@@ -154,6 +158,20 @@ zcat ~/.cache/wire-cli/logs/archive/wire-cli-2026-03-15.1.log.gz
 
 # Search across all archived logs
 zcat ~/.cache/wire-cli/logs/archive/*.log.gz | grep "ERROR"
+```
+
+### Custom Log Location
+
+```bash
+# Set a custom log directory
+export LOG_DIR=~/my-logs
+mkdir -p ~/my-logs
+
+# Run commands - logs will go to the custom location
+wire-cli --verbose sync status
+
+# Check your custom log file
+tail -f ~/my-logs/wire-cli.log
 ```
 
 ## Understanding Log Messages
@@ -204,7 +222,7 @@ zcat ~/.cache/wire-cli/logs/archive/*.log.gz | grep "ERROR"
 
 2. Verify log level settings:
    ```bash
-   env | grep WIRE_
+   env | grep WIRE_LOG_LEVEL
    ```
 
 3. Check if log file is being written:
@@ -212,37 +230,34 @@ zcat ~/.cache/wire-cli/logs/archive/*.log.gz | grep "ERROR"
    ls -lh ~/.cache/wire-cli/logs/wire-cli.log
    ```
 
+4. Try a custom log directory with write permissions:
+   ```bash
+   export LOG_DIR=/tmp/wire-cli-logs
+   mkdir -p /tmp/wire-cli-logs
+   wire-cli --verbose sync status
+   tail -f /tmp/wire-cli-logs/wire-cli.log
+   ```
+
 ### Issue: Too many logs
 
-1. Reduce console log level:
+1. Reduce log level to ERROR or WARN:
    ```bash
-   export WIRE_CONSOLE_LOG_LEVEL=ERROR
+   export WIRE_LOG_LEVEL=ERROR
    ```
 
-2. Reduce file log level:
+2. Or use --log-level option:
    ```bash
-   export WIRE_FILE_LOG_LEVEL=INFO
-   ```
-
-3. Disable specific modules:
-   ```bash
-   export WIRE_KALIUM_LOG_LEVEL=WARN
+   wire-cli --log-level WARN sync status
    ```
 
 ### Issue: Logs not helpful for debugging
 
-1. Enable TRACE level for specific modules:
+1. Enable TRACE level for maximum detail:
    ```bash
-   export WIRE_SYNC_LOG_LEVEL=TRACE
-   export WIRE_NETWORK_LOG_LEVEL=TRACE
+   export WIRE_LOG_LEVEL=TRACE
    ```
 
-2. Enable Kalium SDK logging:
-   ```bash
-   export WIRE_KALIUM_LOG_LEVEL=DEBUG
-   ```
-
-3. Check for warnings that might indicate underlying issues:
+2. Check for warnings that might indicate underlying issues:
    ```bash
    grep "WARN" ~/.cache/wire-cli/logs/wire-cli.log
    ```
@@ -268,17 +283,37 @@ zcat ~/.cache/wire-cli/logs/archive/*.log.gz | grep "ERROR"
    rm ~/.cache/wire-cli/logs/archive/wire-cli-*.log.gz
    ```
 
-## Environment Variables Quick Reference
+6. **Use custom log directories for testing**: When debugging specific issues, use a dedicated log directory:
+   ```bash
+   export LOG_DIR=~/debug-logs/$(date +%Y%m%d-%H%M%S)
+   mkdir -p "$LOG_DIR"
+   wire-cli --verbose sync status
+   ```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WIRE_CONSOLE_LOG_LEVEL` | `INFO` | Console output level (ERROR, WARN, INFO, DEBUG, TRACE) |
-| `WIRE_FILE_LOG_LEVEL` | `DEBUG` | Log file output level |
-| `WIRE_SYNC_LOG_LEVEL` | `DEBUG` | Sync operations logging |
-| `WIRE_AUTH_LOG_LEVEL` | `DEBUG` | Authentication operations logging |
-| `WIRE_NETWORK_LOG_LEVEL` | `DEBUG` | Network connectivity checks logging |
-| `WIRE_KALIUM_LOG_LEVEL` | `INFO` | Kalium SDK integration logging |
-| `wire.log.level` | `INFO` | Legacy fallback (affects both) |
+## Configuration Summary
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--log-level` | `INFO` | Set logging level (ERROR, WARN, INFO, DEBUG, TRACE) |
+| `--log-dir` | `~/.cache/wire-cli/logs` | Custom log directory path |
+| `--verbose`, `-v` | - | Shorthand for `--log-level DEBUG` |
+| `WIRE_LOG_LEVEL` | `INFO` | Environment variable for log level |
+| `LOG_DIR` | `~/.cache/wire-cli/logs` | Environment variable for log directory |
+
+## Migration from Old Configuration
+
+If you were previously using module-specific log level variables (`WIRE_SYNC_LOG_LEVEL`, `WIRE_AUTH_LOG_LEVEL`, etc.), they are no longer supported. Instead, use a single log level:
+
+```bash
+# Old way (no longer supported)
+export WIRE_SYNC_LOG_LEVEL=DEBUG
+export WIRE_AUTH_LOG_LEVEL=DEBUG
+
+# New way
+export WIRE_LOG_LEVEL=DEBUG
+```
+
+The single `WIRE_LOG_LEVEL` now applies to all logging (console, file, and all modules).
 
 ## Additional Resources
 

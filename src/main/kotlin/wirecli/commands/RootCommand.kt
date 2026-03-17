@@ -42,7 +42,7 @@ class RootCommand : NoOpCliktCommand(
             val logbackContext = LoggerFactory.getILoggerFactory() as LoggerContext
             val rootLogger = logbackContext.getLogger(Logger.ROOT_LOGGER_NAME)
             rootLogger.level = Level.valueOf(effectiveLevel)
-            System.setProperty("wire.log.level", effectiveLevel)
+            System.setProperty("WIRE_LOG_LEVEL", effectiveLevel)
         } catch (e: Exception) {
             // Silently continue if logging setup fails
         }
@@ -67,7 +67,7 @@ class RootCommand : NoOpCliktCommand(
             )
         }
 
-        logger.info { "Wire CLI initialized (logs: $logDirPath)" }
+        logger.info { "Wire CLI initialized (log level: $effectiveLevel, logs: $logDirPath)" }
     }
 
     /**

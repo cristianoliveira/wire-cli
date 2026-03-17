@@ -30,19 +30,19 @@ class RootCommand : NoOpCliktCommand(
     }
 
     private fun configureLogging() {
-        // Apply log level from --log-level or WIRE_LOG_LEVEL env var
+        // Apply log level from --log-level or WIRECLI_LOG_LEVEL env var
         val effectiveLevel =
             when {
                 verbose -> "DEBUG" // --verbose takes priority
                 logLevel != null -> logLevel!!.uppercase()
-                else -> System.getenv("WIRE_LOG_LEVEL")?.uppercase() ?: "INFO"
+                else -> System.getenv("WIRECLI_LOG_LEVEL")?.uppercase() ?: "INFO"
             }
 
         try {
             val logbackContext = LoggerFactory.getILoggerFactory() as LoggerContext
             val rootLogger = logbackContext.getLogger(Logger.ROOT_LOGGER_NAME)
             rootLogger.level = Level.valueOf(effectiveLevel)
-            System.setProperty("WIRE_LOG_LEVEL", effectiveLevel)
+            System.setProperty("WIRECLI_LOG_LEVEL", effectiveLevel)
         } catch (e: Exception) {
             // Silently continue if logging setup fails
         }
@@ -56,7 +56,7 @@ class RootCommand : NoOpCliktCommand(
         val logDirPath =
             logDir
                 ?: File(System.getProperty("user.home"), ".cache/wire-cli/logs").absolutePath
-        System.setProperty("LOG_DIR", logDirPath)
+        System.setProperty("WIRECLI_LOG_DIR", logDirPath)
 
         // Create log directory if it doesn't exist
         try {

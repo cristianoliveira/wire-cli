@@ -17,8 +17,8 @@ import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
     // Set log level from environment variable before logback initialization
-    val logLevel = System.getenv("WIRE_LOG_LEVEL") ?: "INFO"
-    System.setProperty("WIRE_LOG_LEVEL", logLevel.uppercase())
+    val logLevel = System.getenv("WIRECLI_LOG_LEVEL") ?: "INFO"
+    System.setProperty("WIRECLI_LOG_LEVEL", logLevel.uppercase())
 
     // Detect if --json or --json-lines flags are present early
     // This allows us to suppress console logging before initialization

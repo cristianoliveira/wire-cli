@@ -42,7 +42,7 @@ wire-cli -v sync status
 
 ```bash
 # Set log level globally
-export WIRE_LOG_LEVEL=DEBUG
+export WIRECLI_LOG_LEVEL=DEBUG
 
 # Then run any command
 wire-cli sync status
@@ -50,7 +50,7 @@ wire-cli sync status
 
 ### Setting Log Path
 
-Customize where logs are stored using the `--log-dir` option or `LOG_DIR` environment variable.
+Customize where logs are stored using the `--log-dir` option or `WIRECLI_LOG_DIR` environment variable.
 
 #### Using Command-Line Options
 
@@ -63,7 +63,7 @@ wire-cli --log-dir /path/to/custom/logs sync status
 
 ```bash
 # Set log directory globally
-export LOG_DIR=/path/to/custom/logs
+export WIRECLI_LOG_DIR=/path/to/custom/logs
 
 # Then run any command
 wire-cli sync status
@@ -78,7 +78,7 @@ wire-cli sync status
 wire-cli --log-level DEBUG login --email user@example.com
 
 # Or using environment variable
-export WIRE_LOG_LEVEL=DEBUG
+export WIRECLI_LOG_LEVEL=DEBUG
 wire-cli login --email user@example.com
 ```
 
@@ -109,7 +109,7 @@ Look for:
 
 ```bash
 # Enable TRACE level for maximum detail
-export WIRE_LOG_LEVEL=TRACE
+export WIRECLI_LOG_LEVEL=TRACE
 wire-cli sync diagnostics
 ```
 
@@ -117,7 +117,7 @@ wire-cli sync diagnostics
 
 ```bash
 # Only show errors and warnings
-export WIRE_LOG_LEVEL=ERROR
+export WIRECLI_LOG_LEVEL=ERROR
 
 # Or use --log-level
 wire-cli --log-level ERROR sync status
@@ -164,7 +164,7 @@ zcat ~/.cache/wire-cli/logs/archive/*.log.gz | grep "ERROR"
 
 ```bash
 # Set a custom log directory
-export LOG_DIR=~/my-logs
+export WIRECLI_LOG_DIR=~/my-logs
 mkdir -p ~/my-logs
 
 # Run commands - logs will go to the custom location
@@ -222,7 +222,7 @@ tail -f ~/my-logs/wire-cli.log
 
 2. Verify log level settings:
    ```bash
-   env | grep WIRE_LOG_LEVEL
+   env | grep WIRECLI_LOG_LEVEL
    ```
 
 3. Check if log file is being written:
@@ -232,7 +232,7 @@ tail -f ~/my-logs/wire-cli.log
 
 4. Try a custom log directory with write permissions:
    ```bash
-   export LOG_DIR=/tmp/wire-cli-logs
+   export WIRECLI_LOG_DIR=/tmp/wire-cli-logs
    mkdir -p /tmp/wire-cli-logs
    wire-cli --verbose sync status
    tail -f /tmp/wire-cli-logs/wire-cli.log
@@ -242,7 +242,7 @@ tail -f ~/my-logs/wire-cli.log
 
 1. Reduce log level to ERROR or WARN:
    ```bash
-   export WIRE_LOG_LEVEL=ERROR
+   export WIRECLI_LOG_LEVEL=ERROR
    ```
 
 2. Or use --log-level option:
@@ -254,7 +254,7 @@ tail -f ~/my-logs/wire-cli.log
 
 1. Enable TRACE level for maximum detail:
    ```bash
-   export WIRE_LOG_LEVEL=TRACE
+   export WIRECLI_LOG_LEVEL=TRACE
    ```
 
 2. Check for warnings that might indicate underlying issues:
@@ -285,8 +285,8 @@ tail -f ~/my-logs/wire-cli.log
 
 6. **Use custom log directories for testing**: When debugging specific issues, use a dedicated log directory:
    ```bash
-   export LOG_DIR=~/debug-logs/$(date +%Y%m%d-%H%M%S)
-   mkdir -p "$LOG_DIR"
+   export WIRECLI_LOG_DIR=~/debug-logs/$(date +%Y%m%d-%H%M%S)
+   mkdir -p "$WIRECLI_LOG_DIR"
    wire-cli --verbose sync status
    ```
 
@@ -297,8 +297,8 @@ tail -f ~/my-logs/wire-cli.log
 | `--log-level` | `INFO` | Set logging level (ERROR, WARN, INFO, DEBUG, TRACE) |
 | `--log-dir` | `~/.cache/wire-cli/logs` | Custom log directory path |
 | `--verbose`, `-v` | - | Shorthand for `--log-level DEBUG` |
-| `WIRE_LOG_LEVEL` | `INFO` | Environment variable for log level |
-| `LOG_DIR` | `~/.cache/wire-cli/logs` | Environment variable for log directory |
+| `WIRECLI_LOG_LEVEL` | `INFO` | Environment variable for log level |
+| `WIRECLI_LOG_DIR` | `~/.cache/wire-cli/logs` | Environment variable for log directory |
 
 ## Migration from Old Configuration
 
@@ -310,10 +310,10 @@ export WIRE_SYNC_LOG_LEVEL=DEBUG
 export WIRE_AUTH_LOG_LEVEL=DEBUG
 
 # New way
-export WIRE_LOG_LEVEL=DEBUG
+export WIRECLI_LOG_LEVEL=DEBUG
 ```
 
-The single `WIRE_LOG_LEVEL` now applies to all logging (console, file, and all modules).
+The single `WIRECLI_LOG_LEVEL` now applies to all logging (console, file, and all modules).
 
 ## Additional Resources
 

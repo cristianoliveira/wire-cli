@@ -4,15 +4,15 @@
   <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
 
   <!-- Log directory property with fallback to ~/.cache/wire-cli/logs -->
-  <property name="LOG_DIR" value="${LOG_DIR:-${user.home}/.cache/wire-cli/logs}"/>
+  <property name="LOG_DIR" value="${WIRECLI_LOG_DIR:-${user.home}/.cache/wire-cli/logs}"/>
 
   <!-- Single log level for both console and file output -->
-  <!-- Can be overridden with WIRE_LOG_LEVEL environment variable or --log-level option -->
+  <!-- Can be overridden with WIRECLI_LOG_LEVEL environment variable or --log-level option -->
   <!-- Default: INFO (shows warnings and important messages) -->
   <!-- Set to DEBUG for verbose output during troubleshooting -->
   <!-- Set to TRACE for extremely detailed logging -->
   <!-- Set to ERROR for minimal output -->
-  <property name="LOG_LEVEL" value="${WIRE_LOG_LEVEL:-INFO}"/>
+  <property name="LOG_LEVEL" value="${WIRECLI_LOG_LEVEL:-INFO}"/>
 
   <!-- APPENDER 1: Console Output (outputs to stderr) -->
   <!-- Format: [LEVEL] message - clean and human-readable for users -->

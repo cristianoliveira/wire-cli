@@ -6,11 +6,14 @@ import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthRedactor
 import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
 import wirecli.auth.ExitCodes
 import wirecli.auth.LoginInput
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * CLI command to authenticate a user and persist their session locally.
@@ -56,14 +59,19 @@ class LoginCommand(
      * @post If failed, error message is printed and exit code indicates failure type
      */
     override fun run() {
+        logger.info { "Login command started for email: $email" }
+
         if (passwordStdin && password != null) {
+            logger.warn { "Both --password and --password-stdin provided; must use only one" }
             echo("Use either --password or --password-stdin, not both.", err = true)
             throw ProgramResult(ExitCodes.VALIDATION_ERROR)
         }
 
+        logger.debug { "Resolving password input method" }
         val resolvedPassword =
             when {
                 password != null -> {
+                    logger.warn { "Using deprecated --password option; consider interactive prompt or --password-stdin" }
                     echo(
                         "Warning: --password is deprecated and may expose secrets in process args. " +
                             "Prefer prompt input or --password-stdin.",
@@ -72,14 +80,24 @@ class LoginCommand(
                     password
                 }
 
-                passwordStdin -> readPasswordFromStdin()
-                else -> readPasswordFromConsole()
+                passwordStdin -> {
+                    logger.debug { "Reading password from stdin" }
+                    readPasswordFromStdin()
+                }
+                else -> {
+                    logger.debug { "Reading password from console prompt" }
+                    readPasswordFromConsole()
+                }
             }
 
         if (resolvedPassword.isNullOrEmpty()) {
+            logger.warn { "Password validation failed: no password provided" }
             echo("Password is required. Use interactive prompt, --password-stdin, or --password.", err = true)
             throw ProgramResult(ExitCodes.VALIDATION_ERROR)
         }
+
+        logger.debug { "Password resolved successfully (${resolvedPassword.length} characters)" }
+        logger.debug { "Calling authentication service with email: $email, server: $server" }
 
         when (
             val result =
@@ -91,8 +109,12 @@ class LoginCommand(
                     ),
                 )
         ) {
-            is AuthResult.Success -> echo(result.message)
+            is AuthResult.Success -> {
+                logger.info { "Login successful for email: $email" }
+                echo(result.message)
+            }
             is AuthResult.Failure -> {
+                logger.warn { "Login failed for email: $email - ${AuthRedactor.redact(result.message)}" }
                 echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }
@@ -110,10 +132,23 @@ class LoginCommand(
      * @post If successful, return is trimmed (no trailing \\r)
      */
     private fun readPasswordFromStdin(): String? {
-        return System.`in`
-            .bufferedReader()
-            .readLine()
-            ?.trimEnd('\r')
+        logger.debug { "Opening stdin for password input" }
+        return try {
+            val password =
+                System.`in`
+                    .bufferedReader()
+                    .readLine()
+                    ?.trimEnd('\r')
+            if (password != null) {
+                logger.debug { "Password read from stdin successfully (${password.length} characters)" }
+            } else {
+                logger.warn { "No password data available from stdin" }
+            }
+            password
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to read password from stdin" }
+            null
+        }
     }
 
     /**
@@ -128,8 +163,26 @@ class LoginCommand(
      * @post If successful, returned password is non-empty
      */
     private fun readPasswordFromConsole(): String? {
-        val console = System.console() ?: return null
-        val passwordChars = console.readPassword("Password: ") ?: return null
-        return String(passwordChars)
+        logger.debug { "Attempting to read password from console" }
+        val console = System.console()
+        if (console == null) {
+            logger.warn { "System console not available - cannot read password interactively" }
+            return null
+        }
+
+        return try {
+            val passwordChars = console.readPassword("Password: ")
+            if (passwordChars != null) {
+                val password = String(passwordChars)
+                logger.debug { "Password read from console successfully (${password.length} characters)" }
+                password
+            } else {
+                logger.warn { "Console read password returned null" }
+                null
+            }
+        } catch (e: Exception) {
+            logger.error(e) { "Error reading password from console" }
+            null
+        }
     }
 }

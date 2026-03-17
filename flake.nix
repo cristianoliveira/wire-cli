@@ -68,6 +68,14 @@
 
             # Update buildSrc/settings.gradle.kts to use centralized repository management
             cat > $out/vendor/kalium/buildSrc/settings.gradle.kts << 'EOF'
+            pluginManagement {
+                repositories {
+                    gradlePluginPortal()
+                    google()
+                    mavenCentral()
+                }
+            }
+
             dependencyResolutionManagement {
                 repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
                 repositories {
@@ -88,19 +96,18 @@
 
             # Patch main kalium settings.gradle.kts to use centralized repository management
             # This is required for buildGradleApplication to replace repositories with the offline maven repo
-            # Replace the dependencyResolutionManagement block with one that includes FAIL_ON_PROJECT_REPOS
-            sed -i '/^dependencyResolutionManagement {/,/^}/c\
-            dependencyResolutionManagement {\
-                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)\
+            # The kalium/settings.gradle.kts already has pluginManagement, so we only modify its repositories
+            # to match what buildGradleApplication expects
+
+            sed -i 's/repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)/repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)/' $out/vendor/kalium/settings.gradle.kts || true
+            sed -i '/repositories {/,/}/c\
                 repositories {\
                     mavenCentral()\
-                }\
-                versionCatalogs {\
-                    create("awssdk") {\
-                        from("aws.sdk.kotlin:version-catalog:1.5.89")\
-                    }\
-                }\
-            }' $out/vendor/kalium/settings.gradle.kts
+                }' $out/vendor/kalium/settings.gradle.kts || true
+
+            # Remove buildscript repositories block from kalium/build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
+            # This is needed because buildscript dependencies will come from pluginManagement in settings
+            sed -i '/^buildscript {/,/^}/s/repositories {[^}]*}//' $out/vendor/kalium/build.gradle.kts || true
 
             # Remove repositories block from kalium/build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
             # This block includes wireDetektRulesRepo() which is an Ivy repo that doesn't follow Maven patterns
@@ -125,6 +132,15 @@
             # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
             # The logic module explicitly creates iOS targets which fail in sandbox without SDK
             sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
+
+            # Remove the missing detekt-rules dependency from buildSrc/detekt.gradle.kts
+            # The com.wire:detekt-rules:20260128-162246 JAR doesn't exist in any public repository
+            # Use a more robust sed pattern to remove the entire detektPlugins("com.wire:detekt-rules"...) block
+            sed -i '/detektPlugins("com\.wire:detekt-rules/,/^[[:space:]]*}/d' $out/vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
+
+            # Also remove the detekt-rules entry from verification-metadata.xml
+            # This prevents Gradle from trying to verify and download the non-existent artifact
+            sed -i '/<component group="com.wire" name="detekt-rules"/,/<\/component>/d' $out/gradle/verification-metadata.xml
           '';
         in
         {

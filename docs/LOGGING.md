@@ -139,6 +139,12 @@ grep "ERROR" ~/.cache/wire-cli/logs/wire-cli.log
 
 # Search for sync-related messages
 grep "sync" ~/.cache/wire-cli/logs/wire-cli.log -i
+
+# Search for profile-related messages
+grep "profile" ~/.cache/wire-cli/logs/wire-cli.log -i
+
+# Search for presence-related messages
+grep "presence" ~/.cache/wire-cli/logs/wire-cli.log -i
 ```
 
 ### Archived Logs
@@ -176,6 +182,41 @@ tail -f ~/my-logs/wire-cli.log
 
 ## Understanding Log Messages
 
+### Profile Service Logs
+
+```
+[INFO] Profile command started
+[DEBUG] SessionBackedProfileService: Retrieving current profile
+[DEBUG] RealKaliumProfileApiClient: Fetching profile for user: user@example.com
+[DEBUG] SdkKaliumProfileRuntime: Initializing Kalium CoreLogic for profile runtime
+[DEBUG] SdkKaliumProfileRuntime: Kalium data path: /home/user/.wire/kalium
+[DEBUG] SdkKaliumProfileRuntime: Kalium configs loaded for mode: CLI
+[DEBUG] Profile session scope resolved successfully for user: user@example.com
+[DEBUG] Fetching self user data for: user@example.com
+[DEBUG] Self user data retrieved successfully: name=John Doe, handle=johndoe
+[INFO] Successfully retrieved profile: name=John Doe, handle=johndoe
+```
+
+### Presence Service Logs
+
+```
+[INFO] Presence command started (get)
+[DEBUG] SessionBackedPresenceService: Retrieving current presence
+[DEBUG] RealKaliumPresenceApiClient: Fetching presence for user: user@example.com
+[DEBUG] SdkKaliumPresenceRuntime: Initializing Kalium CoreLogic for presence runtime
+[DEBUG] SdkKaliumPresenceRuntime: Kalium data path: /home/user/.wire/kalium
+[DEBUG] Presence session scope resolved successfully for user: user@example.com
+[DEBUG] Fetching self availability status for: user@example.com
+[DEBUG] Self availability status retrieved successfully: AVAILABLE
+[INFO] Presence retrieved successfully: online
+
+[INFO] Presence set command started: status=busy
+[INFO] Updating presence to: BUSY for user: user@example.com
+[DEBUG] Setting self availability status to: BUSY for: user@example.com
+[DEBUG] Self availability status updated successfully
+[INFO] Presence updated successfully: busy
+```
+
 ### Sync Service Logs
 
 ```
@@ -209,6 +250,10 @@ tail -f ~/my-logs/wire-cli.log
 ```
 [ERROR] Failed to get sync status for user: user@example.com
 [ERROR] java.net.SocketTimeoutException: timeout
+
+[WARN] Failed to retrieve profile: Profile fetch failed: network is unreachable. Check your connection and retry.
+
+[WARN] Failed to set presence: Presence update could not be completed. Retry later or check server settings.
 ```
 
 ## Troubleshooting Tips

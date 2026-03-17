@@ -3,6 +3,7 @@ package wirecli.presence
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.user.UserAvailabilityStatus
 import com.wire.kalium.logic.data.user.UserId
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
@@ -11,26 +12,38 @@ import wirecli.auth.ExitCodes
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 
+private val logger = KotlinLogging.logger {}
+
 internal class RealKaliumPresenceApiClient(
     private val runtime: RealKaliumPresenceRuntime,
 ) : PresenceApiClient {
     override fun fetchPresence(session: AuthSession): PresenceResult {
+        logger.debug { "RealKaliumPresenceApiClient: Fetching presence for user: ${session.userId}" }
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session)) {
                 is PresenceStepResult.Success -> scope.value
-                is PresenceStepResult.Failure -> return scope.toPresenceFailure()
+                is PresenceStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope for presence fetch: ${scope.category}" }
+                    return scope.toPresenceFailure()
+                }
             }
 
         return when (val status = runtime.getSelfAvailabilityStatus(sessionScope)) {
-            is PresenceStepResult.Success ->
+            is PresenceStepResult.Success -> {
+                val normalizedState = PresenceNormalizer.normalize(status.value.toWirePresenceRawValue())
+                logger.info { "Successfully retrieved presence: $normalizedState" }
                 PresenceResult.Success(
                     presence =
                         PresenceView(
-                            state = PresenceNormalizer.normalize(status.value.toWirePresenceRawValue()),
+                            state = normalizedState,
                         ),
                 )
+            }
 
-            is PresenceStepResult.Failure -> status.toPresenceFailure()
+            is PresenceStepResult.Failure -> {
+                logger.warn { "Failed to get self availability status: ${status.category}" }
+                status.toPresenceFailure()
+            }
         }
     }
 
@@ -38,19 +51,29 @@ internal class RealKaliumPresenceApiClient(
         session: AuthSession,
         state: WritablePresenceState,
     ): PresenceResult {
+        logger.info { "Updating presence to: $state for user: ${session.userId}" }
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session)) {
                 is PresenceStepResult.Success -> scope.value
-                is PresenceStepResult.Failure -> return scope.toSetPresenceFailure()
+                is PresenceStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope for presence update: ${scope.category}" }
+                    return scope.toSetPresenceFailure()
+                }
             }
 
         return when (val result = runtime.setSelfAvailabilityStatus(sessionScope, state.toKaliumAvailabilityStatus())) {
-            is PresenceStepResult.Success ->
+            is PresenceStepResult.Success -> {
+                val normalizedState = PresenceNormalizer.normalize(state.value)
+                logger.info { "Presence updated successfully: $normalizedState" }
                 PresenceResult.Success(
-                    presence = PresenceView(state = PresenceNormalizer.normalize(state.value)),
+                    presence = PresenceView(state = normalizedState),
                 )
+            }
 
-            is PresenceStepResult.Failure -> result.toSetPresenceFailure()
+            is PresenceStepResult.Failure -> {
+                logger.warn { "Failed to set self availability status: ${result.category}" }
+                result.toSetPresenceFailure()
+            }
         }
     }
 }
@@ -98,9 +121,14 @@ internal class SdkKaliumPresenceRuntime(
 
     private val coreLogicLazy =
         lazy {
+            logger.debug { "SdkKaliumPresenceRuntime: Initializing Kalium CoreLogic for presence runtime" }
+            val rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium"
+            logger.debug { "SdkKaliumPresenceRuntime: Kalium data path: $rootPath" }
+            val configs = kaliumCliConfigs(cliMode)
+            logger.debug { "SdkKaliumPresenceRuntime: Kalium configs loaded for mode: $cliMode" }
             CoreLogic(
-                rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
-                kaliumConfigs = kaliumCliConfigs(cliMode),
+                rootPath = rootPath,
+                kaliumConfigs = configs,
                 userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}",
             )
         }
@@ -109,7 +137,10 @@ internal class SdkKaliumPresenceRuntime(
     override fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope> {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
-                ?: return PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
+                ?: run {
+                    logger.warn { "Invalid user ID format: ${session.userId}" }
+                    return PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
+                }
 
         return runBlocking {
             try {
@@ -119,6 +150,7 @@ internal class SdkKaliumPresenceRuntime(
                     }
                 }
                 activeSessionUserIds += qualifiedId
+                logger.debug { "Presence session scope resolved successfully for user: ${session.userId}" }
                 PresenceStepResult.Success(
                     KaliumPresenceSessionScope(
                         userId = session.userId,
@@ -126,6 +158,7 @@ internal class SdkKaliumPresenceRuntime(
                     ),
                 )
             } catch (error: Throwable) {
+                logger.error(error) { "Failed to resolve presence session scope for user: ${session.userId}" }
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }
         }
@@ -134,10 +167,14 @@ internal class SdkKaliumPresenceRuntime(
     override fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus> {
         val qualifiedId =
             sessionScope.userId.toQualifiedIdOrNull()
-                ?: return PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
+                ?: run {
+                    logger.warn { "Invalid user ID format for presence: ${sessionScope.userId}" }
+                    return PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
+                }
 
         return runBlocking {
             try {
+                logger.debug { "Fetching self availability status for: $qualifiedId" }
                 val selfUser =
                     coreLogic.sessionScope(qualifiedId) {
                         users.getSelfUser()
@@ -153,8 +190,10 @@ internal class SdkKaliumPresenceRuntime(
                             "This indicates a failure to fetch user availability data.",
                     )
                 }
+                logger.debug { "Self availability status retrieved successfully: $status" }
                 PresenceStepResult.Success(status)
             } catch (error: Throwable) {
+                logger.error(error) { "Failed to get self availability status for: $qualifiedId" }
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }
         }
@@ -166,15 +205,21 @@ internal class SdkKaliumPresenceRuntime(
     ): PresenceStepResult<Unit> {
         val qualifiedId =
             sessionScope.userId.toQualifiedIdOrNull()
-                ?: return PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
+                ?: run {
+                    logger.warn { "Invalid user ID format for setting presence: ${sessionScope.userId}" }
+                    return PresenceStepResult.Failure(PresenceFailureCategory.UNAUTHORIZED)
+                }
 
         return runBlocking {
             try {
+                logger.debug { "Setting self availability status to: $status for: $qualifiedId" }
                 coreLogic.sessionScope(qualifiedId) {
                     users.updateSelfAvailabilityStatus(status)
                 }
+                logger.debug { "Self availability status updated successfully" }
                 PresenceStepResult.Success(Unit)
             } catch (error: Throwable) {
+                logger.error(error) { "Failed to set self availability status for: $qualifiedId" }
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }
         }
@@ -189,6 +234,7 @@ internal class SdkKaliumPresenceRuntime(
             }
         }
         coreLogic.getGlobalScope().cancel()
+        logger.debug { "SdkKaliumPresenceRuntime: Presence runtime shutdown complete" }
     }
 
     // TODO: Consider more robust error categorization (e.g., using exception types)

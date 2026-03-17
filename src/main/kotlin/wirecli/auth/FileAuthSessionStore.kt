@@ -1,5 +1,6 @@
 package wirecli.auth
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.AtomicMoveNotSupportedException
@@ -8,6 +9,8 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * File-based storage for Wire CLI authentication sessions.
@@ -33,7 +36,14 @@ class FileAuthSessionStore(
      * @post Session contains non-null userId and accessToken if returned
      */
     override fun readActiveSession(): AuthSession? {
-        return readSessionInventory().activeSession
+        logger.debug { "Reading active session from store" }
+        val session = readSessionInventory().activeSession
+        if (session != null) {
+            logger.debug { "Active session found for userId: ${session.userId}" }
+        } else {
+            logger.debug { "No active session found in store" }
+        }
+        return session
     }
 
     /**
@@ -50,25 +60,49 @@ class FileAuthSessionStore(
      * @post diagnosticMessage is set if migration failed
      */
     override fun readSessionInventory(): SessionInventory {
+        logger.debug { "Reading session inventory from: ${sessionFile.absolutePath}" }
+
         if (!sessionFile.exists()) {
+            logger.debug { "Session file does not exist: ${sessionFile.absolutePath}" }
             return SessionInventory(activeSession = null, validSessions = 0, invalidSessions = 0)
         }
 
-        val parsedData = parseStoredSessions(sessionFile.readLines())
+        logger.debug { "Session file found, parsing contents" }
+        val parsedData =
+            try {
+                parseStoredSessions(sessionFile.readLines())
+            } catch (e: Exception) {
+                logger.error(e) { "Error reading session file: ${sessionFile.absolutePath}" }
+                return SessionInventory(
+                    activeSession = null,
+                    validSessions = 0,
+                    invalidSessions = 0,
+                    diagnosticMessage = "Failed to read session file: ${e.message}",
+                )
+            }
+
+        logger.debug { "Parsed session format: ${parsedData.format}" }
+
         if (parsedData.format == SessionFileFormat.LEGACY) {
+            logger.info { "Legacy session format detected - attempting migration" }
             val migrated =
                 runCatching {
                     val serialized = serializeVersionedSessions(parsedData.rawPayloadLines)
                     writeAtomically(serialized)
+                    logger.debug { "Legacy session migration completed successfully" }
                 }
 
             if (migrated.isFailure) {
+                logger.warn { "Legacy session migration failed: ${migrated.exceptionOrNull()?.message}" }
                 return parsedData.inventory.copy(
                     diagnosticMessage = AuthMessages.legacySessionMigrationFailed(),
                 )
             }
         }
 
+        logger.debug {
+            "Session inventory loaded: active=${parsedData.inventory.activeSession != null}, valid=${parsedData.inventory.validSessions}, invalid=${parsedData.inventory.invalidSessions}"
+        }
         return parsedData.inventory
     }
 
@@ -84,7 +118,15 @@ class FileAuthSessionStore(
      * @post Write is atomic - file is either fully written or not created
      */
     override fun writeActiveSession(session: AuthSession) {
-        writeAtomically(serializeSingleSession(session))
+        logger.debug { "Persisting session to file: ${sessionFile.absolutePath}" }
+        logger.debug { "Session userId: ${session.userId}, server: ${session.server}" }
+        try {
+            writeAtomically(serializeSingleSession(session))
+            logger.info { "Session persisted successfully to ${sessionFile.absolutePath}" }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to persist session to ${sessionFile.absolutePath}" }
+            throw e
+        }
     }
 
     /**
@@ -96,8 +138,15 @@ class FileAuthSessionStore(
      * @post Safe to call when no session exists (silently succeeds)
      */
     override fun clearActiveSession() {
-        if (sessionFile.exists() && !sessionFile.delete()) {
-            throw IllegalStateException("Failed to clear active session file: ${sessionFile.absolutePath}")
+        logger.debug { "Clearing active session from: ${sessionFile.absolutePath}" }
+        if (sessionFile.exists()) {
+            if (!sessionFile.delete()) {
+                logger.error { "Failed to delete session file: ${sessionFile.absolutePath}" }
+                throw IllegalStateException("Failed to clear active session file: ${sessionFile.absolutePath}")
+            }
+            logger.info { "Session file deleted successfully" }
+        } else {
+            logger.debug { "No session file to delete" }
         }
     }
 
@@ -121,15 +170,24 @@ class FileAuthSessionStore(
         val path = sessionFile.toPath()
         val parent = path.parent
 
+        logger.debug { "Atomic write starting to: $path" }
+
         if (parent != null) {
+            logger.debug { "Creating/verifying parent directory: $parent with permissions 0700" }
             Files.createDirectories(parent)
             restrictDirectoryPermissions(parent)
         }
 
+        logger.debug { "Creating temporary file for atomic write" }
         val tempFile = Files.createTempFile(parent ?: Path.of("."), "session-", ".tmp")
         try {
+            logger.debug { "Setting restricted permissions on temporary file: 0600" }
             restrictFilePermissions(tempFile)
+
+            logger.debug { "Writing session content to temporary file (${contents.length} bytes)" }
             Files.writeString(tempFile, contents, StandardCharsets.UTF_8)
+
+            logger.debug { "Attempting atomic move from $tempFile to $path" }
             try {
                 Files.move(
                     tempFile,
@@ -137,11 +195,20 @@ class FileAuthSessionStore(
                     StandardCopyOption.ATOMIC_MOVE,
                     StandardCopyOption.REPLACE_EXISTING,
                 )
-            } catch (_: AtomicMoveNotSupportedException) {
+                logger.debug { "Atomic move succeeded" }
+            } catch (e: AtomicMoveNotSupportedException) {
+                logger.warn { "Atomic move not supported - falling back to non-atomic move: ${e.message}" }
                 Files.move(tempFile, path, StandardCopyOption.REPLACE_EXISTING)
             }
+
+            logger.debug { "Setting final file permissions: 0600" }
             restrictFilePermissions(path)
+            logger.info { "Atomic write completed successfully" }
+        } catch (e: Exception) {
+            logger.error(e) { "Atomic write failed" }
+            throw e
         } finally {
+            logger.debug { "Cleaning up temporary file: $tempFile" }
             Files.deleteIfExists(tempFile)
         }
     }
@@ -159,8 +226,10 @@ class FileAuthSessionStore(
      */
     private fun restrictDirectoryPermissions(path: Path) {
         runCatching {
+            logger.debug { "Setting POSIX directory permissions (0700) on: $path" }
             Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rwx------"))
         }.recover {
+            logger.debug { "POSIX permissions not supported - using fallback for: $path" }
             path.toFile().setReadable(false, false)
             path.toFile().setReadable(true, true)
             path.toFile().setWritable(false, false)
@@ -183,8 +252,10 @@ class FileAuthSessionStore(
      */
     private fun restrictFilePermissions(path: Path) {
         runCatching {
+            logger.debug { "Setting POSIX file permissions (0600) on: $path" }
             Files.setPosixFilePermissions(path, setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE))
         }.recover {
+            logger.debug { "POSIX permissions not supported - using fallback for: $path" }
             path.toFile().setReadable(false, false)
             path.toFile().setReadable(true, true)
             path.toFile().setWritable(false, false)

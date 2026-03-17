@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="false">
+  <!-- Disable logback's own status logging to avoid polluting command output -->
+  <!-- These are the INFO messages like "|-INFO in ch.qos.logback..." that appear during configuration -->
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+  
+  <!-- Log directory property with fallback to ~/.cache/wire-cli/logs -->
+  <property name="LOG_DIR" value="${LOG_DIR:-${user.home}/.cache/wire-cli/logs}"/>
+
+  <!-- APPENDER 1: Console Output (outputs to stderr) -->
+  <!-- Format: [LEVEL] message - clean and human-readable for users -->
+  <!-- Note: Logs are sent to System.err to avoid interfering with command output on System.out -->
+  <!-- This appender can be disabled at runtime if JSON output or test mode is enabled -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <encoder>
+      <pattern>%highlight([%-5level]) %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Dummy appender for when console logging should be disabled -->
+  <appender name="NOOP" class="ch.qos.logback.core.helpers.NOPAppender">
+  </appender>
+
+  <!-- APPENDER 2: File Output with Rotation -->
+  <!-- Format: timestamp | level | logger | message - detailed for debugging -->
+  <!-- File logging is ALWAYS enabled, regardless of output format -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/wire-cli.log</file>
+    <encoder>
+      <pattern>%d{ISO8601} | %-5level | %logger{32} | %msg%n</pattern>
+    </encoder>
+    
+    <!-- Rolling Policy: Size + Time + Count -->
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <!-- File pattern: wire-cli-2026-03-15.1.log.gz -->
+      <fileNamePattern>${LOG_DIR}/archive/wire-cli-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      
+      <!-- Rotate at 50MB (prevents single file from becoming too large) -->
+      <maxFileSize>50MB</maxFileSize>
+      
+      <!-- Keep logs for 14 days -->
+      <maxHistory>14</maxHistory>
+    </rollingPolicy>
+  </appender>
+
+  <!-- Root Logger: All loggers inherit this configuration -->
+  <root level="${wire.log.level:-INFO}">
+    <!-- Console appender will be conditionally disabled via RootCommand when JSON output is detected -->
+    <appender-ref ref="CONSOLE" />
+    <!-- File appender always enabled for debugging and auditing -->
+    <appender-ref ref="FILE" />
+  </root>
+</configuration>

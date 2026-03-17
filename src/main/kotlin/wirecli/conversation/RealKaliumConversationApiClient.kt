@@ -1,11 +1,14 @@
 package wirecli.conversation
 
 import com.wire.kalium.logic.data.conversation.ConversationDetails
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.Instant
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import com.wire.kalium.logic.data.conversation.Conversation.Type as KaliumConversationType
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Real API client implementation using Kalium SDK for conversation operations
@@ -14,15 +17,24 @@ internal class RealKaliumConversationApiClient(
     private val runtime: RealKaliumConversationRuntime,
 ) : ConversationApiClient {
     override fun listConversations(session: AuthSession): ListConversationsResult {
+        logger.info { "Listing conversations for current user" }
+        logger.debug { "API call: GET /conversations (list conversations)" }
+
         return when (val result = runtime.listConversations(session)) {
-            is ConversationStepResult.Success ->
+            is ConversationStepResult.Success -> {
+                logger.info { "Successfully retrieved ${result.value.size} conversation(s)" }
+                logger.debug { "Conversation types: ${result.value.map { it::class.simpleName }.groupingBy { it }.eachCount()}" }
                 ListConversationsResult.Success(
                     ConversationListView(
                         conversations = result.value.map { mapConversationDetailsToDomain(it) },
                     ),
                 )
+            }
 
-            is ConversationStepResult.Failure -> result.toListConversationsFailure()
+            is ConversationStepResult.Failure -> {
+                logger.warn { "Failed to list conversations: ${result.category}" }
+                result.toListConversationsFailure()
+            }
         }
     }
 
@@ -30,15 +42,24 @@ internal class RealKaliumConversationApiClient(
         session: AuthSession,
         conversationId: String,
     ): GetConversationResult {
+        logger.info { "Retrieving conversation: $conversationId" }
+        logger.debug { "API call: GET /conversations/$conversationId" }
+
         return when (val result = runtime.getConversation(session, conversationId)) {
-            is ConversationStepResult.Success ->
+            is ConversationStepResult.Success -> {
+                logger.info { "Successfully retrieved conversation: $conversationId" }
+                logger.debug { "Conversation type: ${result.value::class.simpleName}" }
                 GetConversationResult.Success(
                     ConversationDetailView(
                         mapConversationDetailsToDomain(result.value),
                     ),
                 )
+            }
 
-            is ConversationStepResult.Failure -> result.toGetConversationFailure()
+            is ConversationStepResult.Failure -> {
+                logger.warn { "Failed to retrieve conversation $conversationId: ${result.category}" }
+                result.toGetConversationFailure()
+            }
         }
     }
 
@@ -47,30 +68,38 @@ internal class RealKaliumConversationApiClient(
         name: String,
         type: ConversationType,
     ): CreateConversationResult {
+        logger.info { "Creating conversation: name=$name, type=$type" }
+        logger.debug { "API call: POST /conversations (not yet implemented with real backend)" }
+
         // Note: Full creation requires more complex Kalium operations
         // For now, return not implemented
         return CreateConversationResult.Failure(
             message = "Conversation creation not yet implemented with real backend",
             exitCode = ExitCodes.SERVER_ERROR,
-        )
+        ).also { logger.warn { "Conversation creation not yet implemented with real backend" } }
     }
 
     override fun deleteConversation(
         session: AuthSession,
         conversationId: String,
     ): DeleteConversationResult {
+        logger.info { "Deleting conversation: $conversationId" }
+        logger.debug { "API call: DELETE /conversations/$conversationId (not yet implemented with real backend)" }
+
         // Note: Full deletion requires more complex Kalium operations
         // For now, return not implemented
         return DeleteConversationResult.Failure(
             message = "Conversation deletion not yet implemented with real backend",
             exitCode = ExitCodes.SERVER_ERROR,
-        )
+        ).also { logger.warn { "Conversation deletion not yet implemented with real backend" } }
     }
 
     override fun getMemberCount(
         session: AuthSession,
         conversationId: String,
     ): GetConversationResult {
+        logger.debug { "Getting member count for conversation: $conversationId" }
+        logger.debug { "API call: GET /conversations/$conversationId (member count)" }
         return getConversation(session, conversationId)
     }
 

@@ -142,9 +142,8 @@
             # This prevents Gradle from trying to verify and download the non-existent artifact
             sed -i '/<component group="com.wire" name="detekt-rules"/,/<\/component>/d' $out/gradle/verification-metadata.xml
           '';
-        in
-        {
-          default = pkgs.buildGradleApplication {
+
+          wireCli = pkgs.buildGradleApplication {
             pname = "wire-cli";
             version = "0.1.0";
 
@@ -189,6 +188,10 @@
               platforms = supportedSystems;
             };
           };
+        in
+        {
+          default = wireCli;
+          wire-cli = wireCli;
         }
       );
 

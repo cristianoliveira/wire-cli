@@ -160,4 +160,4 @@ jobs:
 
       - name: Test the built binary
         run: |
-          ./result/bin/cli --help
+          ./result/bin/wire-cli --help

@@ -38,11 +38,11 @@ jobs:
 
       - name: Build with Nix
         run: |
-          nix build .#cli
+          nix build .#
 
       - name: Test the built binary
         run: |
-          ./result/bin/cli --help
+          ./result/bin/wire-cli --help
 
       - name: Upload test results
         if: always()

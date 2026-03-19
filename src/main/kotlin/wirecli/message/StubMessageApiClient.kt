@@ -14,8 +14,21 @@ enum class StubMode {
 }
 
 class StubMessageApiClient(
-    private val mode: StubMode,
+    private val environment: Map<String, String> = emptyMap(),
 ) : MessageApiClient {
+    // Support both old constructor (for backward compatibility) and environment-based mode
+    constructor(mode: StubMode) : this(mapOf("__mode__" to mode.name))
+
+    private val mode: StubMode by lazy {
+        val modeString = environment["WIRE_STUB_MODE"] ?: environment["__mode__"] ?: return@lazy StubMode.SUCCESS
+        StubMode.entries.firstOrNull { it.name.lowercase().replace("_", "-") == modeString.lowercase().replace("_", "-") }
+            ?: run {
+                // Try exact match
+                StubMode.entries.firstOrNull { it.name == modeString.uppercase() }
+                    ?: StubMode.SUCCESS
+            }
+    }
+
     override fun sendMessage(
         session: AuthSession,
         conversationId: String,

@@ -304,3 +304,28 @@ validate_json() {
   assert_status 11
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
+
+@test "Given authenticated session, when wire doctor sync runs, then force sync waits for live state" {
+  login_stub_session
+
+  export WIRE_STUB_MODE="status_ready"
+  run_wire doctor sync
+  assert_status 0
+  [[ "${output}" == *"Account Health"* ]]
+  [[ "${output}" == *"ready"* ]]
+}
+
+@test "Given no session, when wire doctor sync runs, then access is denied" {
+  run_wire doctor sync
+  assert_status 11
+  [[ "${output}" == *"Run wire login to re-authenticate"* ]]
+}
+
+@test "Given force sync timeout, when wire doctor sync runs, then degraded exit code is returned" {
+  login_stub_session
+
+  export WIRE_STUB_MODE="sync_wait_timeout"
+  run_wire doctor sync
+  assert_status 1
+  [[ "${output}" == *"Timed out waiting for sync"* ]]
+}

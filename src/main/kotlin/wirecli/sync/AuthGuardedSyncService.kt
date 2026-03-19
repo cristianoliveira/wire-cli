@@ -10,6 +10,23 @@ class AuthGuardedSyncService(
     private val authSessionService: AuthSessionService,
     private val delegate: SyncService,
 ) : SyncService {
+    override fun forceSyncAndWait(): SyncStatusResult {
+        logger.debug { "AuthGuardedSyncService: Checking authentication for forceSyncAndWait" }
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> {
+                logger.debug { "Authentication check passed - delegating to sync service" }
+                delegate.forceSyncAndWait()
+            }
+            is AuthResult.Failure -> {
+                logger.warn { "Authentication check failed: ${authResult.message} (exit code: ${authResult.exitCode})" }
+                SyncStatusResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+            }
+        }
+    }
+
     override fun getCurrentSyncStatus(): SyncStatusResult {
         logger.debug { "AuthGuardedSyncService: Checking authentication for getCurrentSyncStatus" }
         return when (val authResult = authSessionService.requireActiveSession()) {

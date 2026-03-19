@@ -179,6 +179,10 @@ private object NoopDeviceApiClient : DeviceApiClient {
 }
 
 private object NoopSyncApiClient : SyncApiClient {
+    override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+        return SyncStatusResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
         return SyncStatusResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }

@@ -1,12 +1,17 @@
 package wirecli.sync
 
+import com.wire.kalium.common.error.CoreFailure
+import com.wire.kalium.common.error.NetworkFailure
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.sync.SyncState
 import com.wire.kalium.logic.data.user.UserId
+import com.wire.kalium.logic.feature.keypackage.MLSKeyPackageCountResult
+import com.wire.kalium.logic.sync.SyncRequestResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import wirecli.auth.AuthSession
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
@@ -23,6 +28,11 @@ private val logger = KotlinLogging.logger {}
 internal class RealKaliumSyncApiClient(
     private val runtime: RealKaliumSyncRuntime,
 ) : SyncApiClient {
+    override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+        logger.debug { "RealKaliumSyncApiClient: Delegating force sync request to runtime for user: ${session.userId}" }
+        return runtime.forceSyncAndWait(session)
+    }
+
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
         logger.debug { "RealKaliumSyncApiClient: Delegating sync status request to runtime for user: ${session.userId}" }
         return runtime.getSyncStatus(session)
@@ -74,6 +84,8 @@ internal class RealKaliumSyncApiClient(
  * real sync status and diagnostic information.
  */
 internal interface RealKaliumSyncRuntime {
+    fun forceSyncAndWait(session: AuthSession): SyncStatusResult
+
     /**
      * Retrieves the current sync status and health metrics for an authenticated session.
      */
@@ -127,6 +139,11 @@ internal class SdkKaliumSyncRuntime(
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
     private val networkConnectivityChecker: NetworkConnectivityChecker = RealNetworkConnectivityChecker(),
 ) : RealKaliumSyncRuntime {
+    private companion object {
+        const val FORCE_SYNC_WAIT_TIMEOUT_MS = 120_000L
+        const val STATUS_WAIT_TIMEOUT_MS = 15_000L
+    }
+
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
     init {
@@ -165,9 +182,25 @@ internal class SdkKaliumSyncRuntime(
         return runBlocking {
             try {
                 logger.debug { "Entering session scope to observe sync state for user: $qualifiedId" }
-                val syncState: SyncState? =
+                val (syncState, keyPackageCountResult) =
                     coreLogic.sessionScope(qualifiedId) {
-                        observeSyncState().firstOrNull()
+                        val waitResult =
+                            withTimeoutOrNull(STATUS_WAIT_TIMEOUT_MS) {
+                                this@sessionScope.syncExecutor.request { waitUntilLiveOrFailure() }
+                            }
+                        when {
+                            waitResult == null ->
+                                logger.info { "Doctor snapshot timed out waiting for sync to settle; using current state" }
+                            waitResult is SyncRequestResult.Failure ->
+                                logger.info {
+                                    "Doctor snapshot wait ended with sync failure: ${waitResult.error::class.simpleName}"
+                                }
+                            else -> logger.debug { "Doctor snapshot wait reached live state" }
+                        }
+                        Pair(
+                            observeSyncState().firstOrNull(),
+                            client.mlsKeyPackageCountUseCase(fromAPI = false),
+                        )
                     }
 
                 if (syncState == null) {
@@ -198,6 +231,7 @@ internal class SdkKaliumSyncRuntime(
                         mls_pct = calculateMlsPercentage(syncState),
                         timestamp = Instant.now().toString(),
                         network = networkMetrics,
+                        mls = buildMlsMetrics(syncState, keyPackageCountResult),
                     )
 
                 logger.debug {
@@ -210,6 +244,79 @@ internal class SdkKaliumSyncRuntime(
                 SyncStatusResult.Success(view)
             } catch (error: Throwable) {
                 logger.error(error) { "Failed to get sync status for user: $qualifiedId" }
+                SyncStatusResult.Failure(
+                    message = categoryFromThrowableSync(error).getMessage(),
+                    exitCode = categoryFromThrowableSync(error).getExitCode(),
+                )
+            }
+        }
+    }
+
+    override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+        logger.info { "SdkKaliumSyncRuntime: Forcing sync and waiting for live state for user: ${session.userId}" }
+        val qualifiedId =
+            session.userId.toQualifiedIdOrNull()
+                ?: run {
+                    logger.warn { "Invalid user ID format for force sync: ${session.userId}" }
+                    return SyncStatusResult.Failure(
+                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                        exitCode = SyncExitCodes.UNAUTHORIZED,
+                    )
+                }
+        activeSessionUserIds += qualifiedId
+
+        return runBlocking {
+            try {
+                val syncResult =
+                    coreLogic.sessionScope(qualifiedId) {
+                        client.restartSlowSyncProcessForRecoveryUseCase()
+                        withTimeoutOrNull(FORCE_SYNC_WAIT_TIMEOUT_MS) {
+                            this@sessionScope.syncExecutor.request { waitUntilLiveOrFailure() }
+                        }
+                    }
+
+                if (syncResult == null) {
+                    return@runBlocking SyncStatusResult.Failure(
+                        message = "Timed out waiting for sync to reach live state after force sync.",
+                        exitCode = SyncExitCodes.DEGRADED,
+                    )
+                }
+
+                if (syncResult is SyncRequestResult.Failure) {
+                    return@runBlocking mapSyncRequestFailure(syncResult.error)
+                }
+
+                val (syncState, keyPackageCountResult) =
+                    coreLogic.sessionScope(qualifiedId) {
+                        Pair(
+                            observeSyncState().firstOrNull() ?: SyncState.Live,
+                            client.mlsKeyPackageCountUseCase(fromAPI = false),
+                        )
+                    }
+
+                val lagMs = calculateLagMs(syncState)
+                val networkMetrics =
+                    networkConnectivityChecker.checkNetworkConnectivity()?.copy(
+                        estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                    )
+                val metrics =
+                    HealthMetrics(
+                        lag_ms = lagMs,
+                        pending_messages = calculatePendingMessages(syncState),
+                        mls_pct = calculateMlsPercentage(syncState),
+                        timestamp = Instant.now().toString(),
+                        network = networkMetrics,
+                        mls = buildMlsMetrics(syncState, keyPackageCountResult),
+                    )
+
+                SyncStatusResult.Success(
+                    SyncStatusView(
+                        status = mapSyncStateToStatus(syncState),
+                        metrics = metrics,
+                    ),
+                )
+            } catch (error: Throwable) {
+                logger.error(error) { "Failed to force sync and wait for user: $qualifiedId" }
                 SyncStatusResult.Failure(
                     message = categoryFromThrowableSync(error).getMessage(),
                     exitCode = categoryFromThrowableSync(error).getExitCode(),
@@ -235,9 +342,25 @@ internal class SdkKaliumSyncRuntime(
         return runBlocking {
             try {
                 logger.debug { "Observing sync state for diagnostics" }
-                val syncState: SyncState? =
+                val (syncState, keyPackageCountResult) =
                     coreLogic.sessionScope(qualifiedId) {
-                        observeSyncState().firstOrNull()
+                        val waitResult =
+                            withTimeoutOrNull(STATUS_WAIT_TIMEOUT_MS) {
+                                this@sessionScope.syncExecutor.request { waitUntilLiveOrFailure() }
+                            }
+                        when {
+                            waitResult == null ->
+                                logger.info { "Doctor snapshot timed out waiting for sync to settle; using current state" }
+                            waitResult is SyncRequestResult.Failure ->
+                                logger.info {
+                                    "Doctor snapshot wait ended with sync failure: ${waitResult.error::class.simpleName}"
+                                }
+                            else -> logger.debug { "Doctor snapshot wait reached live state" }
+                        }
+                        Pair(
+                            observeSyncState().firstOrNull(),
+                            client.mlsKeyPackageCountUseCase(fromAPI = false),
+                        )
                     }
 
                 if (syncState == null) {
@@ -254,7 +377,7 @@ internal class SdkKaliumSyncRuntime(
                 checks.add(buildAuthenticationCheck())
                 checks.add(buildSyncEngineCheck(syncState))
                 checks.add(buildEventQueueCheck(syncState))
-                checks.add(buildKeyPackagesCheck(syncState))
+                checks.add(buildKeyPackagesCheck(syncState, keyPackageCountResult))
                 checks.add(buildNetworkConnectivityCheck(syncState))
 
                 logger.debug { "Built ${checks.size} diagnostic checks" }
@@ -501,6 +624,26 @@ internal class SdkKaliumSyncRuntime(
         }
     }
 
+    private fun buildMlsMetrics(
+        syncState: SyncState,
+        keyPackageCountResult: MLSKeyPackageCountResult,
+    ): MLSMetrics? {
+        val keyPackageSuccess = keyPackageCountResult as? MLSKeyPackageCountResult.Success ?: return null
+        return MLSMetrics(
+            enrollment_pct = calculateMlsPercentage(syncState),
+            key_package_available = keyPackageSuccess.count,
+            key_package_exhausted = keyPackageSuccess.count == 0,
+            key_package_generation_enabled = syncState is SyncState.Live,
+            key_package_refresh_required = keyPackageSuccess.needsRefill,
+            mls_group_updates_failed_count = if (syncState is SyncState.Failed) 1 else 0,
+            mls_enrollment_failures_count = if (syncState is SyncState.Failed) 1 else 0,
+            mls_error_rate = if (syncState is SyncState.Failed) 0.10 else 0.0,
+            last_key_package_refresh_timestamp = if (syncState is SyncState.Live) Instant.now().toString() else null,
+            timestamp = Instant.now().toString(),
+            device_name = keyPackageSuccess.clientId.value,
+        )
+    }
+
     private fun calculateMLSMetrics(syncState: SyncState): MLSMetrics {
         // Calculate detailed MLS metrics based on sync state
         // Estimated values derived from sync state indicating MLS health
@@ -636,7 +779,31 @@ internal class SdkKaliumSyncRuntime(
         )
     }
 
-    private fun buildKeyPackagesCheck(syncState: SyncState?): Check {
+    private fun buildKeyPackagesCheck(
+        syncState: SyncState?,
+        keyPackageCountResult: MLSKeyPackageCountResult,
+    ): Check {
+        val keyPackageSuccess = keyPackageCountResult as? MLSKeyPackageCountResult.Success
+        if (keyPackageSuccess != null) {
+            val status =
+                when {
+                    keyPackageSuccess.count == 0 -> "Fail"
+                    keyPackageSuccess.needsRefill -> "Warn"
+                    else -> "Pass"
+                }
+            val details =
+                when {
+                    keyPackageSuccess.count == 0 ->
+                        "Critical: No key packages available for current client ${keyPackageSuccess.clientId.value}"
+                    keyPackageSuccess.needsRefill ->
+                        "Warning: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value} (refill recommended)"
+                    else ->
+                        "OK: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value}"
+                }
+
+            return Check(name = "Key Packages", status = status, details = details)
+        }
+
         val estimatedKeyPackageCount =
             when (syncState) {
                 is SyncState.Live -> 50
@@ -906,6 +1073,28 @@ internal class SdkKaliumSyncRuntime(
             message.contains("auth", ignoreCase = true) -> SyncFailureCategory.UNAUTHORIZED
             message.contains("server", ignoreCase = true) -> SyncFailureCategory.SERVER
             else -> SyncFailureCategory.UNKNOWN
+        }
+    }
+
+    private fun mapSyncRequestFailure(error: CoreFailure): SyncStatusResult.Failure {
+        return when (error) {
+            is NetworkFailure.NoNetworkConnection ->
+                SyncStatusResult.Failure(
+                    message = SyncExitMessages.NETWORK_FAILURE,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+
+            is NetworkFailure.ServerMiscommunication ->
+                SyncStatusResult.Failure(
+                    message = SyncExitMessages.SERVER_FAILURE,
+                    exitCode = SyncExitCodes.SERVER_ERROR,
+                )
+
+            else ->
+                SyncStatusResult.Failure(
+                    message = "Sync failed while waiting to become live: ${error::class.simpleName}.",
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
         }
     }
 

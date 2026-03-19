@@ -11,6 +11,35 @@ import kotlin.test.assertIs
 
 class SessionBackedSyncServiceTest {
     @Test
+    fun `delegates forceSyncAndWait to backend for persisted session`() {
+        val expected: SyncStatusResult =
+            SyncStatusResult.Success(
+                SyncStatusView(
+                    status = SyncStatus.READY,
+                    metrics = HealthMetrics(100L, 5, 85, "2025-03-13T10:30:00Z"),
+                ),
+            )
+        val service =
+            SessionBackedSyncService(
+                sessionStore =
+                    FakeSessionStore(
+                        activeSession =
+                            AuthSession(
+                                userId = "alice@example.com",
+                                accessToken = "token",
+                                server = null,
+                            ),
+                    ),
+                apiClient = FakeSyncApiClient(forceSyncResult = expected),
+            )
+
+        val result = service.forceSyncAndWait()
+
+        val success = assertIs<SyncStatusResult.Success>(result)
+        assertEquals(SyncStatus.READY, success.view.status)
+    }
+
+    @Test
     fun `returns unauthorized when no session is persisted for getCurrentSyncStatus`() {
         val service =
             SessionBackedSyncService(
@@ -202,7 +231,17 @@ class SessionBackedSyncServiceTest {
     private class FakeSyncApiClient(
         private val statusResult: SyncStatusResult? = null,
         private val diagnosticsResult: DiagnosticsResult? = null,
+        private val forceSyncResult: SyncStatusResult? = null,
     ) : SyncApiClient {
+        override fun forceSyncAndWait(session: AuthSession): SyncStatusResult =
+            forceSyncResult
+                ?: SyncStatusResult.Success(
+                    SyncStatusView(
+                        status = SyncStatus.READY,
+                        metrics = HealthMetrics(100L, 5, 85, "2025-03-13T10:30:00Z"),
+                    ),
+                )
+
         override fun getSyncStatus(session: AuthSession): SyncStatusResult =
             statusResult
                 ?: SyncStatusResult.Success(

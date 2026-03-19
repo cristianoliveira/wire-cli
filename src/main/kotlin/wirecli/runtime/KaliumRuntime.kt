@@ -21,6 +21,13 @@ import wirecli.device.RealKaliumDeviceApiClient
 import wirecli.device.SdkKaliumDeviceRuntime
 import wirecli.device.SessionBackedDeviceService
 import wirecli.device.StubDeviceApiClient
+import wirecli.message.AuthGuardedMessageService
+import wirecli.message.MessageApiClient
+import wirecli.message.MessageService
+import wirecli.message.RealKaliumMessageApiClient
+import wirecli.message.SdkKaliumMessageRuntime
+import wirecli.message.SessionBackedMessageService
+import wirecli.message.StubMessageApiClient
 import wirecli.presence.AuthGuardedPresenceService
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceService
@@ -42,13 +49,6 @@ import wirecli.sync.SessionBackedSyncService
 import wirecli.sync.StubSyncApiClient
 import wirecli.sync.SyncApiClient
 import wirecli.sync.SyncService
-import wirecli.message.AuthGuardedMessageService
-import wirecli.message.MessageApiClient
-import wirecli.message.MessageService
-import wirecli.message.RealKaliumMessageApiClient
-import wirecli.message.SdkKaliumMessageRuntime
-import wirecli.message.SessionBackedMessageService
-import wirecli.message.StubMessageApiClient
 import java.util.Locale
 
 interface KaliumRuntime : AutoCloseable {
@@ -232,7 +232,7 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
             override val deviceApiClient: DeviceApiClient = StubDeviceApiClient(environment)
             override val syncApiClient: SyncApiClient = StubSyncApiClient(environment)
             override val conversationApiClient: ConversationApiClient = StubConversationApiClient(environment)
-            override val messageApiClient: MessageApiClient = StubMessageApiClient(wirecli.message.StubMode.SUCCESS)
+            override val messageApiClient: MessageApiClient = StubMessageApiClient(environment)
 
             override fun shutdown() {
                 // No background resources in stub backend.

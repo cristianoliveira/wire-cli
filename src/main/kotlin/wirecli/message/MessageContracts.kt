@@ -41,6 +41,7 @@ internal object MessageUserMessages {
     const val UNAUTHORIZED = "you must be logged in to send messages"
     const val VALIDATION_ERROR = "invalid message format or parameters"
     const val NETWORK_ERROR = "network error while sending message"
+    const val SEND_TIMEOUT = "message send timed out while waiting for sync/MLS"
     const val SERVER_ERROR = "server error while sending message"
     const val CONVERSATION_NOT_FOUND = "conversation not found"
     const val MESSAGE_TOO_LONG = "message is too long"

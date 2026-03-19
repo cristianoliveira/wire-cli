@@ -410,6 +410,7 @@ internal enum class AuthFailureCategory {
     NETWORK,
     SERVER,
     UNAUTHORIZED,
+    NOMAD_SINGLE_USER_VIOLATION,
     UNKNOWN,
 }
 
@@ -557,7 +558,10 @@ internal class SdkKaliumAuthRuntime(
                     logger.debug { "Account already exists for user: $userId - replacing" }
                     AuthStepResult.Success(Unit)
                 }
-
+                com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.NomadSingleUserViolation -> {
+                    logger.error { "Nomad single user violation for user $userId" }
+                    AuthStepResult.Failure(AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION)
+                }
                 is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.Generic -> {
                     logger.error { "Failed to persist account for user $userId: ${result.genericFailure}" }
                     AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
@@ -930,6 +934,7 @@ private fun AuthStepResult.Failure.toAuthFailure(
             AuthFailureCategory.NETWORK -> AuthMessages.networkFailure(action)
             AuthFailureCategory.SERVER -> AuthMessages.authServiceUnavailable()
             AuthFailureCategory.UNAUTHORIZED -> AuthMessages.unauthorizedAction(action)
+            AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION -> "Nomad single user mode violation: cannot add additional users."
             AuthFailureCategory.UNKNOWN -> "Unexpected authentication error. Please retry."
         }
 
@@ -940,6 +945,7 @@ private fun AuthStepResult.Failure.toAuthFailure(
             AuthFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             AuthFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             AuthFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION -> ExitCodes.NOMAD_SINGLE_USER_VIOLATION
             AuthFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 

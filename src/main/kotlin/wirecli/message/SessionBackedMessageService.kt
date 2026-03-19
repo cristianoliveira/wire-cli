@@ -24,13 +24,18 @@ class SessionBackedMessageService(
                     exitCode = ExitCodes.UNAUTHORIZED,
                 ).also { logger.warn { "No active session found for sendMessage($conversationId)" } }
 
-        logger.debug { "Active session found for user: ${session.userId} - calling API client" }
+        logger.info {
+            "message-send session resolved: userId=${session.userId}, conversationId=$conversationId"
+        }
+        logger.debug { "message-send forwarding to API client: textLength=${text.length}" }
         return apiClient.sendMessage(session, conversationId, text).also { result ->
             when (result) {
                 is SendMessageResult.Success ->
-                    logger.info { "Service: Successfully sent message to conversation $conversationId" }
+                    logger.info { "message-send service outcome=success conversationId=$conversationId" }
                 is SendMessageResult.Failure ->
-                    logger.warn { "Service: Failed to send message to conversation $conversationId - ${result.message}" }
+                    logger.warn {
+                        "message-send service outcome=failure conversationId=$conversationId exitCode=${result.exitCode}"
+                    }
             }
         }
     }

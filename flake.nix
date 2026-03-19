@@ -8,8 +8,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # Kalium submodule as a separate input
+    # kalium = {
+    #   url = "github:wireapp/kalium";
+    #   flake = false;
+    # };
     kalium = {
-      url = "github:wireapp/kalium";
+      url = "github:cristianoliveira/kalium/6764d0ff048fd78e02c21feec9636df74303950d";
       flake = false;
     };
   };

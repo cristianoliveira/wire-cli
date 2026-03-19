@@ -23,11 +23,13 @@ internal class RealKaliumMessageApiClient(
         conversationId: String,
         text: String,
     ): SendMessageResult {
-        logger.debug { "API client: sendMessage(conversationId=$conversationId, textLength=${text.length})" }
+        logger.info {
+            "message-send api start: conversationId=$conversationId, userId=${session.userId}, textLength=${text.length}"
+        }
 
         return when (val result = runtime.sendMessage(session, conversationId, text)) {
             is MessageStepResult.Success -> {
-                logger.info { "API client: Message sent successfully to conversation $conversationId" }
+                logger.info { "message-send api outcome=success conversationId=$conversationId" }
                 SendMessageResult.Success
             }
 
@@ -39,6 +41,9 @@ internal class RealKaliumMessageApiClient(
 
                         MessageFailureCategory.UNAUTHORIZED ->
                             AuthMessages.invalidOrExpiredSession() to ExitCodes.UNAUTHORIZED
+
+                        MessageFailureCategory.TIMEOUT ->
+                            MessageUserMessages.SEND_TIMEOUT to ExitCodes.NETWORK_ERROR
 
                         MessageFailureCategory.NETWORK ->
                             MessageUserMessages.NETWORK_ERROR to ExitCodes.NETWORK_ERROR
@@ -53,7 +58,11 @@ internal class RealKaliumMessageApiClient(
                             "Unknown error while sending message" to ExitCodes.UNKNOWN_ERROR
                     }
 
-                logger.warn { "API client: Failed to send message (category=${result.category}): $message" }
+                logger.warn {
+                    "message-send category mapping: category=${result.category} -> exitCode=$exitCode, " +
+                        "conversationId=$conversationId"
+                }
+                logger.warn { "message-send api outcome=failure conversationId=$conversationId message=$message" }
                 SendMessageResult.Failure(message = message, exitCode = exitCode)
             }
         }

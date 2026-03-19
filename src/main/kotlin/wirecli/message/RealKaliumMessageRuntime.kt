@@ -7,11 +7,16 @@ import com.wire.kalium.logic.data.id.ConversationId
 import com.wire.kalium.logic.data.user.UserId
 import com.wire.kalium.logic.feature.message.MessageOperationResult
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import wirecli.auth.AuthSession
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
 
 private val logger = KotlinLogging.logger {}
 
@@ -40,12 +45,16 @@ internal sealed interface MessageStepResult {
 
 internal enum class MessageFailureCategory {
     VALIDATION,
+    TIMEOUT,
     NETWORK,
     SERVER,
     UNAUTHORIZED,
     NOT_FOUND,
     UNKNOWN,
 }
+
+private const val PREFLIGHT_SYNC_TIMEOUT_MS = 15_000L
+private const val SEND_TIMEOUT_MS = 30_000L
 
 /**
  * SDK-based implementation of RealKaliumMessageRuntime using CoreLogic
@@ -91,14 +100,31 @@ internal class SdkKaliumMessageRuntime(
 
         return runBlocking {
             try {
-                logger.debug { "sendMessage: Starting message send operation for conversation $conversationId" }
+                logger.info {
+                    "message-send runtime start: conversationId=$conversationId, userId=${session.userId}, textLength=${text.length}"
+                }
 
                 // 1. MLS sync preflight (MANDATORY before any send operation)
-                logger.debug { "sendMessage: Executing MLS sync preflight" }
-                coreLogic.sessionScope(qualifiedId) {
-                    syncExecutor.request { waitUntilLiveOrFailure() }
+                val preflightStartNanos = System.nanoTime()
+                logger.info { "message-send preflight sync start: conversationId=$conversationId" }
+                try {
+                    withTimeout(PREFLIGHT_SYNC_TIMEOUT_MS) {
+                        coreLogic.sessionScope(qualifiedId) {
+                            withContext(Dispatchers.Default) {
+                                syncExecutor.request { waitUntilLiveOrFailure() }
+                            }
+                        }
+                    }
+                } catch (error: TimeoutCancellationException) {
+                    logger.warn {
+                        "message-send preflight sync timeout: conversationId=$conversationId timeoutMs=$PREFLIGHT_SYNC_TIMEOUT_MS"
+                    }
+                    return@runBlocking MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
                 }
-                logger.debug { "sendMessage: MLS sync preflight completed successfully" }
+                val preflightElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - preflightStartNanos)
+                logger.info {
+                    "message-send preflight sync end: conversationId=$conversationId, elapsedMs=$preflightElapsedMs"
+                }
 
                 // 2. Create conversation ID with domain
                 val kaliumConvId =
@@ -108,27 +134,61 @@ internal class SdkKaliumMessageRuntime(
                     )
 
                 // 3. Send message via Kalium SDK
-                logger.debug { "sendMessage: Calling Kalium SDK sendTextMessage API" }
+                val sendStartNanos = System.nanoTime()
+                logger.info { "message-send sendTextMessage start: conversationId=$conversationId" }
                 val result =
-                    coreLogic.sessionScope(qualifiedId) {
-                        messages.sendTextMessage(kaliumConvId, text)
+                    try {
+                        withTimeout(SEND_TIMEOUT_MS) {
+                            coreLogic.sessionScope(qualifiedId) {
+                                withContext(Dispatchers.Default) {
+                                    logger.info { "message-send request start: conversationId=$conversationId" }
+                                    val sendResult =
+                                        syncExecutor.request {
+                                            logger.info {
+                                                "message-send sendTextMessage request body start: " +
+                                                    "conversationId=$conversationId"
+                                            }
+                                            messages.sendTextMessage(kaliumConvId, text)
+                                        }
+                                    logger.info { "message-send request end: conversationId=$conversationId" }
+                                    sendResult
+                                }
+                            }
+                        }
+                    } catch (error: TimeoutCancellationException) {
+                        logger.warn {
+                            "message-send sendTextMessage timeout: conversationId=$conversationId timeoutMs=$SEND_TIMEOUT_MS"
+                        }
+                        return@runBlocking MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
                     }
+                val sendElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sendStartNanos)
+                logger.info {
+                    "message-send sendTextMessage end: conversationId=$conversationId, elapsedMs=$sendElapsedMs"
+                }
 
                 // 4. Map SDK result to our failure categories
                 return@runBlocking when (result) {
                     is MessageOperationResult.Success -> {
-                        logger.info { "sendMessage: Message sent successfully to $conversationId" }
+                        logger.info { "message-send runtime outcome=success conversationId=$conversationId" }
                         MessageStepResult.Success
                     }
 
                     is MessageOperationResult.Failure -> {
-                        logger.warn { "sendMessage: Kalium SDK returned failure: ${result.error::class.simpleName}" }
-                        MessageStepResult.Failure(categoryFromCoreFailure(result.error))
+                        val mappedCategory = categoryFromCoreFailure(result.error)
+                        logger.warn {
+                            "message-send runtime outcome=failure conversationId=$conversationId " +
+                                "failureClass=${result.error::class.simpleName} mappedCategory=$mappedCategory"
+                        }
+                        MessageStepResult.Failure(mappedCategory)
                     }
                 }
             } catch (error: Throwable) {
-                logger.error(error) { "sendMessage: Exception during message send operation" }
-                MessageStepResult.Failure(categoryFromThrowable(error))
+                val mappedCategory = categoryFromThrowable(error)
+                logger.error(error) {
+                    "message-send runtime exception: conversationId=$conversationId " +
+                        "exceptionClass=${error::class.qualifiedName} message=${error.message} mappedCategory=$mappedCategory"
+                }
+                MessageStepResult.Failure(mappedCategory)
             }
         }
     }
@@ -218,7 +278,11 @@ internal class SdkKaliumMessageRuntime(
                     error.message?.contains("Connection") == true ||
                     error.message?.contains("timeout") == true ||
                     error.message?.contains("NETWORK") == true ->
-                    MessageFailureCategory.NETWORK
+                    if (error.message?.contains("timeout", ignoreCase = true) == true) {
+                        MessageFailureCategory.TIMEOUT
+                    } else {
+                        MessageFailureCategory.NETWORK
+                    }
 
                 error.message?.contains("404") == true ||
                     error.message?.contains("Not found") == true ||

@@ -40,19 +40,22 @@ class MessageSendCommand(
         ).optional()
 
     override fun run() {
-        logger.info { "MessageSendCommand started" }
-        logger.debug { "Conversation: $conversation, Message provided: ${messageText != null}" }
+        logger.info {
+            "message-send invoked: conversationId=$conversation, messageArgProvided=${messageText != null}"
+        }
 
         // Get final message from args or stdin
         val finalMessage =
             messageText?.takeIf { it.isNotEmpty() }
                 ?: run {
-                    logger.debug { "Reading message from stdin" }
+                    logger.info { "message-send awaiting stdin input for message body" }
                     readMessageFromStdin()
                 }
 
         if (messageText != null) {
-            logger.debug { "Message provided via positional argument" }
+            logger.debug { "message-send input source=argument, messageLength=${finalMessage.length}" }
+        } else {
+            logger.debug { "message-send input source=stdin, messageLength=${finalMessage.length}" }
         }
 
         // Validate conversation ID
@@ -69,19 +72,21 @@ class MessageSendCommand(
             throw ProgramResult(ExitCodes.VALIDATION_ERROR)
         }
 
-        logger.debug { "Validation passed, sending message to conversation: $conversation" }
+        logger.debug { "message-send validation passed: conversationId=$conversation" }
 
         // Send message
         val messageService = messageServiceProvider()
         val result = messageService.sendMessage(conversation, finalMessage)
         when (result) {
             is SendMessageResult.Success -> {
-                logger.info { "Message sent successfully to conversation: $conversation" }
+                logger.info { "message-send outcome=success conversationId=$conversation" }
                 echo("Message sent.")
             }
 
             is SendMessageResult.Failure -> {
-                logger.warn { "Failed to send message: ${result.message}" }
+                logger.warn {
+                    "message-send outcome=failure conversationId=$conversation exitCode=${result.exitCode} message=${result.message}"
+                }
                 echo(result.message, err = true)
                 throw ProgramResult(result.exitCode)
             }

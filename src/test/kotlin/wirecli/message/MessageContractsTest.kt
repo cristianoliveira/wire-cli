@@ -48,6 +48,7 @@ class MessageContractsTest {
     fun `MessageUserMessages defines user-friendly error messages`() {
         assertEquals("you must be logged in to send messages", MessageUserMessages.UNAUTHORIZED)
         assertEquals("network error while sending message", MessageUserMessages.NETWORK_ERROR)
+        assertEquals("message send timed out while waiting for sync/MLS", MessageUserMessages.SEND_TIMEOUT)
         assertEquals("server error while sending message", MessageUserMessages.SERVER_ERROR)
         assertEquals("invalid message format or parameters", MessageUserMessages.VALIDATION_ERROR)
         assertEquals("conversation not found", MessageUserMessages.CONVERSATION_NOT_FOUND)

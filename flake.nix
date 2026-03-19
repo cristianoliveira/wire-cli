@@ -75,7 +75,6 @@
                     mavenCentral()
                 }
             }
-
             dependencyResolutionManagement {
                 repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
                 repositories {
@@ -94,16 +93,27 @@
             # Remove repositories block from buildSrc/build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
             sed -i '/^repositories {/,/^}/d' $out/vendor/kalium/buildSrc/build.gradle.kts
 
+            # Remove com.wire:detekt-rules dependency - it's hosted on a custom Ivy repo (GitHub raw)
+            # which doesn't follow Maven patterns. Since detekt is only for linting and nix build
+            # doesn't run detekt, we can safely remove this dependency.
+            # Remove the entire block: detektPlugins("com.wire:detekt-rules:...") { isChanging = true }
+            sed -i '/detektPlugins("com.wire:detekt-rules:/,/}/d' $out/vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
+
             # Patch main kalium settings.gradle.kts to use centralized repository management
             # This is required for buildGradleApplication to replace repositories with the offline maven repo
-            # The kalium/settings.gradle.kts already has pluginManagement, so we only modify its repositories
-            # to match what buildGradleApplication expects
-
-            sed -i 's/repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)/repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)/' $out/vendor/kalium/settings.gradle.kts || true
-            sed -i '/repositories {/,/}/c\
+            # Replace the dependencyResolutionManagement block with one that includes FAIL_ON_PROJECT_REPOS
+            sed -i '/^dependencyResolutionManagement {/,/^}/c\
+            dependencyResolutionManagement {\
+                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)\
                 repositories {\
                     mavenCentral()\
-                }' $out/vendor/kalium/settings.gradle.kts || true
+                }\
+                versionCatalogs {\
+                    create("awssdk") {\
+                        from("aws.sdk.kotlin:version-catalog:1.5.89")\
+                    }\
+                }\
+            }' $out/vendor/kalium/settings.gradle.kts
 
             # Remove buildscript repositories block from kalium/build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
             # This is needed because buildscript dependencies will come from pluginManagement in settings
@@ -121,6 +131,16 @@
                 /^[[:space:]]*repositories {/,/^[[:space:]]*}/d
             }' $out/vendor/kalium/build.gradle.kts
 
+            # Patch main wire-cli settings.gradle.kts to use centralized repository management
+            # This ensures the main project also uses the offline maven repo
+            sed -i '1a\
+            dependencyResolutionManagement {\
+                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)\
+                repositories {\
+                    mavenCentral()\
+                    google()\
+                }\
+            }' $out/settings.gradle.kts
             # Remove repositories block from main build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
             sed -i '/^repositories {/,/^}/d' $out/build.gradle.kts
 
@@ -129,14 +149,12 @@
             sed -i 's|artifact = "com.google.protobuf:protoc:3.24.0"|path = "${pkgs.protobuf}/bin/protoc"|' \
               $out/vendor/kalium/tools/protobuf-codegen/build.gradle.kts
 
-            # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
-            # The logic module explicitly creates iOS targets which fail in sandbox without SDK
-            sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
+                        # Disable Android Gradle Plugin analytics to avoid sandbox issues
+                        echo "android.disableAnalytics=true" >> $out/gradle.properties
 
-            # Remove the missing detekt-rules dependency from buildSrc/detekt.gradle.kts
-            # The com.wire:detekt-rules:20260128-162246 JAR doesn't exist in any public repository
-            # Use a more robust sed pattern to remove the entire detektPlugins("com.wire:detekt-rules"...) block
-            sed -i '/detektPlugins("com\.wire:detekt-rules/,/^[[:space:]]*}/d' $out/vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
+                        # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
+                        # The logic module explicitly creates iOS targets which fail in sandbox without SDK
+                        sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
 
             # Also remove the detekt-rules entry from verification-metadata.xml
             # This prevents Gradle from trying to verify and download the non-existent artifact
@@ -209,6 +227,8 @@
               # Additional development tools
               nil # Nix LSP
               nixfmt-rfc-style # Nix formatter
+              # Git hooks
+              prek
             ];
 
             shellHook = ''

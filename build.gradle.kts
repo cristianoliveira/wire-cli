@@ -2,7 +2,7 @@ import org.gradle.jvm.application.tasks.CreateStartScripts
 import java.time.Duration
 
 plugins {
-    kotlin("jvm") version "2.3.20"
+    kotlin("jvm") version "2.3.0"
     kotlin("plugin.serialization") version "2.3.0"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
@@ -18,10 +18,10 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.ajalt.clikt:clikt:5.1.0")
+    implementation("com.github.ajalt.clikt:clikt:4.4.0")
     implementation("com.wire:logic")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1-0.6.x-compat")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 
     // Logging infrastructure: SLF4J + Logback + kotlin-logging

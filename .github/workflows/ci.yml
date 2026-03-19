@@ -156,8 +156,8 @@ jobs:
 
       - name: Build with Nix
         run: |
-          nix build .#
+          nix build .#cli
 
       - name: Test the built binary
         run: |
-          ./result/bin/wire-cli --help
+          ./result/bin/cli --help

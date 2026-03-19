@@ -1,9 +1,7 @@
 package wirecli
 
-import ch.qos.logback.classic.LoggerContext
 import com.github.ajalt.clikt.core.subcommands
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.slf4j.LoggerFactory
 import wirecli.commands.ConversationCommand
 import wirecli.commands.DeviceCommand
 import wirecli.commands.LoginCommand
@@ -16,24 +14,19 @@ import wirecli.runtime.KaliumRuntimeBootstrap
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
-    // Set log level from environment variable before logback initialization
-    val logLevel = System.getenv("WIRECLI_LOG_LEVEL") ?: "INFO"
-    System.setProperty("WIRECLI_LOG_LEVEL", logLevel.uppercase())
+    // Configure logging system properties BEFORE any logger is created.
+    // - WIRECLI_LOG_LEVEL controls file logging and root level.
+    // - WIRECLI_CONSOLE_LOG_LEVEL controls console logging (default OFF).
+    val fileLogLevel = (System.getenv("WIRECLI_LOG_LEVEL") ?: "INFO").uppercase()
+    System.setProperty("WIRECLI_LOG_LEVEL", fileLogLevel)
 
-    // Detect if --json or --json-lines flags are present early
-    // This allows us to suppress console logging before initialization
-    val hasJsonOutput = args.contains("--json") || args.contains("--json-lines")
-    System.setProperty("WIRE_CLI_SUPPRESS_CONSOLE_LOG", hasJsonOutput.toString())
+    val consoleLogLevel = determineConsoleLogLevel(args)
+    System.setProperty("WIRECLI_CONSOLE_LOG_LEVEL", consoleLogLevel)
 
-    // Detect if running in test mode (WIRE_BACKEND environment variable)
-    // In test mode, disable console logging to keep test output clean
-    val isTestMode = "stub".equals(System.getenv("WIRE_BACKEND"), ignoreCase = true)
-    if (isTestMode) {
-        disableConsoleAppender()
-    }
-
-    // Create logger after potentially disabling console appender
+    // Create logger after setting properties
     val logger = KotlinLogging.logger {}
+
+    val hasJsonOutput = args.contains("--json") || args.contains("--json-lines")
 
     logger.debug { "Starting Wire CLI application" }
     logger.debug { "Command line arguments: ${args.joinToString(" ") { it.take(20) }}" }
@@ -84,28 +77,45 @@ fun main(args: Array<String>) {
     }
 }
 
-/**
- * Disables the CONSOLE appender from the logback configuration.
- * This is used when JSON output is enabled or in test mode to prevent logs
- * from interfering with structured output or test assertions.
- */
-private fun disableConsoleAppender() {
-    try {
-        val logbackContext = LoggerFactory.getILoggerFactory() as LoggerContext
-        val rootLogger = logbackContext.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME)
+private fun determineConsoleLogLevel(args: Array<String>): String {
+    // Keep JSON output clean regardless of other flags.
+    val hasJsonOutput = args.contains("--json") || args.contains("--json-lines")
+    if (hasJsonOutput) return "OFF"
 
-        // Find and remove the CONSOLE appender
-        val appenderIterator = rootLogger.iteratorForAppenders()
-        while (appenderIterator.hasNext()) {
-            val appender = appenderIterator.next()
-            if ("CONSOLE".equals(appender.name, ignoreCase = true)) {
-                rootLogger.detachAppender(appender)
-                break
+    // Explicit CLI flags take priority over environment.
+    val hasVerbose = args.contains("--verbose") || args.contains("-v")
+    if (hasVerbose) return "DEBUG"
+
+    val explicitLogLevel = parseCliLogLevel(args)
+    if (explicitLogLevel != null) return explicitLogLevel
+
+    // If user set it explicitly via -D, honor it.
+    val existingProp = System.getProperty("WIRECLI_CONSOLE_LOG_LEVEL")
+    if (!existingProp.isNullOrBlank()) return existingProp.uppercase()
+
+    // Finally, allow env var to opt-in.
+    val env = System.getenv("WIRECLI_CONSOLE_LOG_LEVEL")
+    if (!env.isNullOrBlank()) return env.uppercase()
+
+    return "OFF"
+}
+
+private fun parseCliLogLevel(args: Array<String>): String? {
+    val allowed = setOf("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF")
+    var i = 0
+    while (i < args.size) {
+        val arg = args[i]
+        when {
+            arg.startsWith("--log-level=") -> {
+                val value = arg.substringAfter("--log-level=").trim().uppercase()
+                if (value in allowed) return value
+            }
+            arg == "--log-level" -> {
+                val value = args.getOrNull(i + 1)?.trim()?.uppercase()
+                if (!value.isNullOrBlank() && value in allowed) return value
             }
         }
-    } catch (e: Exception) {
-        System.err.println(
-            "Warning: Failed to disable console appender: ${e.message}",
-        )
+        i++
     }
+    return null
 }

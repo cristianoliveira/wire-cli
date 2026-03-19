@@ -6,13 +6,14 @@
   <!-- Log directory property with fallback to ~/.cache/wire-cli/logs -->
   <property name="LOG_DIR" value="${WIRECLI_LOG_DIR:-${user.home}/.cache/wire-cli/logs}"/>
 
-  <!-- Single log level for both console and file output -->
+  <!-- File log level (default INFO) -->
   <!-- Can be overridden with WIRECLI_LOG_LEVEL environment variable or the log-level CLI option -->
-  <!-- Default: INFO (shows warnings and important messages) -->
-  <!-- Set to DEBUG for verbose output during troubleshooting -->
-  <!-- Set to TRACE for extremely detailed logging -->
-  <!-- Set to ERROR for minimal output -->
-  <property name="LOG_LEVEL" value="${WIRECLI_LOG_LEVEL:-INFO}"/>
+  <property name="FILE_LOG_LEVEL" value="${WIRECLI_LOG_LEVEL:-INFO}"/>
+
+  <!-- Console log level (default OFF) -->
+  <!-- Can be overridden with WIRECLI_CONSOLE_LOG_LEVEL env var/system property -->
+  <!-- Main.kt sets this early based on verbose/log-level/json flags -->
+  <property name="CONSOLE_LOG_LEVEL" value="${WIRECLI_CONSOLE_LOG_LEVEL:-OFF}"/>
 
   <!-- APPENDER 1: Console Output (outputs to stderr) -->
   <!-- Format: [LEVEL] message - clean and human-readable for users -->
@@ -20,7 +21,7 @@
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <target>System.err</target>
     <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-      <level>${LOG_LEVEL}</level>
+      <level>${CONSOLE_LOG_LEVEL}</level>
     </filter>
     <encoder>
       <pattern>%highlight([%-5level]) %msg%n</pattern>
@@ -36,7 +37,7 @@
   <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
     <file>${LOG_DIR}/wire-cli.log</file>
     <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-      <level>${LOG_LEVEL}</level>
+      <level>${FILE_LOG_LEVEL}</level>
     </filter>
     <encoder>
       <pattern>%d{ISO8601} | %-5level | %logger{36} | %thread | %msg%n</pattern>
@@ -59,8 +60,8 @@
   </appender>
 
   <!-- Root Logger: All loggers inherit this configuration -->
-  <root level="${LOG_LEVEL}">
-    <!-- Console appender will be conditionally disabled via RootCommand when JSON output is detected -->
+  <root level="${FILE_LOG_LEVEL}">
+    <!-- Console appender is off by default; enable via WIRECLI_CONSOLE_LOG_LEVEL or verbose/log-level flags -->
     <appender-ref ref="CONSOLE" />
     <!-- File appender always enabled for debugging and auditing -->
     <appender-ref ref="FILE" />

@@ -6,6 +6,7 @@ import wirecli.commands.ConversationCommand
 import wirecli.commands.DeviceCommand
 import wirecli.commands.LoginCommand
 import wirecli.commands.LogoutCommand
+import wirecli.commands.MessageCommand
 import wirecli.commands.PresenceCommand
 import wirecli.commands.ProfileCommand
 import wirecli.commands.RootCommand
@@ -53,6 +54,7 @@ fun main(args: Array<String>) {
                 PresenceCommand { runtime.presenceService },
                 DeviceCommand { runtime.deviceService },
                 ConversationCommand { runtime.conversationService },
+                MessageCommand { runtime.messageService },
                 SyncCommand { runtime.syncService },
             )
             .main(args)

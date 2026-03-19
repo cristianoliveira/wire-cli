@@ -3,6 +3,7 @@ package wirecli.commands
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.optional
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.ExitCodes
 import wirecli.message.MessageService
@@ -32,24 +33,27 @@ class MessageSendCommand(
             """.trimIndent(),
     ) {
     private val conversation by argument(name = "CONVERSATION", help = "The conversation ID to send the message to")
-    private val message by argument(name = "MESSAGE", help = "The message text to send (optional; read from stdin if omitted)").multiple()
+    private val messageText: String? by
+        argument(
+            name = "MESSAGE",
+            help = "The message text to send (optional; read from stdin if omitted)",
+        ).optional()
 
     override fun run() {
         logger.info { "MessageSendCommand started" }
-        logger.debug { "Conversation: $conversation, Message args: ${message.size}" }
+        logger.debug { "Conversation: $conversation, Message provided: ${messageText != null}" }
 
         // Get final message from args or stdin
         val finalMessage =
-            when {
-                message.isNotEmpty() -> {
-                    logger.debug { "Message provided via positional arguments" }
-                    message.joinToString(" ")
-                }
-                else -> {
+            messageText?.takeIf { it.isNotEmpty() }
+                ?: run {
                     logger.debug { "Reading message from stdin" }
                     readMessageFromStdin()
                 }
-            }
+
+        if (messageText != null) {
+            logger.debug { "Message provided via positional argument" }
+        }
 
         // Validate conversation ID
         if (conversation.isBlank()) {

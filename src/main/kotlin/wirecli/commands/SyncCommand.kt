@@ -24,6 +24,7 @@ class SyncCommand(
         subcommands(
             SyncStatusCommand(syncServiceProvider),
             DoctorDiagnoseCommand(syncServiceProvider),
+            DoctorSyncCommand(syncServiceProvider),
         )
     }
 
@@ -52,6 +53,36 @@ class SyncCommand(
             "ready" -> SyncExitCodes.OK
             "initializing", "degraded" -> SyncExitCodes.DEGRADED
             "error" -> SyncExitCodes.DEGRADED
+            else -> SyncExitCodes.OK
+        }
+}
+
+private class DoctorSyncCommand(
+    private val syncServiceProvider: () -> SyncService,
+) : CliktCommand(
+        name = "sync",
+        help = "Force sync and wait until live state.",
+    ) {
+    override fun run() {
+        val syncService = syncServiceProvider()
+        val result = syncService.forceSyncAndWait()
+
+        when (result) {
+            is SyncStatusResult.Success -> {
+                echo(SyncOutputFormatter.formatStatusHuman(result))
+                throw ProgramResult(getExitCodeForStatus(result.view.status.value))
+            }
+            is SyncStatusResult.Failure -> {
+                echo(AuthRedactor.redact(result.message), err = true)
+                throw ProgramResult(result.exitCode)
+            }
+        }
+    }
+
+    private fun getExitCodeForStatus(status: String): Int =
+        when (status) {
+            "ready" -> SyncExitCodes.OK
+            "initializing", "degraded", "error" -> SyncExitCodes.DEGRADED
             else -> SyncExitCodes.OK
         }
 }

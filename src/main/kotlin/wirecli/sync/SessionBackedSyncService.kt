@@ -11,6 +11,29 @@ class SessionBackedSyncService(
     private val sessionStore: AuthSessionStore,
     private val apiClient: SyncApiClient,
 ) : SyncService {
+    override fun forceSyncAndWait(): SyncStatusResult {
+        logger.debug { "Forcing sync and waiting for live state" }
+        val session =
+            sessionStore.readActiveSession()
+                ?: run {
+                    logger.warn { "No active session found - cannot force sync" }
+                    return SyncStatusResult.Failure(
+                        message = AuthMessages.noActiveSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    )
+                }
+
+        logger.debug { "Active session found for user: ${session.userId} - forcing sync and waiting" }
+        return apiClient.forceSyncAndWait(session).also { result ->
+            when (result) {
+                is SyncStatusResult.Success ->
+                    logger.info { "Force sync completed: status=${result.view.status}, lag=${result.view.metrics.lag_ms}ms" }
+                is SyncStatusResult.Failure ->
+                    logger.warn { "Force sync failed: ${result.message} (exit code: ${result.exitCode})" }
+            }
+        }
+    }
+
     override fun getCurrentSyncStatus(): SyncStatusResult {
         logger.debug { "Fetching current sync status" }
         val session =

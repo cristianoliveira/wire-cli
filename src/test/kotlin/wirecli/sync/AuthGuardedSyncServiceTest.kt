@@ -46,6 +46,28 @@ class AuthGuardedSyncServiceTest {
     }
 
     @Test
+    fun `delegates forceSyncAndWait when session is valid`() {
+        val expectedResult: SyncStatusResult =
+            SyncStatusResult.Success(
+                SyncStatusView(
+                    status = SyncStatus.READY,
+                    metrics = HealthMetrics(100L, 5, 85, "2025-03-13T10:30:00Z"),
+                ),
+            )
+        val delegate = FakeSyncService(statusResult = expectedResult)
+        val service =
+            AuthGuardedSyncService(
+                authSessionService = FakeAuthSessionService(isAuthorized = true),
+                delegate = delegate,
+            )
+
+        val result = service.forceSyncAndWait()
+
+        val success = assertIs<SyncStatusResult.Success>(result)
+        assertEquals(SyncStatus.READY, success.view.status)
+    }
+
+    @Test
     fun `returns auth failure when getDiagnosticsReport called without session`() {
         val service =
             AuthGuardedSyncService(
@@ -177,6 +199,8 @@ class AuthGuardedSyncServiceTest {
                 ),
             ),
     ) : SyncService {
+        override fun forceSyncAndWait(): SyncStatusResult = statusResult
+
         override fun getCurrentSyncStatus(): SyncStatusResult = statusResult
 
         override fun getDiagnosticsReport(): DiagnosticsResult = diagnosticsResult

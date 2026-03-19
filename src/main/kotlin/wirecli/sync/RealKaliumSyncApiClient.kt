@@ -1,12 +1,16 @@
 package wirecli.sync
 
+import com.wire.kalium.common.error.CoreFailure
+import com.wire.kalium.common.error.NetworkFailure
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.sync.SyncState
 import com.wire.kalium.logic.data.user.UserId
+import com.wire.kalium.logic.sync.SyncRequestResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import wirecli.auth.AuthSession
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
@@ -23,6 +27,11 @@ private val logger = KotlinLogging.logger {}
 internal class RealKaliumSyncApiClient(
     private val runtime: RealKaliumSyncRuntime,
 ) : SyncApiClient {
+    override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+        logger.debug { "RealKaliumSyncApiClient: Delegating force sync request to runtime for user: ${session.userId}" }
+        return runtime.forceSyncAndWait(session)
+    }
+
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
         logger.debug { "RealKaliumSyncApiClient: Delegating sync status request to runtime for user: ${session.userId}" }
         return runtime.getSyncStatus(session)
@@ -74,6 +83,8 @@ internal class RealKaliumSyncApiClient(
  * real sync status and diagnostic information.
  */
 internal interface RealKaliumSyncRuntime {
+    fun forceSyncAndWait(session: AuthSession): SyncStatusResult
+
     /**
      * Retrieves the current sync status and health metrics for an authenticated session.
      */
@@ -127,6 +138,10 @@ internal class SdkKaliumSyncRuntime(
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
     private val networkConnectivityChecker: NetworkConnectivityChecker = RealNetworkConnectivityChecker(),
 ) : RealKaliumSyncRuntime {
+    private companion object {
+        const val FORCE_SYNC_WAIT_TIMEOUT_MS = 120_000L
+    }
+
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
     init {
@@ -210,6 +225,75 @@ internal class SdkKaliumSyncRuntime(
                 SyncStatusResult.Success(view)
             } catch (error: Throwable) {
                 logger.error(error) { "Failed to get sync status for user: $qualifiedId" }
+                SyncStatusResult.Failure(
+                    message = categoryFromThrowableSync(error).getMessage(),
+                    exitCode = categoryFromThrowableSync(error).getExitCode(),
+                )
+            }
+        }
+    }
+
+    override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+        logger.info { "SdkKaliumSyncRuntime: Forcing sync and waiting for live state for user: ${session.userId}" }
+        val qualifiedId =
+            session.userId.toQualifiedIdOrNull()
+                ?: run {
+                    logger.warn { "Invalid user ID format for force sync: ${session.userId}" }
+                    return SyncStatusResult.Failure(
+                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                        exitCode = SyncExitCodes.UNAUTHORIZED,
+                    )
+                }
+        activeSessionUserIds += qualifiedId
+
+        return runBlocking {
+            try {
+                val syncResult =
+                    coreLogic.sessionScope(qualifiedId) {
+                        client.restartSlowSyncProcessForRecoveryUseCase()
+                        withTimeoutOrNull(FORCE_SYNC_WAIT_TIMEOUT_MS) {
+                            syncExecutor.request { waitUntilLiveOrFailure() }
+                        }
+                    }
+
+                if (syncResult == null) {
+                    return@runBlocking SyncStatusResult.Failure(
+                        message = "Timed out waiting for sync to reach live state after force sync.",
+                        exitCode = SyncExitCodes.DEGRADED,
+                    )
+                }
+
+                if (syncResult is SyncRequestResult.Failure) {
+                    return@runBlocking mapSyncRequestFailure(syncResult.error)
+                }
+
+                val syncState =
+                    coreLogic.sessionScope(qualifiedId) {
+                        observeSyncState().firstOrNull()
+                    } ?: SyncState.Live
+
+                val lagMs = calculateLagMs(syncState)
+                val networkMetrics =
+                    networkConnectivityChecker.checkNetworkConnectivity()?.copy(
+                        estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                    )
+                val metrics =
+                    HealthMetrics(
+                        lag_ms = lagMs,
+                        pending_messages = calculatePendingMessages(syncState),
+                        mls_pct = calculateMlsPercentage(syncState),
+                        timestamp = Instant.now().toString(),
+                        network = networkMetrics,
+                    )
+
+                SyncStatusResult.Success(
+                    SyncStatusView(
+                        status = mapSyncStateToStatus(syncState),
+                        metrics = metrics,
+                    ),
+                )
+            } catch (error: Throwable) {
+                logger.error(error) { "Failed to force sync and wait for user: $qualifiedId" }
                 SyncStatusResult.Failure(
                     message = categoryFromThrowableSync(error).getMessage(),
                     exitCode = categoryFromThrowableSync(error).getExitCode(),
@@ -906,6 +990,28 @@ internal class SdkKaliumSyncRuntime(
             message.contains("auth", ignoreCase = true) -> SyncFailureCategory.UNAUTHORIZED
             message.contains("server", ignoreCase = true) -> SyncFailureCategory.SERVER
             else -> SyncFailureCategory.UNKNOWN
+        }
+    }
+
+    private fun mapSyncRequestFailure(error: CoreFailure): SyncStatusResult.Failure {
+        return when (error) {
+            is NetworkFailure.NoNetworkConnection ->
+                SyncStatusResult.Failure(
+                    message = SyncExitMessages.NETWORK_FAILURE,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+
+            is NetworkFailure.ServerMiscommunication ->
+                SyncStatusResult.Failure(
+                    message = SyncExitMessages.SERVER_FAILURE,
+                    exitCode = SyncExitCodes.SERVER_ERROR,
+                )
+
+            else ->
+                SyncStatusResult.Failure(
+                    message = "Sync failed while waiting to become live: ${error::class.simpleName}.",
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
         }
     }
 

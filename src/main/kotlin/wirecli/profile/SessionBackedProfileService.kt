@@ -39,7 +39,6 @@ class SessionBackedProfileService(
                             presence = presence,
                         ),
                 )
-
             }
 
             is ProfileResult.Failure -> profileResult

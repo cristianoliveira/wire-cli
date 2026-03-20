@@ -170,6 +170,52 @@ class SessionBackedMessageServiceTest {
         assertEquals(ExitCodes.SERVER_ERROR, failure.exitCode)
     }
 
+    @Test
+    fun `fetchMessages returns unauthorized when no session is persisted`() {
+        val service =
+            SessionBackedMessageService(
+                sessionStore = FakeSessionStore(activeSession = null),
+                apiClient = FakeMessageApiClient(result = SendMessageResult.Success),
+            )
+
+        val result = service.fetchMessages("conv-123")
+
+        val failure = assertIs<FetchMessagesResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `fetchMessages returns backend success result for persisted session`() {
+        val service =
+            SessionBackedMessageService(
+                sessionStore =
+                    FakeSessionStore(
+                        activeSession =
+                            AuthSession(
+                                userId = "alice@example.com",
+                                accessToken = "token",
+                                server = null,
+                            ),
+                    ),
+                apiClient =
+                    FakeMessageApiClient(
+                        result = SendMessageResult.Success,
+                        fetchResult =
+                            FetchMessagesResult.Success(
+                                FetchMessagesView(
+                                    conversationId = "conv-123",
+                                    messages = emptyList(),
+                                ),
+                            ),
+                    ),
+            )
+
+        val result = service.fetchMessages("conv-123")
+
+        assertIs<FetchMessagesResult.Success>(result)
+    }
+
     private class FakeSessionStore(private val activeSession: AuthSession?) : AuthSessionStore {
         override fun readActiveSession(): AuthSession? = activeSession
 
@@ -187,6 +233,8 @@ class SessionBackedMessageServiceTest {
 
     private class FakeMessageApiClient(
         private val result: SendMessageResult,
+        private val fetchResult: FetchMessagesResult =
+            FetchMessagesResult.Success(FetchMessagesView(conversationId = "conv", messages = emptyList())),
         private val captureRequests: MutableList<Triple<AuthSession, String, String>>? = null,
     ) : MessageApiClient {
         override fun sendMessage(
@@ -196,6 +244,13 @@ class SessionBackedMessageServiceTest {
         ): SendMessageResult {
             captureRequests?.add(Triple(session, conversationId, text))
             return result
+        }
+
+        override fun fetchMessages(
+            session: AuthSession,
+            conversationId: String,
+        ): FetchMessagesResult {
+            return fetchResult
         }
     }
 }

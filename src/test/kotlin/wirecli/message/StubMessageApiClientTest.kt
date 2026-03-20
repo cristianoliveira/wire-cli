@@ -177,4 +177,27 @@ class StubMessageApiClientTest {
         val notFoundFailure = assertIs<SendMessageResult.Failure>(notFoundResult)
         assertEquals(MessageExitCodes.NOT_FOUND, notFoundFailure.exitCode)
     }
+
+    @Test
+    fun `fetchMessages SUCCESS mode returns deterministic messages`() {
+        val client = StubMessageApiClient(StubMode.SUCCESS)
+
+        val result = client.fetchMessages(testSession, "conv-123")
+
+        val success = assertIs<FetchMessagesResult.Success>(result)
+        assertEquals("conv-123", success.view.conversationId)
+        assertEquals(2, success.view.messages.size)
+        assertEquals("msg-001", success.view.messages.first().id)
+    }
+
+    @Test
+    fun `fetchMessages NETWORK_ERROR mode returns fetch network message`() {
+        val client = StubMessageApiClient(StubMode.NETWORK_ERROR)
+
+        val result = client.fetchMessages(testSession, "conv-123")
+
+        val failure = assertIs<FetchMessagesResult.Failure>(result)
+        assertEquals(MessageUserMessages.FETCH_NETWORK_ERROR, failure.message)
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+    }
 }

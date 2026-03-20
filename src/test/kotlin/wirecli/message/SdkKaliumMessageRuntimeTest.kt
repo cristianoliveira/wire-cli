@@ -96,6 +96,27 @@ class SdkKaliumMessageRuntimeTest {
     }
 
     @Test
+    fun `fetchMessages returns Failure for blank conversationId`() {
+        val runtime = SdkKaliumMessageRuntime(emptyMap())
+
+        val result = runtime.fetchMessages(testSession, "   ")
+
+        val failure = assertIs<MessageStepResult.Failure>(result)
+        assertEquals(MessageFailureCategory.VALIDATION, failure.category)
+    }
+
+    @Test
+    fun `fetchMessages returns Failure for invalid user ID format`() {
+        val runtime = SdkKaliumMessageRuntime(emptyMap())
+        val invalidSession = testSession.copy(userId = "invalid-user")
+
+        val result = runtime.fetchMessages(invalidSession, "conv-123")
+
+        val failure = assertIs<MessageStepResult.Failure>(result)
+        assertEquals(MessageFailureCategory.UNAUTHORIZED, failure.category)
+    }
+
+    @Test
     fun `sendMessage returns Failure for blank text`() {
         val runtime = SdkKaliumMessageRuntime(emptyMap())
 
@@ -196,7 +217,7 @@ class SdkKaliumMessageRuntimeTest {
 
         // We just verify it doesn't fail on user ID validation
         // The actual SDK call will fail, but that's OK for this test
-        assertIs<MessageStepResult>(result)
+        assertIs<MessageStepResult<*>>(result)
     }
 
     @Test
@@ -215,8 +236,8 @@ class SdkKaliumMessageRuntimeTest {
 
         // These would categorize if called, but we're testing the validation
         // which catches errors before these functions are reached
-        assertIs<MessageStepResult>(result1)
-        assertIs<MessageStepResult>(result2)
+        assertIs<MessageStepResult<*>>(result1)
+        assertIs<MessageStepResult<*>>(result2)
     }
 
     @Test
@@ -226,7 +247,7 @@ class SdkKaliumMessageRuntimeTest {
         // Valid format
         val validSession = testSession.copy(userId = "alice@wire.com")
         val resultValid = runtime.sendMessage(validSession, "conv-123", "Hello")
-        assertIs<MessageStepResult>(resultValid)
+        assertIs<MessageStepResult<*>>(resultValid)
 
         // Invalid formats should fail on validation
         val missingDomain = testSession.copy(userId = "alice@")
@@ -265,7 +286,12 @@ class SdkKaliumMessageRuntimeTest {
                     session: AuthSession,
                     conversationId: String,
                     text: String,
-                ): MessageStepResult = MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+                ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+
+                override fun fetchMessages(
+                    session: AuthSession,
+                    conversationId: String,
+                ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {}
             }
@@ -286,7 +312,12 @@ class SdkKaliumMessageRuntimeTest {
                     session: AuthSession,
                     conversationId: String,
                     text: String,
-                ): MessageStepResult = MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
+                ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
+
+                override fun fetchMessages(
+                    session: AuthSession,
+                    conversationId: String,
+                ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {}
             }
@@ -308,7 +339,12 @@ class SdkKaliumMessageRuntimeTest {
                     session: AuthSession,
                     conversationId: String,
                     text: String,
-                ): MessageStepResult = MessageStepResult.Failure(MessageFailureCategory.NETWORK)
+                ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.NETWORK)
+
+                override fun fetchMessages(
+                    session: AuthSession,
+                    conversationId: String,
+                ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {}
             }
@@ -330,7 +366,12 @@ class SdkKaliumMessageRuntimeTest {
                     session: AuthSession,
                     conversationId: String,
                     text: String,
-                ): MessageStepResult = MessageStepResult.Failure(MessageFailureCategory.SERVER)
+                ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.SERVER)
+
+                override fun fetchMessages(
+                    session: AuthSession,
+                    conversationId: String,
+                ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {}
             }
@@ -352,7 +393,12 @@ class SdkKaliumMessageRuntimeTest {
                     session: AuthSession,
                     conversationId: String,
                     text: String,
-                ): MessageStepResult = MessageStepResult.Failure(MessageFailureCategory.NOT_FOUND)
+                ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.NOT_FOUND)
+
+                override fun fetchMessages(
+                    session: AuthSession,
+                    conversationId: String,
+                ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {}
             }
@@ -374,7 +420,12 @@ class SdkKaliumMessageRuntimeTest {
                     session: AuthSession,
                     conversationId: String,
                     text: String,
-                ): MessageStepResult = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+                ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+
+                override fun fetchMessages(
+                    session: AuthSession,
+                    conversationId: String,
+                ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {}
             }
@@ -408,7 +459,12 @@ class SdkKaliumMessageRuntimeTest {
                         session: AuthSession,
                         conversationId: String,
                         text: String,
-                    ): MessageStepResult = MessageStepResult.Failure(category)
+                    ): MessageStepResult<Unit> = MessageStepResult.Failure(category)
+
+                    override fun fetchMessages(
+                        session: AuthSession,
+                        conversationId: String,
+                    ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                     override fun shutdown() {}
                 }
@@ -423,5 +479,56 @@ class SdkKaliumMessageRuntimeTest {
                 "Failed for category: $category",
             )
         }
+    }
+
+    @Test
+    fun `fetchMessages returns Failure for blank text (should not happen but tested for completeness)`() {
+        val runtime = SdkKaliumMessageRuntime(emptyMap())
+
+        // Note: fetchMessages doesn't take text parameter, but we test other params
+        val result = runtime.fetchMessages(testSession, "conv-123")
+
+        assertIs<MessageStepResult<*>>(result)
+    }
+
+    @Test
+    fun `fetchMessages validates conversationId before attempting SDK call`() {
+        val runtime = SdkKaliumMessageRuntime(emptyMap())
+
+        val resultBlank = runtime.fetchMessages(testSession, "   ")
+        val resultEmpty = runtime.fetchMessages(testSession, "")
+
+        assertIs<MessageStepResult.Failure>(resultBlank)
+        assertIs<MessageStepResult.Failure>(resultEmpty)
+
+        val failureBlank = resultBlank as MessageStepResult.Failure
+        val failureEmpty = resultEmpty as MessageStepResult.Failure
+
+        assertEquals(MessageFailureCategory.VALIDATION, failureBlank.category)
+        assertEquals(MessageFailureCategory.VALIDATION, failureEmpty.category)
+    }
+
+    @Test
+    fun `fetchMessages validates user ID format before attempting SDK call`() {
+        val runtime = SdkKaliumMessageRuntime(emptyMap())
+        val invalidSession = testSession.copy(userId = "no-domain")
+
+        val result = runtime.fetchMessages(invalidSession, "conv-123")
+
+        assertIs<MessageStepResult.Failure>(result)
+        val failure = result as MessageStepResult.Failure
+        assertEquals(MessageFailureCategory.UNAUTHORIZED, failure.category)
+    }
+
+    @Test
+    fun `fetchMessages returns Failure for missing domain in user ID`() {
+        val runtime = SdkKaliumMessageRuntime(emptyMap())
+        val invalidSession = testSession.copy(userId = "alice@")
+
+        val result = runtime.fetchMessages(invalidSession, "conv-123")
+
+        assertIs<MessageStepResult.Failure>(result)
+        val failure = result as MessageStepResult.Failure
+        assertEquals(MessageFailureCategory.UNAUTHORIZED, failure.category)
     }
 }

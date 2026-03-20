@@ -9,6 +9,25 @@ sealed interface SendMessageResult {
     data class Failure(val message: String, val exitCode: Int) : SendMessageResult
 }
 
+data class ConversationMessage(
+    val id: String,
+    val senderId: String,
+    val senderName: String,
+    val timestamp: String,
+    val content: String,
+)
+
+data class FetchMessagesView(
+    val conversationId: String,
+    val messages: List<ConversationMessage>,
+)
+
+sealed interface FetchMessagesResult {
+    data class Success(val view: FetchMessagesView) : FetchMessagesResult
+
+    data class Failure(val message: String, val exitCode: Int) : FetchMessagesResult
+}
+
 // Low-level API client interface - works with AuthSession directly
 interface MessageApiClient {
     fun sendMessage(
@@ -16,6 +35,11 @@ interface MessageApiClient {
         conversationId: String,
         text: String,
     ): SendMessageResult
+
+    fun fetchMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): FetchMessagesResult
 }
 
 // High-level service interface - abstracts away session management
@@ -24,6 +48,8 @@ interface MessageService {
         conversationId: String,
         text: String,
     ): SendMessageResult
+
+    fun fetchMessages(conversationId: String): FetchMessagesResult
 }
 
 // Exit codes for message operations following standard CLI conventions
@@ -46,6 +72,9 @@ internal object MessageUserMessages {
     const val CONVERSATION_NOT_FOUND = "conversation not found"
     const val MESSAGE_TOO_LONG = "message is too long"
     const val EMPTY_MESSAGE = "message cannot be empty"
+    const val FETCH_NETWORK_ERROR = "network error while fetching messages"
+    const val FETCH_SERVER_ERROR = "server error while fetching messages"
+    const val FETCH_UNKNOWN_ERROR = "unknown error while fetching messages"
 }
 
 // Message-specific exceptions for error handling

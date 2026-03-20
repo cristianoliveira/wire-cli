@@ -12,6 +12,7 @@ import wirecli.device.DeviceDeleteResult
 import wirecli.device.DeviceDetailResult
 import wirecli.device.DeviceListResult
 import wirecli.device.DeviceVerifyResult
+import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageApiClient
 import wirecli.message.SendMessageResult
 import wirecli.presence.PresenceApiClient
@@ -230,5 +231,12 @@ private object NoopMessageApiClient : MessageApiClient {
         text: String,
     ): SendMessageResult {
         return SendMessageResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun fetchMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): FetchMessagesResult {
+        return FetchMessagesResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

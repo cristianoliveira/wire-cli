@@ -33,7 +33,7 @@ class RealKaliumMessageApiClientTest {
             RealKaliumMessageApiClient(
                 runtime =
                     FakeKaliumMessageRuntime(
-                        result = MessageStepResult.Success,
+                        result = MessageStepResult.Success(Unit),
                     ),
             )
 
@@ -174,7 +174,7 @@ class RealKaliumMessageApiClientTest {
             RealKaliumMessageApiClient(
                 runtime =
                     FakeKaliumMessageRuntime(
-                        result = MessageStepResult.Success,
+                        result = MessageStepResult.Success(Unit),
                         captureCalls = capturedCalls,
                     ),
             )
@@ -289,7 +289,7 @@ class RealKaliumMessageApiClientTest {
     fun `sendMessage success message is different from all failure messages`() {
         val successClient =
             RealKaliumMessageApiClient(
-                runtime = FakeKaliumMessageRuntime(result = MessageStepResult.Success),
+                runtime = FakeKaliumMessageRuntime(result = MessageStepResult.Success(Unit)),
             )
         val failureClients =
             listOf(
@@ -318,7 +318,7 @@ class RealKaliumMessageApiClientTest {
     fun `sendMessage works with multiple calls`() {
         val client =
             RealKaliumMessageApiClient(
-                runtime = FakeKaliumMessageRuntime(result = MessageStepResult.Success),
+                runtime = FakeKaliumMessageRuntime(result = MessageStepResult.Success(Unit)),
             )
 
         val result1 = client.sendMessage(testSession, "conv-123", "Message 1")
@@ -356,19 +356,165 @@ class RealKaliumMessageApiClientTest {
         worker.join(1000)
     }
 
+    @Test
+    fun `fetchMessages returns Success with mapped view when runtime succeeds`() {
+        val messages =
+            listOf(
+                ConversationMessage(
+                    id = "msg-1",
+                    senderId = "alice@example.com",
+                    senderName = "Alice",
+                    timestamp = "2026-03-20T10:00:00Z",
+                    content = "Hello",
+                ),
+            )
+        val client =
+            RealKaliumMessageApiClient(
+                runtime =
+                    FakeKaliumMessageRuntime(
+                        result = MessageStepResult.Success(Unit),
+                        fetchResult = MessageStepResult.Success(messages),
+                    ),
+            )
+
+        val result = client.fetchMessages(testSession, "conv-123")
+
+        val success = assertIs<FetchMessagesResult.Success>(result)
+        assertEquals("conv-123", success.view.conversationId)
+        assertEquals(1, success.view.messages.size)
+    }
+
+    @Test
+    fun `fetchMessages maps NOT_FOUND failure to exit code 13`() {
+        val client =
+            RealKaliumMessageApiClient(
+                runtime =
+                    FakeKaliumMessageRuntime(
+                        result = MessageStepResult.Success(Unit),
+                        fetchResult = MessageStepResult.Failure(MessageFailureCategory.NOT_FOUND),
+                    ),
+            )
+
+        val result = client.fetchMessages(testSession, "conv-missing")
+
+        val failure = assertIs<FetchMessagesResult.Failure>(result)
+        assertEquals(MessageUserMessages.CONVERSATION_NOT_FOUND, failure.message)
+        assertEquals(MessageExitCodes.NOT_FOUND, failure.exitCode)
+    }
+
+    @Test
+    fun `fetchMessages maps core failure categories to expected exit codes`() {
+        val categories =
+            listOf(
+                MessageFailureCategory.VALIDATION to MessageExitCodes.VALIDATION_ERROR,
+                MessageFailureCategory.UNAUTHORIZED to ExitCodes.UNAUTHORIZED,
+                MessageFailureCategory.NETWORK to ExitCodes.NETWORK_ERROR,
+                MessageFailureCategory.TIMEOUT to ExitCodes.NETWORK_ERROR,
+                MessageFailureCategory.SERVER to ExitCodes.SERVER_ERROR,
+                MessageFailureCategory.UNKNOWN to ExitCodes.UNKNOWN_ERROR,
+            )
+
+        for ((category, expectedExitCode) in categories) {
+            val client =
+                RealKaliumMessageApiClient(
+                    runtime =
+                        FakeKaliumMessageRuntime(
+                            result = MessageStepResult.Success(Unit),
+                            fetchResult = MessageStepResult.Failure(category),
+                        ),
+                )
+
+            val result = client.fetchMessages(testSession, "conv-123")
+
+            val failure = assertIs<FetchMessagesResult.Failure>(result)
+            assertEquals(expectedExitCode, failure.exitCode)
+        }
+    }
+
+    @Test
+    fun `fetchMessages maps TIMEOUT failure to timeout message and exit code 12`() {
+        val client =
+            RealKaliumMessageApiClient(
+                runtime =
+                    FakeKaliumMessageRuntime(
+                        result = MessageStepResult.Success(Unit),
+                        fetchResult = MessageStepResult.Failure(MessageFailureCategory.TIMEOUT),
+                    ),
+            )
+
+        val result = client.fetchMessages(testSession, "conv-123")
+
+        val failure = assertIs<FetchMessagesResult.Failure>(result)
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+        assertEquals(12, failure.exitCode)
+    }
+
+    @Test
+    fun `fetchMessages returns empty messages list when runtime succeeds with empty result`() {
+        val client =
+            RealKaliumMessageApiClient(
+                runtime =
+                    FakeKaliumMessageRuntime(
+                        result = MessageStepResult.Success(Unit),
+                        fetchResult = MessageStepResult.Success(emptyList()),
+                    ),
+            )
+
+        val result = client.fetchMessages(testSession, "conv-123")
+
+        val success = assertIs<FetchMessagesResult.Success>(result)
+        assertEquals(0, success.view.messages.size)
+    }
+
+    @Test
+    fun `fetchMessages delegates all parameters to runtime correctly`() {
+        val capturedFetchCalls = mutableListOf<Pair<AuthSession, String>>()
+        val client =
+            RealKaliumMessageApiClient(
+                runtime =
+                    FakeKaliumMessageRuntimeWithFetchCapture(
+                        fetchResult = MessageStepResult.Success(emptyList()),
+                        captureFetchCalls = capturedFetchCalls,
+                    ),
+            )
+
+        val session =
+            AuthSession(
+                userId = "bob@wire.com",
+                accessToken = "token456",
+                server = "https://other.example.com",
+            )
+        client.fetchMessages(session, "conv-789")
+
+        assertEquals(1, capturedFetchCalls.size)
+        val (capturedSession, capturedConvId) = capturedFetchCalls[0]
+        assertEquals("bob@wire.com", capturedSession.userId)
+        assertEquals("token456", capturedSession.accessToken)
+        assertEquals("https://other.example.com", capturedSession.server)
+        assertEquals("conv-789", capturedConvId)
+    }
+
     // ==================== Helper Classes ====================
 
     private class FakeKaliumMessageRuntime(
-        private val result: MessageStepResult,
+        private val result: MessageStepResult<Unit>,
+        private val fetchResult: MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList()),
         private val captureCalls: MutableList<Triple<AuthSession, String, String>>? = null,
     ) : RealKaliumMessageRuntime {
         override fun sendMessage(
             session: AuthSession,
             conversationId: String,
             text: String,
-        ): MessageStepResult {
+        ): MessageStepResult<Unit> {
             captureCalls?.add(Triple(session, conversationId, text))
             return result
+        }
+
+        override fun fetchMessages(
+            session: AuthSession,
+            conversationId: String,
+        ): MessageStepResult<List<ConversationMessage>> {
+            return fetchResult
         }
 
         override fun shutdown() {}
@@ -381,9 +527,38 @@ class RealKaliumMessageApiClientTest {
             session: AuthSession,
             conversationId: String,
             text: String,
-        ): MessageStepResult {
+        ): MessageStepResult<Unit> {
             releaseLatch.await(5, TimeUnit.SECONDS)
             return MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+        }
+
+        override fun fetchMessages(
+            session: AuthSession,
+            conversationId: String,
+        ): MessageStepResult<List<ConversationMessage>> {
+            releaseLatch.await(5, TimeUnit.SECONDS)
+            return MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+        }
+
+        override fun shutdown() {}
+    }
+
+    private class FakeKaliumMessageRuntimeWithFetchCapture(
+        private val fetchResult: MessageStepResult<List<ConversationMessage>>,
+        private val captureFetchCalls: MutableList<Pair<AuthSession, String>>? = null,
+    ) : RealKaliumMessageRuntime {
+        override fun sendMessage(
+            session: AuthSession,
+            conversationId: String,
+            text: String,
+        ): MessageStepResult<Unit> = MessageStepResult.Success(Unit)
+
+        override fun fetchMessages(
+            session: AuthSession,
+            conversationId: String,
+        ): MessageStepResult<List<ConversationMessage>> {
+            captureFetchCalls?.add(Pair(session, conversationId))
+            return fetchResult
         }
 
         override fun shutdown() {}

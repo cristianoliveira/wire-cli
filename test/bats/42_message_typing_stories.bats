@@ -38,6 +38,16 @@ setup_active_session() {
 	[[ "${output}" == *"Typing stopped."* ]]
 }
 
+@test "message typing: while-pid keeps typing until process exits" {
+	export WIRE_STUB_MODE="success"
+	sleep 5 &
+	pid=$!
+	run_wire message typing "conv-001" --state started --while-pid "$pid" --auto-stop-seconds 1
+	assert_status 0
+	[[ "${output}" == *"Typing started."* ]]
+	[[ "${output}" == *"Typing stopped."* ]]
+}
+
 @test "message typing: network error maps to exit 12" {
 	export WIRE_STUB_MODE="network_error"
 	run_wire message typing "conv-001" --state stopped

@@ -165,6 +165,117 @@ class MessageTypingCommandTest {
         assertEquals("network error while sending typing status", result.stderr.trim())
     }
 
+    @Test
+    fun `typing started with while-pid sends heartbeats until process exits`() {
+        val capturedStatuses = mutableListOf<TypingStatus>()
+        val sleptDurationsMs = mutableListOf<Long>()
+        val command =
+            MessageTypingCommand(
+                messageServiceProvider = {
+                    FakeMessageService(
+                        typingResult = SendTypingResult.Success,
+                        capturedStatuses = capturedStatuses,
+                    )
+                },
+                sleep = { sleptDurationsMs += it },
+                isProcessAlive = sequenceAliveChecker(true, true, true, false),
+            )
+
+        val result =
+            execute(
+                command,
+                listOf("conv-123", "--state", "started", "--while-pid", "1234"),
+            )
+
+        assertEquals(0, result.exitCode)
+        assertEquals(
+            listOf(TypingStatus.STARTED, TypingStatus.STARTED, TypingStatus.STARTED, TypingStatus.STOPPED),
+            capturedStatuses,
+        )
+        assertEquals(listOf(3_000L, 3_000L, 3_000L), sleptDurationsMs)
+    }
+
+    @Test
+    fun `typing started while-pid takes precedence over auto-stop seconds`() {
+        val capturedStatuses = mutableListOf<TypingStatus>()
+        val sleptDurationsMs = mutableListOf<Long>()
+        val command =
+            MessageTypingCommand(
+                messageServiceProvider = {
+                    FakeMessageService(
+                        typingResult = SendTypingResult.Success,
+                        capturedStatuses = capturedStatuses,
+                    )
+                },
+                sleep = { sleptDurationsMs += it },
+                isProcessAlive = sequenceAliveChecker(true, true, true, false),
+            )
+
+        val result =
+            execute(
+                command,
+                listOf("conv-123", "--state", "started", "--while-pid", "1234", "--auto-stop-seconds", "1"),
+            )
+
+        assertEquals(0, result.exitCode)
+        assertEquals(
+            listOf(TypingStatus.STARTED, TypingStatus.STARTED, TypingStatus.STARTED, TypingStatus.STOPPED),
+            capturedStatuses,
+        )
+        assertEquals(listOf(3_000L, 3_000L, 3_000L), sleptDurationsMs)
+    }
+
+    @Test
+    fun `typing started validates while-pid must be alive`() {
+        val command =
+            MessageTypingCommand(
+                messageServiceProvider = { FakeMessageService(typingResult = SendTypingResult.Success) },
+                sleep = {},
+                isProcessAlive = { false },
+            )
+
+        val result =
+            execute(
+                command,
+                listOf("conv-123", "--state", "started", "--while-pid", "1234"),
+            )
+
+        assertEquals(14, result.exitCode)
+        assertEquals("validation error: while-pid must reference a running process", result.stderr.trim())
+    }
+
+    @Test
+    fun `typing started validates while-pid must be positive`() {
+        val command =
+            MessageTypingCommand(
+                messageServiceProvider = { FakeMessageService(typingResult = SendTypingResult.Success) },
+                sleep = {},
+            )
+
+        val result =
+            execute(
+                command,
+                listOf("conv-123", "--state", "started", "--while-pid", "-1"),
+            )
+
+        assertEquals(14, result.exitCode)
+        assertEquals("validation error: while-pid must reference a running process", result.stderr.trim())
+    }
+
+    @Test
+    fun `typing stopped rejects while-pid`() {
+        val command =
+            MessageTypingCommand(
+                messageServiceProvider = { FakeMessageService(typingResult = SendTypingResult.Success) },
+                sleep = {},
+            )
+
+        val result = execute(command, listOf("conv-123", "--state", "stopped", "--while-pid", "1234"))
+
+        assertEquals(14, result.exitCode)
+        assertEquals("validation error: while-pid is only valid with --state started", result.stderr.trim())
+    }
+
     private data class ExecutionResult(
         val exitCode: Int,
         val stdout: String,
@@ -218,6 +329,16 @@ class MessageTypingCommandTest {
         ): SendTypingResult {
             capturedStatuses?.add(status)
             return typingResult
+        }
+    }
+
+    private fun sequenceAliveChecker(vararg values: Boolean): (Long) -> Boolean {
+        var index = 0
+        val fallback = values.lastOrNull() ?: false
+        return {
+            val value = if (index < values.size) values[index] else fallback
+            index += 1
+            value
         }
     }
 }

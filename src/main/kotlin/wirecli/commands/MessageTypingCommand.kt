@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
+import com.github.ajalt.clikt.parameters.types.long
 import wirecli.auth.ExitCodes
 import wirecli.message.MessageService
 import wirecli.message.SendTypingResult
@@ -15,6 +16,7 @@ class MessageTypingCommand(
     private val messageServiceProvider: () -> MessageService,
     private val sleep: (Long) -> Unit = { Thread.sleep(it) },
     private val heartbeatIntervalMs: Long = TYPING_HEARTBEAT_INTERVAL_MS,
+    private val isProcessAlive: (Long) -> Boolean = { pid -> ProcessHandle.of(pid).isPresent },
 ) : CliktCommand(
         name = "typing",
         help = "Send typing started/stopped status for a conversation.",
@@ -27,6 +29,10 @@ class MessageTypingCommand(
               Send STARTED without auto-stop:
                 wire message typing <conversation-id> --state started --auto-stop-seconds 0
 
+              Send STARTED while a process is alive:
+                some-command &
+                wire message typing <conversation-id> --state started --while-pid $!
+
               Send STOPPED explicitly:
                 wire message typing <conversation-id> --state stopped
             """.trimIndent(),
@@ -35,6 +41,8 @@ class MessageTypingCommand(
     private val state by option("--state", help = "Typing state: started|stopped").default("started")
     private val autoStopSeconds by
         option("--auto-stop-seconds", help = "Auto-send STOPPED after STARTED (0 disables)").int().default(10)
+    private val whilePid by
+        option("--while-pid", help = "Keep STARTED heartbeats while this PID is alive (started only)").long()
 
     override fun run() {
         if (conversationId.isBlank()) {
@@ -51,10 +59,29 @@ class MessageTypingCommand(
 
         when (normalizedState) {
             "started" -> {
+                val activeWhilePid = whilePid
+                if (activeWhilePid != null) {
+                    if (activeWhilePid <= 0L || !isProcessAlive(activeWhilePid)) {
+                        echo("validation error: while-pid must reference a running process", err = true)
+                        throw ProgramResult(ExitCodes.VALIDATION_ERROR)
+                    }
+                }
+
                 sendOrExit(messageService.sendTypingStatus(conversationId, TypingStatus.STARTED))
                 echo("Typing started.")
 
-                if (autoStopSeconds > 0) {
+                if (activeWhilePid != null) {
+                    while (true) {
+                        sleep(heartbeatIntervalMs)
+                        if (!isProcessAlive(activeWhilePid)) {
+                            break
+                        }
+                        sendOrExit(messageService.sendTypingStatus(conversationId, TypingStatus.STARTED))
+                    }
+
+                    sendOrExit(messageService.sendTypingStatus(conversationId, TypingStatus.STOPPED))
+                    echo("Typing stopped.")
+                } else if (autoStopSeconds > 0) {
                     var remainingMs = autoStopSeconds * 1_000L
                     while (remainingMs > heartbeatIntervalMs) {
                         sleep(heartbeatIntervalMs)
@@ -69,6 +96,10 @@ class MessageTypingCommand(
             }
 
             "stopped" -> {
+                if (whilePid != null) {
+                    echo("validation error: while-pid is only valid with --state started", err = true)
+                    throw ProgramResult(ExitCodes.VALIDATION_ERROR)
+                }
                 sendOrExit(messageService.sendTypingStatus(conversationId, TypingStatus.STOPPED))
                 echo("Typing stopped.")
             }

@@ -27,16 +27,17 @@ WIRECLI_CONSOLE_LOG_LEVEL=OFF "$WIRE_CLI" message watch "$CONVERSATION_ID" | whi
 		echo "Morty found in '$MESSAGE'"
 
 		## Multiline response with typing indicator
-		"$WIRE_CLI" message typing "$CONVERSATION_ID" --state started 2>/dev/null
+		pi --continue "$MESSAGE" --print </dev/null >response.md &
+		response_pid=$!
 
-		pi --continue "$MESSAGE" --print </dev/null >response.md
+		"$WIRE_CLI" message typing "$CONVERSATION_ID" --state started --while-pid "$response_pid" 2>/dev/null
+		wait "$response_pid"
 
 		# get the output of the markdown file
 		RESPONSE=$(cat response.md)
 
 		echo "response: $RESPONSE"
 
-		"$WIRE_CLI" message typing "$CONVERSATION_ID" --state stopped 2>/dev/null
 		cat response.md | WIRECLI_CONSOLE_LOG_LEVEL=OFF "$WIRE_CLI" message send "$CONVERSATION_ID" 2>/dev/null
 	fi
 done

@@ -158,10 +158,13 @@ Notes:
   - `<conversation-id>` (required)
   - `--state started|stopped` (optional, default `started`)
   - `--auto-stop-seconds N` (optional, default `10`; used only for `started`)
+  - `--while-pid <pid>` (optional; only valid for `started`)
 - **Behavior**:
   - `started` emits `STARTED` and, by default, emits `STOPPED` after 10 seconds.
+  - `started` with `--while-pid` emits `STARTED`, keeps heartbeats every few seconds while the PID is alive, then emits `STOPPED`.
   - `stopped` emits `STOPPED` immediately.
   - `--auto-stop-seconds 0` disables the auto-stop guard.
+  - If both `--while-pid` and `--auto-stop-seconds` are provided, `--while-pid` takes precedence.
 - **Exit Codes**: 0 (success), 11 (unauthorized), 12 (network/timeout), 13 (server/not found), 14 (validation)
 
 ### Message Object Schema
@@ -239,6 +242,12 @@ wire message typing conv-abc123 --state started --auto-stop-seconds 0
 #### Send STOPPED explicitly
 ```bash
 wire message typing conv-abc123 --state stopped
+```
+
+#### Keep typing while a background task runs
+```bash
+long-running-task &
+wire message typing conv-abc123 --state started --while-pid $!
 ```
 
 #### Bot example: React to "ping" with "pong"

@@ -101,8 +101,15 @@ Optional CLI mode flags for real backend commands:
 - `WIRE_KALIUM_ENABLE_CALLING=true` enables calling support (disabled by default for CLI safety).
 - `WIRE_KALIUM_DISABLE_SESSION_SYNC_WAIT=true` skips `waitUntilLiveOrFailure()` warmup for profile/presence commands.
 - `WIRE_KALIUM_DISABLE_MLS_MIGRATION_SCHEDULER=true` pushes MLS migration cadence to a long interval as a local scheduler-suppression workaround.
+- `WIRECLI_MESSAGE_SEND_TIMEOUT_MS=<milliseconds>` configures message send timeout (default `60000`, max `300000`).
 
 When these flags are unset, default behavior remains unchanged.
+
+Example:
+
+```bash
+WIRECLI_MESSAGE_SEND_TIMEOUT_MS=120000 wire message send --conversation-id <conversation-id> --text "hello"
+```
 
 ## Development
 

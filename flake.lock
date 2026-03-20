@@ -46,16 +46,17 @@
     "kalium": {
       "flake": false,
       "locked": {
-        "lastModified": 1773411851,
-        "narHash": "sha256-Yuj+gjq7eiCOG+fknmcb1TUf701xokbqTpDGfSseD2g=",
-        "owner": "wireapp",
+        "lastModified": 1773926989,
+        "narHash": "sha256-ALID0lJase9ajGeZa85VgX/ryH+3neSn0tyXJ/PyG7I=",
+        "owner": "cristianoliveira",
         "repo": "kalium",
-        "rev": "decadeea8009f2db85f5a566a44c446e8d08d88c",
+        "rev": "6764d0ff048fd78e02c21feec9636df74303950d",
         "type": "github"
       },
       "original": {
-        "owner": "wireapp",
+        "owner": "cristianoliveira",
         "repo": "kalium",
+        "rev": "6764d0ff048fd78e02c21feec9636df74303950d",
         "type": "github"
       }
     },

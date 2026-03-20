@@ -44,13 +44,16 @@ class MessageSendCommand(
             "message-send invoked: conversationId=$conversation, messageArgProvided=${messageText != null}"
         }
 
-        // Get final message from args or stdin
-        val finalMessage =
-            messageText?.takeIf { it.isNotEmpty() }
-                ?: run {
-                    logger.info { "message-send awaiting stdin input for message body" }
-                    readMessageFromStdin()
-                }
+        // Get final message from args or stdin.
+        // If both are present, positional argument always wins.
+        val positionalMessage = messageText
+        val finalMessage: String =
+            if (positionalMessage != null) {
+                positionalMessage
+            } else {
+                logger.info { "message-send awaiting stdin input for message body" }
+                readMessageFromStdin()
+            }
 
         if (messageText != null) {
             logger.debug { "message-send input source=argument, messageLength=${finalMessage.length}" }
@@ -96,8 +99,7 @@ class MessageSendCommand(
     private fun readMessageFromStdin(): String {
         return System.`in`
             .bufferedReader()
-            .readLine()
-            ?.trimEnd('\r')
-            ?: ""
+            .readText()
+            .trimEnd('\r', '\n')
     }
 }

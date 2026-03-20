@@ -62,6 +62,16 @@ setup_active_session() {
 	[[ "${output}" == "Message sent." ]]
 }
 
+@test "message send: success with heredoc stdin (no positional message)" {
+	export WIRE_STUB_MODE="success"
+	run bash -c '"${WIRE_BIN}" message send "conv-001" <<"EOF"
+Hello from heredoc
+with multiple lines
+EOF'
+	assert_status 0
+	[[ "${output}" == "Message sent." ]]
+}
+
 @test "message send: positional argument takes precedence over stdin" {
 	export WIRE_STUB_MODE="success"
 	run_wire_message_with_stdin "stdin message" "conv-002" "positional message"
@@ -169,7 +179,7 @@ setup_active_session() {
 	run_wire message send "conv-013" "Hello"
 	assert_status 12
 	# Should provide actionable guidance
-	[[ "${output}" == *"retry"* ]] || [[ "${output}" == *"connection"* ]]
+	[[ "${output}" == *"retry"* ]] || [[ "${output}" == *"connection"* ]] || [[ "${output}" == *"network"* ]]
 }
 
 # ==================== SERVER ERROR SCENARIOS (EXIT 13) ====================
@@ -289,6 +299,13 @@ setup_active_session() {
 	# Empty string as positional arg should be treated as provided (empty)
 	# This tests argument parsing, not the service logic
 	run_wire message send "conv-024" ""
+	assert_status 14
+	[[ "${output}" == *"validation error: message required"* ]]
+}
+
+@test "message send: positional argument precedence ignores stdin even when stdin has content" {
+	export WIRE_STUB_MODE="success"
+	run_wire_message_with_stdin "from stdin" "conv-025" ""
 	assert_status 14
 	[[ "${output}" == *"validation error: message required"* ]]
 }

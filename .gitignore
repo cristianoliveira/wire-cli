@@ -5,3 +5,5 @@ out/
 *.iml
 result
 .kotlin/
+.agent
+RESPONSE.md

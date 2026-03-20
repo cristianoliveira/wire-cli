@@ -200,4 +200,24 @@ class StubMessageApiClientTest {
         assertEquals(MessageUserMessages.FETCH_NETWORK_ERROR, failure.message)
         assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
     }
+
+    @Test
+    fun `sendTypingStatus SUCCESS mode returns success`() {
+        val client = StubMessageApiClient(StubMode.SUCCESS)
+
+        val result = client.sendTypingStatus(testSession, "conv-123", TypingStatus.STARTED)
+
+        assertIs<SendTypingResult.Success>(result)
+    }
+
+    @Test
+    fun `sendTypingStatus NETWORK_ERROR mode returns typing network message`() {
+        val client = StubMessageApiClient(StubMode.NETWORK_ERROR)
+
+        val result = client.sendTypingStatus(testSession, "conv-123", TypingStatus.STOPPED)
+
+        val failure = assertIs<SendTypingResult.Failure>(result)
+        assertEquals(MessageUserMessages.TYPING_NETWORK_ERROR, failure.message)
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+    }
 }

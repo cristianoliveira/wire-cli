@@ -54,6 +54,8 @@ class MessageContractsTest {
         assertEquals("conversation not found", MessageUserMessages.CONVERSATION_NOT_FOUND)
         assertEquals("message is too long", MessageUserMessages.MESSAGE_TOO_LONG)
         assertEquals("message cannot be empty", MessageUserMessages.EMPTY_MESSAGE)
+        assertEquals("network error while sending typing status", MessageUserMessages.TYPING_NETWORK_ERROR)
+        assertEquals("server error while sending typing status", MessageUserMessages.TYPING_SERVER_ERROR)
     }
 
     @Test
@@ -63,6 +65,7 @@ class MessageContractsTest {
 
         assert(methodNames.contains("sendMessage"))
         assert(methodNames.contains("fetchMessages"))
+        assert(methodNames.contains("sendTypingStatus"))
     }
 
     @Test
@@ -72,6 +75,7 @@ class MessageContractsTest {
 
         assert(methodNames.contains("sendMessage"))
         assert(methodNames.contains("fetchMessages"))
+        assert(methodNames.contains("sendTypingStatus"))
     }
 
     @Test

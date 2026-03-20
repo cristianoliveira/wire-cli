@@ -558,10 +558,6 @@ internal class SdkKaliumAuthRuntime(
                     logger.debug { "Account already exists for user: $userId - replacing" }
                     AuthStepResult.Success(Unit)
                 }
-                com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.NomadSingleUserViolation -> {
-                    logger.error { "Nomad single user violation for user $userId" }
-                    AuthStepResult.Failure(AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION)
-                }
                 is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.Generic -> {
                     logger.error { "Failed to persist account for user $userId: ${result.genericFailure}" }
                     AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))

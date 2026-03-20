@@ -156,15 +156,12 @@ Notes:
 
 - **Input**:
   - `<conversation-id>` (required)
-  - `--state started|stopped` (optional, default `started`)
-  - `--auto-stop-seconds N` (optional, default `10`; used only for `started`)
-  - `--while-pid <pid>` (optional; only valid for `started`)
+  - `--while-pid <pid>` (required)
 - **Behavior**:
-  - `started` emits `STARTED` and, by default, emits `STOPPED` after 10 seconds.
-  - `started` with `--while-pid` emits `STARTED`, keeps heartbeats every few seconds while the PID is alive, then emits `STOPPED`.
-  - `stopped` emits `STOPPED` immediately.
-  - `--auto-stop-seconds 0` disables the auto-stop guard.
-  - If both `--while-pid` and `--auto-stop-seconds` are provided, `--while-pid` takes precedence.
+  - Emits `STARTED` immediately.
+  - Sends heartbeat `STARTED` updates every few seconds while the PID is alive.
+  - Emits `STOPPED` when the PID exits.
+  - Fails validation when PID is invalid or not running.
 - **Exit Codes**: 0 (success), 11 (unauthorized), 12 (network/timeout), 13 (server/not found), 14 (validation)
 
 ### Message Object Schema
@@ -231,23 +228,14 @@ wire message fetch --conversation-id conv-abc123 --follow --from system@domain
 
 #### Send typing status (Kalium-compatible STARTED/STOPPED)
 ```bash
-wire message typing conv-abc123
-```
-
-#### Send STARTED without auto-stop
-```bash
-wire message typing conv-abc123 --state started --auto-stop-seconds 0
-```
-
-#### Send STOPPED explicitly
-```bash
-wire message typing conv-abc123 --state stopped
+long-running-task &
+wire message typing conv-abc123 --while-pid $!
 ```
 
 #### Keep typing while a background task runs
 ```bash
 long-running-task &
-wire message typing conv-abc123 --state started --while-pid $!
+wire message typing conv-abc123 --while-pid $!
 ```
 
 #### Bot example: React to "ping" with "pong"

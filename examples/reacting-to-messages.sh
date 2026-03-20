@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-WIRE_CLI=${WIRE_CLI:-wire-cli}
+WIRE=${WIRE_CLI:-wire-cli}
 
 # Similar to inotifywait, but for Wire messages.
 # Streams new messages and reacts to each one.
@@ -19,25 +19,23 @@ pi @.agent/SOUL.md "ping" --print </dev/null >response.md
 
 echo "response: $(cat response.md)"
 
-WIRECLI_CONSOLE_LOG_LEVEL=OFF "$WIRE_CLI" message watch "$CONVERSATION_ID" | while IFS= read -r MESSAGE; do
+"$WIRE" message watch "$CONVERSATION_ID" | while IFS= read -r MESSAGE; do
 	echo "received: $MESSAGE"
 
-	# return if not contain Morty
-	if [[ "$MESSAGE" =~ Morty ]]; then
+	# return if contain 'Morty' (case insensitive)
+	if [[ "$MESSAGE" =~ "morty" || "$MESSAGE" =~ "Morty" ]]; then
 		echo "Morty found in '$MESSAGE'"
 
 		## Multiline response with typing indicator
 		pi --continue "$MESSAGE" --print </dev/null >response.md &
 		response_pid=$!
 
-		"$WIRE_CLI" message typing "$CONVERSATION_ID" --state started --while-pid "$response_pid" 2>/dev/null
+		"$WIRE" message typing "$CONVERSATION_ID" --while-pid "$response_pid" 2>/dev/null
 		wait "$response_pid"
 
 		# get the output of the markdown file
-		RESPONSE=$(cat response.md)
+		echo "response: $(cat response.md)"
 
-		echo "response: $RESPONSE"
-
-		cat response.md | WIRECLI_CONSOLE_LOG_LEVEL=OFF "$WIRE_CLI" message send "$CONVERSATION_ID" 2>/dev/null
+		"$WIRE" message send "$CONVERSATION_ID" <response.md 2>/dev/null
 	fi
 done

@@ -1,4 +1,4 @@
-.PHONY: format format-check lint test all ktlint-baseline
+.PHONY: format format-check lint test test-unit all ktlint-baseline
 
 JAVA_AVAILABLE := $(shell java -version >/dev/null 2>&1 && echo 1 || echo 0)
 ifeq ($(JAVA_AVAILABLE),1)
@@ -22,8 +22,11 @@ format-check: ## Checks if the code is formatted
 lint: ## Checks the code
 	$(GRADLEW) detekt
 
-test: ## Runs the tests
+test: ## Runs all tests (unit + integration)
 	$(GRADLEW) test batsTest
+
+test-unit: ## Runs unit tests only (quick, for git hooks)
+	$(GRADLEW) test
 
 all: format-check lint test ## Runs the checks and tests
 

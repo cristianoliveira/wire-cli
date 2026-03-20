@@ -19,9 +19,9 @@ repos:
         pass_filenames: false
         stages: [pre-commit]
 
-      - id: test
-        name: test
-        entry: make test
+      - id: test-unit
+        name: test-unit
+        entry: make test-unit
         language: system
         pass_filenames: false
         stages: [pre-push]

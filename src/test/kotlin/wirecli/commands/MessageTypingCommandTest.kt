@@ -29,8 +29,17 @@ class MessageTypingCommandTest {
         val result = execute(command, listOf("conv-123"))
 
         assertEquals(0, result.exitCode)
-        assertEquals(listOf(TypingStatus.STARTED, TypingStatus.STOPPED), capturedStatuses)
-        assertEquals(listOf(10_000L), sleptDurationsMs)
+        assertEquals(
+            listOf(
+                TypingStatus.STARTED,
+                TypingStatus.STARTED,
+                TypingStatus.STARTED,
+                TypingStatus.STARTED,
+                TypingStatus.STOPPED,
+            ),
+            capturedStatuses,
+        )
+        assertEquals(listOf(3_000L, 3_000L, 3_000L, 1_000L), sleptDurationsMs)
     }
 
     @Test
@@ -71,6 +80,53 @@ class MessageTypingCommandTest {
 
         assertEquals(0, result.exitCode)
         assertEquals(listOf(TypingStatus.STOPPED), capturedStatuses)
+    }
+
+    @Test
+    fun `typing started with short auto-stop does not send heartbeat`() {
+        val capturedStatuses = mutableListOf<TypingStatus>()
+        val sleptDurationsMs = mutableListOf<Long>()
+        val command =
+            MessageTypingCommand(
+                messageServiceProvider = {
+                    FakeMessageService(
+                        typingResult = SendTypingResult.Success,
+                        capturedStatuses = capturedStatuses,
+                    )
+                },
+                sleep = { sleptDurationsMs += it },
+            )
+
+        val result = execute(command, listOf("conv-123", "--state", "started", "--auto-stop-seconds", "3"))
+
+        assertEquals(0, result.exitCode)
+        assertEquals(listOf(TypingStatus.STARTED, TypingStatus.STOPPED), capturedStatuses)
+        assertEquals(listOf(3_000L), sleptDurationsMs)
+    }
+
+    @Test
+    fun `typing started heartbeat repeats until auto-stop`() {
+        val capturedStatuses = mutableListOf<TypingStatus>()
+        val sleptDurationsMs = mutableListOf<Long>()
+        val command =
+            MessageTypingCommand(
+                messageServiceProvider = {
+                    FakeMessageService(
+                        typingResult = SendTypingResult.Success,
+                        capturedStatuses = capturedStatuses,
+                    )
+                },
+                sleep = { sleptDurationsMs += it },
+            )
+
+        val result = execute(command, listOf("conv-123", "--state", "started", "--auto-stop-seconds", "7"))
+
+        assertEquals(0, result.exitCode)
+        assertEquals(
+            listOf(TypingStatus.STARTED, TypingStatus.STARTED, TypingStatus.STARTED, TypingStatus.STOPPED),
+            capturedStatuses,
+        )
+        assertEquals(listOf(3_000L, 3_000L, 1_000L), sleptDurationsMs)
     }
 
     @Test

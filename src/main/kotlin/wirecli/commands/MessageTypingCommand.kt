@@ -14,6 +14,7 @@ import wirecli.message.TypingStatus
 class MessageTypingCommand(
     private val messageServiceProvider: () -> MessageService,
     private val sleep: (Long) -> Unit = { Thread.sleep(it) },
+    private val heartbeatIntervalMs: Long = TYPING_HEARTBEAT_INTERVAL_MS,
 ) : CliktCommand(
         name = "typing",
         help = "Send typing started/stopped status for a conversation.",
@@ -54,7 +55,14 @@ class MessageTypingCommand(
                 echo("Typing started.")
 
                 if (autoStopSeconds > 0) {
-                    sleep(autoStopSeconds * 1_000L)
+                    var remainingMs = autoStopSeconds * 1_000L
+                    while (remainingMs > heartbeatIntervalMs) {
+                        sleep(heartbeatIntervalMs)
+                        remainingMs -= heartbeatIntervalMs
+                        sendOrExit(messageService.sendTypingStatus(conversationId, TypingStatus.STARTED))
+                    }
+
+                    sleep(remainingMs)
                     sendOrExit(messageService.sendTypingStatus(conversationId, TypingStatus.STOPPED))
                     echo("Typing stopped.")
                 }
@@ -77,5 +85,9 @@ class MessageTypingCommand(
             echo(result.message, err = true)
             throw ProgramResult(result.exitCode)
         }
+    }
+
+    private companion object {
+        const val TYPING_HEARTBEAT_INTERVAL_MS = 3_000L
     }
 }

@@ -125,6 +125,7 @@ This is NOT optional - it's hard-coded in Kalium.
 | **This file (INDEX.md)** | Navigation guide | 5 min | Finding the right doc |
 | [`README_RESEARCH.md`](README_RESEARCH.md) | Research overview | 10 min | Quick facts & key insights |
 | [`RESEARCH_SUMMARY.md`](RESEARCH_SUMMARY.md) | Complete summary | 15 min | Understanding everything |
+| [`CLI_RUNTIME_ENV_VARS.md`](CLI_RUNTIME_ENV_VARS.md) | Runtime env var reference | 2 min | Configuring CLI timeout behavior |
 
 ### 🎯 Specific Questions (Choose by Topic)
 
@@ -375,4 +376,3 @@ Complete Sync & Messaging Research
 **Last Updated**: March 16, 2026
 
 Happy exploring! 🚀
-

@@ -24,6 +24,68 @@ class SdkKaliumMessageRuntimeTest {
         )
 
     @Test
+    fun `resolveSendTimeoutMs returns default when env var missing`() {
+        val timeout = resolveSendTimeoutMs(emptyMap())
+
+        assertEquals(DEFAULT_SEND_TIMEOUT_MS, timeout)
+    }
+
+    @Test
+    fun `resolveSendTimeoutMs returns parsed timeout when valid`() {
+        val timeout =
+            resolveSendTimeoutMs(
+                mapOf(
+                    MESSAGE_SEND_TIMEOUT_ENV to "120000",
+                ),
+            )
+
+        assertEquals(120000L, timeout)
+    }
+
+    @Test
+    fun `resolveSendTimeoutMs falls back to default when env var is non-numeric`() {
+        val timeout =
+            resolveSendTimeoutMs(
+                mapOf(
+                    MESSAGE_SEND_TIMEOUT_ENV to "abc",
+                ),
+            )
+
+        assertEquals(DEFAULT_SEND_TIMEOUT_MS, timeout)
+    }
+
+    @Test
+    fun `resolveSendTimeoutMs falls back to default when env var is zero or negative`() {
+        val zeroTimeout =
+            resolveSendTimeoutMs(
+                mapOf(
+                    MESSAGE_SEND_TIMEOUT_ENV to "0",
+                ),
+            )
+        val negativeTimeout =
+            resolveSendTimeoutMs(
+                mapOf(
+                    MESSAGE_SEND_TIMEOUT_ENV to "-500",
+                ),
+            )
+
+        assertEquals(DEFAULT_SEND_TIMEOUT_MS, zeroTimeout)
+        assertEquals(DEFAULT_SEND_TIMEOUT_MS, negativeTimeout)
+    }
+
+    @Test
+    fun `resolveSendTimeoutMs clamps to max when env var exceeds upper bound`() {
+        val timeout =
+            resolveSendTimeoutMs(
+                mapOf(
+                    MESSAGE_SEND_TIMEOUT_ENV to "999999",
+                ),
+            )
+
+        assertEquals(MAX_SEND_TIMEOUT_MS, timeout)
+    }
+
+    @Test
     fun `sendMessage returns Failure for blank conversationId`() {
         val runtime = SdkKaliumMessageRuntime(emptyMap())
 

@@ -32,6 +32,13 @@ Check:
   - console logs (when enabled) go to stderr; redirect as needed (e.g. `wire-cli ... 2>wire-cli.debug.log`)
   - `--json` / `--json-lines` keep console logs OFF so stdout stays machine-readable
 
+## Runtime env vars
+
+- `WIRECLI_MESSAGE_SEND_TIMEOUT_MS=<milliseconds>` overrides message-send timeout.
+  - Default: `60000`
+  - Max: `300000` (values above are clamped)
+  - Invalid/non-numeric/<=0 values fall back to default.
+
 # Task management
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.

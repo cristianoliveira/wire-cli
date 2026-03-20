@@ -54,7 +54,33 @@ internal enum class MessageFailureCategory {
 }
 
 private const val PREFLIGHT_SYNC_TIMEOUT_MS = 15_000L
-private const val SEND_TIMEOUT_MS = 30_000L
+internal const val MESSAGE_SEND_TIMEOUT_ENV = "WIRECLI_MESSAGE_SEND_TIMEOUT_MS"
+internal const val DEFAULT_SEND_TIMEOUT_MS = 60_000L
+internal const val MAX_SEND_TIMEOUT_MS = 300_000L
+
+internal fun resolveSendTimeoutMs(environment: Map<String, String>): Long {
+    val rawValue = environment[MESSAGE_SEND_TIMEOUT_ENV]?.trim().orEmpty()
+    if (rawValue.isEmpty()) {
+        return DEFAULT_SEND_TIMEOUT_MS
+    }
+
+    val parsedValue = rawValue.toLongOrNull()
+    if (parsedValue == null || parsedValue <= 0L) {
+        logger.warn {
+            "Invalid $MESSAGE_SEND_TIMEOUT_ENV='$rawValue'; using default ${DEFAULT_SEND_TIMEOUT_MS}ms"
+        }
+        return DEFAULT_SEND_TIMEOUT_MS
+    }
+
+    if (parsedValue > MAX_SEND_TIMEOUT_MS) {
+        logger.warn {
+            "$MESSAGE_SEND_TIMEOUT_ENV=$parsedValue exceeds max ${MAX_SEND_TIMEOUT_MS}ms; clamping to ${MAX_SEND_TIMEOUT_MS}ms"
+        }
+        return MAX_SEND_TIMEOUT_MS
+    }
+
+    return parsedValue
+}
 
 /**
  * SDK-based implementation of RealKaliumMessageRuntime using CoreLogic
@@ -64,6 +90,7 @@ internal class SdkKaliumMessageRuntime(
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
 ) : RealKaliumMessageRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
+    private val sendTimeoutMs = resolveSendTimeoutMs(environment)
 
     private val coreLogicLazy =
         lazy {
@@ -138,7 +165,7 @@ internal class SdkKaliumMessageRuntime(
                 logger.info { "message-send sendTextMessage start: conversationId=$conversationId" }
                 val result =
                     try {
-                        withTimeout(SEND_TIMEOUT_MS) {
+                        withTimeout(sendTimeoutMs) {
                             coreLogic.sessionScope(qualifiedId) {
                                 withContext(Dispatchers.Default) {
                                     logger.info { "message-send request start: conversationId=$conversationId" }
@@ -157,7 +184,7 @@ internal class SdkKaliumMessageRuntime(
                         }
                     } catch (error: TimeoutCancellationException) {
                         logger.warn {
-                            "message-send sendTextMessage timeout: conversationId=$conversationId timeoutMs=$SEND_TIMEOUT_MS"
+                            "message-send sendTextMessage timeout: conversationId=$conversationId timeoutMs=$sendTimeoutMs"
                         }
                         return@runBlocking MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
                     }

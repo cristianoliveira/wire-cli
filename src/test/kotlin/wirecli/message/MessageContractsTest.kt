@@ -65,6 +65,13 @@ class MessageContractsTest {
 
         assert(methodNames.contains("sendMessage"))
         assert(methodNames.contains("fetchMessages"))
+        assert(!methodNames.contains("sendTypingStatus"))
+    }
+
+    @Test
+    fun `MessageTypingApiClient interface defines sendTypingStatus method`() {
+        val methodNames = MessageTypingApiClient::class.java.methods.map { it.name }
+
         assert(methodNames.contains("sendTypingStatus"))
     }
 

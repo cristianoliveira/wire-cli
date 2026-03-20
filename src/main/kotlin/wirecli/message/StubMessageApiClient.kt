@@ -15,7 +15,7 @@ enum class StubMode {
 
 class StubMessageApiClient(
     private val environment: Map<String, String> = emptyMap(),
-) : MessageApiClient {
+) : MessageApiClient, MessageTypingApiClient {
     // Support both old constructor (for backward compatibility) and environment-based mode
     constructor(mode: StubMode) : this(mapOf("__mode__" to mode.name))
 

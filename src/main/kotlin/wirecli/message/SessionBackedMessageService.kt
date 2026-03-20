@@ -10,6 +10,7 @@ private val logger = KotlinLogging.logger {}
 class SessionBackedMessageService(
     private val sessionStore: AuthSessionStore,
     private val apiClient: MessageApiClient,
+    private val typingApiClient: MessageTypingApiClient? = apiClient as? MessageTypingApiClient,
 ) : MessageService {
     override fun sendMessage(
         conversationId: String,
@@ -72,6 +73,13 @@ class SessionBackedMessageService(
         conversationId: String,
         status: TypingStatus,
     ): SendTypingResult {
+        if (typingApiClient == null) {
+            return SendTypingResult.Failure(
+                message = MessageUserMessages.TYPING_UNSUPPORTED,
+                exitCode = MessageExitCodes.SERVER_ERROR,
+            )
+        }
+
         logger.debug { "Service operation: sendTypingStatus(conversationId=$conversationId, status=$status) started" }
 
         val session =
@@ -81,6 +89,6 @@ class SessionBackedMessageService(
                     exitCode = ExitCodes.UNAUTHORIZED,
                 ).also { logger.warn { "No active session found for sendTypingStatus($conversationId)" } }
 
-        return apiClient.sendTypingStatus(session, conversationId, status)
+        return typingApiClient.sendTypingStatus(session, conversationId, status)
     }
 }

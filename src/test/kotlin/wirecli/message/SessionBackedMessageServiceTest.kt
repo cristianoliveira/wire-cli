@@ -252,6 +252,44 @@ class SessionBackedMessageServiceTest {
         assertIs<SendTypingResult.Success>(result)
     }
 
+    @Test
+    fun `sendTypingStatus returns unsupported when typing client is not provided`() {
+        val service =
+            SessionBackedMessageService(
+                sessionStore =
+                    FakeSessionStore(
+                        activeSession =
+                            AuthSession(
+                                userId = "alice@example.com",
+                                accessToken = "token",
+                                server = null,
+                            ),
+                    ),
+                apiClient =
+                    object : MessageApiClient {
+                        override fun sendMessage(
+                            session: AuthSession,
+                            conversationId: String,
+                            text: String,
+                        ): SendMessageResult = SendMessageResult.Success
+
+                        override fun fetchMessages(
+                            session: AuthSession,
+                            conversationId: String,
+                        ): FetchMessagesResult =
+                            FetchMessagesResult.Success(
+                                FetchMessagesView(conversationId = conversationId, messages = emptyList()),
+                            )
+                    },
+            )
+
+        val result = service.sendTypingStatus("conv-123", TypingStatus.STARTED)
+
+        val failure = assertIs<SendTypingResult.Failure>(result)
+        assertEquals(MessageUserMessages.TYPING_UNSUPPORTED, failure.message)
+        assertEquals(MessageExitCodes.SERVER_ERROR, failure.exitCode)
+    }
+
     private class FakeSessionStore(private val activeSession: AuthSession?) : AuthSessionStore {
         override fun readActiveSession(): AuthSession? = activeSession
 
@@ -273,7 +311,7 @@ class SessionBackedMessageServiceTest {
             FetchMessagesResult.Success(FetchMessagesView(conversationId = "conv", messages = emptyList())),
         private val typingResult: SendTypingResult = SendTypingResult.Success,
         private val captureRequests: MutableList<Triple<AuthSession, String, String>>? = null,
-    ) : MessageApiClient {
+    ) : MessageApiClient, MessageTypingApiClient {
         override fun sendMessage(
             session: AuthSession,
             conversationId: String,

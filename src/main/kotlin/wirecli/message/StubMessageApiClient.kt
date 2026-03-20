@@ -130,4 +130,35 @@ class StubMessageApiClient(
                 )
         }
     }
+
+    override fun sendTypingStatus(
+        session: AuthSession,
+        conversationId: String,
+        status: TypingStatus,
+    ): SendTypingResult {
+        return when (mode) {
+            StubMode.SUCCESS -> SendTypingResult.Success
+
+            StubMode.UNAUTHORIZED ->
+                SendTypingResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            StubMode.NETWORK_ERROR ->
+                SendTypingResult.Failure(
+                    message = MessageUserMessages.TYPING_NETWORK_ERROR,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            StubMode.SERVER_ERROR,
+            StubMode.VALIDATION_ERROR,
+            StubMode.CONVERSATION_NOT_FOUND,
+            ->
+                SendTypingResult.Failure(
+                    message = MessageUserMessages.TYPING_SERVER_ERROR,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+        }
+    }
 }

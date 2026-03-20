@@ -67,4 +67,20 @@ class SessionBackedMessageService(
             }
         }
     }
+
+    override fun sendTypingStatus(
+        conversationId: String,
+        status: TypingStatus,
+    ): SendTypingResult {
+        logger.debug { "Service operation: sendTypingStatus(conversationId=$conversationId, status=$status) started" }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return SendTypingResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for sendTypingStatus($conversationId)" } }
+
+        return apiClient.sendTypingStatus(session, conversationId, status)
+    }
 }

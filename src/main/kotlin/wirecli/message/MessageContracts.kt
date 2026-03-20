@@ -9,6 +9,17 @@ sealed interface SendMessageResult {
     data class Failure(val message: String, val exitCode: Int) : SendMessageResult
 }
 
+enum class TypingStatus {
+    STARTED,
+    STOPPED,
+}
+
+sealed interface SendTypingResult {
+    data object Success : SendTypingResult
+
+    data class Failure(val message: String, val exitCode: Int) : SendTypingResult
+}
+
 data class ConversationMessage(
     val id: String,
     val senderId: String,
@@ -40,6 +51,16 @@ interface MessageApiClient {
         session: AuthSession,
         conversationId: String,
     ): FetchMessagesResult
+
+    fun sendTypingStatus(
+        session: AuthSession,
+        conversationId: String,
+        status: TypingStatus,
+    ): SendTypingResult =
+        SendTypingResult.Failure(
+            message = MessageUserMessages.TYPING_UNSUPPORTED,
+            exitCode = MessageExitCodes.SERVER_ERROR,
+        )
 }
 
 // High-level service interface - abstracts away session management
@@ -50,6 +71,15 @@ interface MessageService {
     ): SendMessageResult
 
     fun fetchMessages(conversationId: String): FetchMessagesResult
+
+    fun sendTypingStatus(
+        conversationId: String,
+        status: TypingStatus,
+    ): SendTypingResult =
+        SendTypingResult.Failure(
+            message = MessageUserMessages.TYPING_UNSUPPORTED,
+            exitCode = MessageExitCodes.SERVER_ERROR,
+        )
 }
 
 // Exit codes for message operations following standard CLI conventions
@@ -75,6 +105,11 @@ internal object MessageUserMessages {
     const val FETCH_NETWORK_ERROR = "network error while fetching messages"
     const val FETCH_SERVER_ERROR = "server error while fetching messages"
     const val FETCH_UNKNOWN_ERROR = "unknown error while fetching messages"
+    const val TYPING_NETWORK_ERROR = "network error while sending typing status"
+    const val TYPING_SERVER_ERROR = "server error while sending typing status"
+    const val TYPING_TIMEOUT = "typing status send timed out while waiting for sync/MLS"
+    const val TYPING_UNKNOWN_ERROR = "unknown error while sending typing status"
+    const val TYPING_UNSUPPORTED = "typing status is not supported by this backend"
 }
 
 // Message-specific exceptions for error handling

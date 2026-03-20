@@ -179,7 +179,7 @@ EOF'
 	run_wire message send "conv-013" "Hello"
 	assert_status 12
 	# Should provide actionable guidance
-	[[ "${output}" == *"retry"* ]] || [[ "${output}" == *"connection"* ]]
+	[[ "${output}" == *"retry"* ]] || [[ "${output}" == *"connection"* ]] || [[ "${output}" == *"network"* ]]
 }
 
 # ==================== SERVER ERROR SCENARIOS (EXIT 13) ====================

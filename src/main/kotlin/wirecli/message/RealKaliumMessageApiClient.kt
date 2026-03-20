@@ -111,4 +111,42 @@ internal class RealKaliumMessageApiClient(
             }
         }
     }
+
+    override fun sendTypingStatus(
+        session: AuthSession,
+        conversationId: String,
+        status: TypingStatus,
+    ): SendTypingResult {
+        return when (val result = runtime.sendTypingStatus(session, conversationId, status)) {
+            is MessageStepResult.Success -> SendTypingResult.Success
+
+            is MessageStepResult.Failure -> {
+                val (message, exitCode) =
+                    when (result.category) {
+                        MessageFailureCategory.VALIDATION ->
+                            MessageUserMessages.VALIDATION_ERROR to MessageExitCodes.VALIDATION_ERROR
+
+                        MessageFailureCategory.UNAUTHORIZED ->
+                            AuthMessages.invalidOrExpiredSession() to ExitCodes.UNAUTHORIZED
+
+                        MessageFailureCategory.TIMEOUT ->
+                            MessageUserMessages.TYPING_TIMEOUT to ExitCodes.NETWORK_ERROR
+
+                        MessageFailureCategory.NETWORK ->
+                            MessageUserMessages.TYPING_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
+
+                        MessageFailureCategory.SERVER ->
+                            MessageUserMessages.TYPING_SERVER_ERROR to ExitCodes.SERVER_ERROR
+
+                        MessageFailureCategory.NOT_FOUND ->
+                            MessageUserMessages.CONVERSATION_NOT_FOUND to MessageExitCodes.NOT_FOUND
+
+                        MessageFailureCategory.UNKNOWN ->
+                            MessageUserMessages.TYPING_UNKNOWN_ERROR to ExitCodes.UNKNOWN_ERROR
+                    }
+
+                SendTypingResult.Failure(message = message, exitCode = exitCode)
+            }
+        }
+    }
 }

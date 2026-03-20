@@ -216,6 +216,42 @@ class SessionBackedMessageServiceTest {
         assertIs<FetchMessagesResult.Success>(result)
     }
 
+    @Test
+    fun `sendTypingStatus returns unauthorized when no session is persisted`() {
+        val service =
+            SessionBackedMessageService(
+                sessionStore = FakeSessionStore(activeSession = null),
+                apiClient = FakeMessageApiClient(result = SendMessageResult.Success),
+            )
+
+        val result = service.sendTypingStatus("conv-123", TypingStatus.STARTED)
+
+        val failure = assertIs<SendTypingResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `sendTypingStatus delegates to API client with persisted session`() {
+        val service =
+            SessionBackedMessageService(
+                sessionStore =
+                    FakeSessionStore(
+                        activeSession =
+                            AuthSession(
+                                userId = "alice@example.com",
+                                accessToken = "token",
+                                server = null,
+                            ),
+                    ),
+                apiClient = FakeMessageApiClient(result = SendMessageResult.Success, typingResult = SendTypingResult.Success),
+            )
+
+        val result = service.sendTypingStatus("conv-123", TypingStatus.STOPPED)
+
+        assertIs<SendTypingResult.Success>(result)
+    }
+
     private class FakeSessionStore(private val activeSession: AuthSession?) : AuthSessionStore {
         override fun readActiveSession(): AuthSession? = activeSession
 
@@ -235,6 +271,7 @@ class SessionBackedMessageServiceTest {
         private val result: SendMessageResult,
         private val fetchResult: FetchMessagesResult =
             FetchMessagesResult.Success(FetchMessagesView(conversationId = "conv", messages = emptyList())),
+        private val typingResult: SendTypingResult = SendTypingResult.Success,
         private val captureRequests: MutableList<Triple<AuthSession, String, String>>? = null,
     ) : MessageApiClient {
         override fun sendMessage(
@@ -251,6 +288,14 @@ class SessionBackedMessageServiceTest {
             conversationId: String,
         ): FetchMessagesResult {
             return fetchResult
+        }
+
+        override fun sendTypingStatus(
+            session: AuthSession,
+            conversationId: String,
+            status: TypingStatus,
+        ): SendTypingResult {
+            return typingResult
         }
     }
 }

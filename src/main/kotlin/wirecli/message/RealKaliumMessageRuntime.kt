@@ -3,6 +3,7 @@ package wirecli.message
 import com.wire.kalium.common.error.CoreFailure
 import com.wire.kalium.common.error.NetworkFailure
 import com.wire.kalium.logic.CoreLogic
+import com.wire.kalium.logic.data.conversation.Conversation
 import com.wire.kalium.logic.data.id.ConversationId
 import com.wire.kalium.logic.data.message.Message
 import com.wire.kalium.logic.data.message.MessageContent
@@ -37,6 +38,12 @@ internal interface RealKaliumMessageRuntime {
         session: AuthSession,
         conversationId: String,
     ): MessageStepResult<List<ConversationMessage>>
+
+    fun sendTypingStatus(
+        session: AuthSession,
+        conversationId: String,
+        status: TypingStatus,
+    ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
 
     fun close() {
         shutdown()
@@ -328,6 +335,56 @@ internal class SdkKaliumMessageRuntime(
                         "exceptionClass=${error::class.qualifiedName} message=${error.message} mappedCategory=$mappedCategory"
                 }
                 MessageStepResult.Failure(mappedCategory)
+            }
+        }
+    }
+
+    override fun sendTypingStatus(
+        session: AuthSession,
+        conversationId: String,
+        status: TypingStatus,
+    ): MessageStepResult<Unit> {
+        if (conversationId.isBlank()) {
+            logger.debug { "sendTypingStatus: Validation failed - conversationId is blank" }
+            return MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+        }
+
+        val qualifiedId =
+            session.userId.toQualifiedIdOrNull()
+                ?: run {
+                    logger.warn { "sendTypingStatus: Invalid user ID format: ${session.userId}" }
+                    return MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
+                }
+        activeSessionUserIds += qualifiedId
+
+        return runBlocking {
+            try {
+                val kaliumConvId =
+                    ConversationId(
+                        value = conversationId,
+                        domain = session.server ?: "wire.com",
+                    )
+                val kaliumStatus =
+                    when (status) {
+                        TypingStatus.STARTED -> Conversation.TypingIndicatorMode.STARTED
+                        TypingStatus.STOPPED -> Conversation.TypingIndicatorMode.STOPPED
+                    }
+
+                withTimeout(sendTimeoutMs) {
+                    coreLogic.sessionScope(qualifiedId) {
+                        withContext(Dispatchers.Default) {
+                            syncExecutor.request {
+                                conversations.sendTypingEvent(kaliumConvId, kaliumStatus)
+                            }
+                        }
+                    }
+                }
+
+                MessageStepResult.Success(Unit)
+            } catch (_: TimeoutCancellationException) {
+                MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
+            } catch (error: Throwable) {
+                MessageStepResult.Failure(categoryFromThrowable(error))
             }
         }
     }

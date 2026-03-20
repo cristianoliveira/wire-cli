@@ -31,4 +31,18 @@ class AuthGuardedMessageService(
                 )
         }
     }
+
+    override fun sendTypingStatus(
+        conversationId: String,
+        status: TypingStatus,
+    ): SendTypingResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.sendTypingStatus(conversationId, status)
+            is AuthResult.Failure ->
+                SendTypingResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
 }

@@ -12,6 +12,7 @@ setup_wire_test_env() {
 
 	# Keep test processes isolated from inherited shell state.
 	export WIRE_BACKEND="stub"
+	export WIRECLI_CONSOLE_LOG_LEVEL="OFF"
 	unset WIRE_STUB_MODE
 	unset WIRE_REAL_EMAIL
 	unset WIRE_REAL_PASSWORD

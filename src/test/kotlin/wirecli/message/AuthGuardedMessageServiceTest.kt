@@ -174,6 +174,24 @@ class AuthGuardedMessageServiceTest {
         assertIs<FetchMessagesResult.Success>(result)
     }
 
+    @Test
+    fun `sendTypingStatus returns unauthorized when requireActiveSession fails`() {
+        val service =
+            AuthGuardedMessageService(
+                authSessionService =
+                    FakeAuthSessionService(
+                        authResult = AuthResult.Failure("Not logged in", ExitCodes.UNAUTHORIZED),
+                    ),
+                delegate = FakeMessageService(result = SendMessageResult.Success),
+            )
+
+        val result = service.sendTypingStatus("conv-123", TypingStatus.STARTED)
+
+        val failure = assertIs<SendTypingResult.Failure>(result)
+        assertEquals("Not logged in", failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
     private class FakeAuthSessionService(private val authResult: AuthResult) : AuthSessionService {
         override fun login(input: wirecli.auth.LoginInput): AuthResult {
             return AuthResult.Success("Logged in")
@@ -189,6 +207,7 @@ class AuthGuardedMessageServiceTest {
     private class FakeMessageService(
         private val result: SendMessageResult,
         private val captureRequests: MutableList<Pair<String, String>>? = null,
+        private val typingResult: SendTypingResult = SendTypingResult.Success,
     ) : MessageService {
         override fun sendMessage(
             conversationId: String,
@@ -206,5 +225,10 @@ class AuthGuardedMessageServiceTest {
                 ),
             )
         }
+
+        override fun sendTypingStatus(
+            conversationId: String,
+            status: TypingStatus,
+        ): SendTypingResult = typingResult
     }
 }

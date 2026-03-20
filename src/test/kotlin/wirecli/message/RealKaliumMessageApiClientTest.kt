@@ -494,6 +494,72 @@ class RealKaliumMessageApiClientTest {
         assertEquals("conv-789", capturedConvId)
     }
 
+    @Test
+    fun `sendTypingStatus returns success when runtime succeeds`() {
+        val client =
+            RealKaliumMessageApiClient(
+                runtime =
+                    object : RealKaliumMessageRuntime {
+                        override fun sendMessage(
+                            session: AuthSession,
+                            conversationId: String,
+                            text: String,
+                        ): MessageStepResult<Unit> = MessageStepResult.Success(Unit)
+
+                        override fun fetchMessages(
+                            session: AuthSession,
+                            conversationId: String,
+                        ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
+
+                        override fun sendTypingStatus(
+                            session: AuthSession,
+                            conversationId: String,
+                            status: TypingStatus,
+                        ): MessageStepResult<Unit> = MessageStepResult.Success(Unit)
+
+                        override fun shutdown() {}
+                    },
+            )
+
+        val result = client.sendTypingStatus(testSession, "conv-123", TypingStatus.STARTED)
+
+        assertIs<SendTypingResult.Success>(result)
+    }
+
+    @Test
+    fun `sendTypingStatus maps timeout to exit code 12`() {
+        val client =
+            RealKaliumMessageApiClient(
+                runtime =
+                    object : RealKaliumMessageRuntime {
+                        override fun sendMessage(
+                            session: AuthSession,
+                            conversationId: String,
+                            text: String,
+                        ): MessageStepResult<Unit> = MessageStepResult.Success(Unit)
+
+                        override fun fetchMessages(
+                            session: AuthSession,
+                            conversationId: String,
+                        ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
+
+                        override fun sendTypingStatus(
+                            session: AuthSession,
+                            conversationId: String,
+                            status: TypingStatus,
+                        ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
+
+                        override fun shutdown() {}
+                    },
+            )
+
+        val result = client.sendTypingStatus(testSession, "conv-123", TypingStatus.STOPPED)
+
+        val failure = assertIs<SendTypingResult.Failure>(result)
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+        assertEquals(MessageUserMessages.TYPING_TIMEOUT, failure.message)
+    }
+
     // ==================== Helper Classes ====================
 
     private class FakeKaliumMessageRuntime(

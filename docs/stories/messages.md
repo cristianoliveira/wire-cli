@@ -152,6 +152,18 @@ Notes:
 - **Reconnection**: Automatic retry (3 attempts, exponential backoff) on connection drop
 - **Exit Codes**: 0 (success/graceful interrupt), 13 (network error), 11 (unauthorized)
 
+### `wire message typing`
+
+- **Input**:
+  - `<conversation-id>` (required)
+  - `--state started|stopped` (optional, default `started`)
+  - `--auto-stop-seconds N` (optional, default `10`; used only for `started`)
+- **Behavior**:
+  - `started` emits `STARTED` and, by default, emits `STOPPED` after 10 seconds.
+  - `stopped` emits `STOPPED` immediately.
+  - `--auto-stop-seconds 0` disables the auto-stop guard.
+- **Exit Codes**: 0 (success), 11 (unauthorized), 12 (network/timeout), 13 (server/not found), 14 (validation)
+
 ### Message Object Schema
 
 ```json
@@ -212,6 +224,21 @@ wire message fetch --conversation-id conv-abc123 --follow | grep "alert"
 #### Stream only from a specific user
 ```bash
 wire message fetch --conversation-id conv-abc123 --follow --from system@domain
+```
+
+#### Send typing status (Kalium-compatible STARTED/STOPPED)
+```bash
+wire message typing conv-abc123
+```
+
+#### Send STARTED without auto-stop
+```bash
+wire message typing conv-abc123 --state started --auto-stop-seconds 0
+```
+
+#### Send STOPPED explicitly
+```bash
+wire message typing conv-abc123 --state stopped
 ```
 
 #### Bot example: React to "ping" with "pong"

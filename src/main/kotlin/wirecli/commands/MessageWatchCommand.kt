@@ -5,9 +5,9 @@ import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.ExitCodes
-import wirecli.message.MessageUserMessages
 import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageService
+import wirecli.message.MessageUserMessages
 import kotlin.math.min
 
 private val logger = KotlinLogging.logger {}

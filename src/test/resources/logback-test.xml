@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="false">
+  <!-- Test Configuration: Disable console logging to keep test output clean -->
+  <!-- Logs still go to file for debugging -->
+  <!-- Disable logback's own status logging to avoid polluting test output -->
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+  
+  <!-- Log directory property with fallback to ~/.cache/wire-cli/logs -->
+  <property name="LOG_DIR" value="${LOG_DIR:-${user.home}/.cache/wire-cli/logs}"/>
+
+  <!-- FILE Appender: Detailed logs for debugging -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/wire-cli-test.log</file>
+    <encoder>
+      <pattern>%d{ISO8601} | %-5level | %logger{32} | %msg%n</pattern>
+    </encoder>
+    
+    <!-- Rolling Policy: Size + Time + Count -->
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <!-- File pattern: wire-cli-test-2026-03-15.1.log.gz -->
+      <fileNamePattern>${LOG_DIR}/archive/wire-cli-test-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      
+      <!-- Rotate at 50MB -->
+      <maxFileSize>50MB</maxFileSize>
+      
+      <!-- Keep logs for 14 days -->
+      <maxHistory>14</maxHistory>
+    </rollingPolicy>
+  </appender>
+
+  <!-- Root Logger: Only file appender (no console) -->
+  <root level="INFO">
+    <!-- File appender only - no console output during tests -->
+    <appender-ref ref="FILE" />
+  </root>
+</configuration>

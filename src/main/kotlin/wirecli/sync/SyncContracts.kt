@@ -151,6 +151,8 @@ interface SyncApiClient {
         force: Boolean = false,
     ): ResetResult
 
+    fun forceSyncAndWait(session: AuthSession): SyncStatusResult
+
     /**
      * Retrieves sync status for a specific conversation.
      *
@@ -220,6 +222,8 @@ interface SyncService {
     fun getDiagnosticsReport(): DiagnosticsResult
 
     fun resetSync(force: Boolean = false): ResetResult
+
+    fun forceSyncAndWait(): SyncStatusResult
 
     /**
      * Retrieves sync status for a specific conversation.

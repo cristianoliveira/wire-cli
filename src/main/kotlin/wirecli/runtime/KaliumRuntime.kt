@@ -21,6 +21,13 @@ import wirecli.device.RealKaliumDeviceApiClient
 import wirecli.device.SdkKaliumDeviceRuntime
 import wirecli.device.SessionBackedDeviceService
 import wirecli.device.StubDeviceApiClient
+import wirecli.message.AuthGuardedMessageService
+import wirecli.message.MessageApiClient
+import wirecli.message.MessageService
+import wirecli.message.RealKaliumMessageApiClient
+import wirecli.message.SdkKaliumMessageRuntime
+import wirecli.message.SessionBackedMessageService
+import wirecli.message.StubMessageApiClient
 import wirecli.presence.AuthGuardedPresenceService
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceService
@@ -51,6 +58,7 @@ interface KaliumRuntime : AutoCloseable {
     val deviceService: DeviceService
     val syncService: SyncService
     val conversationService: ConversationService
+    val messageService: MessageService
 
     fun shutdown()
 
@@ -158,6 +166,17 @@ private class DefaultKaliumRuntime(
         )
     }
 
+    override val messageService: MessageService by lazy {
+        AuthGuardedMessageService(
+            authSessionService = authSessionService,
+            delegate =
+                SessionBackedMessageService(
+                    sessionStore = sessionStore,
+                    apiClient = backend.messageApiClient,
+                ),
+        )
+    }
+
     override fun shutdown() {
         if (!backendLazy.isInitialized()) return
         backend.shutdown()
@@ -199,6 +218,7 @@ internal interface RuntimeBackend {
     val deviceApiClient: DeviceApiClient
     val syncApiClient: SyncApiClient
     val conversationApiClient: ConversationApiClient
+    val messageApiClient: MessageApiClient
 
     fun shutdown()
 }
@@ -212,6 +232,7 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
             override val deviceApiClient: DeviceApiClient = StubDeviceApiClient(environment)
             override val syncApiClient: SyncApiClient = StubSyncApiClient(environment)
             override val conversationApiClient: ConversationApiClient = StubConversationApiClient(environment)
+            override val messageApiClient: MessageApiClient = StubMessageApiClient(environment)
 
             override fun shutdown() {
                 // No background resources in stub backend.
@@ -229,6 +250,7 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             private val deviceRuntimeLazy = lazy { SdkKaliumDeviceRuntime(environment) }
             private val syncRuntimeLazy = lazy { SdkKaliumSyncRuntime(environment) }
             private val conversationRuntimeLazy = lazy { SdkKaliumConversationRuntime(environment) }
+            private val messageRuntimeLazy = lazy { SdkKaliumMessageRuntime(environment) }
 
             private val authRuntime by authRuntimeLazy
             private val profileRuntime by profileRuntimeLazy
@@ -236,6 +258,7 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             private val deviceRuntime by deviceRuntimeLazy
             private val syncRuntime by syncRuntimeLazy
             private val conversationRuntime by conversationRuntimeLazy
+            private val messageRuntime by messageRuntimeLazy
 
             override val authApiClient: AuthApiClient by lazy { RealKaliumAuthClient(authRuntime) }
             override val profileApiClient: ProfileApiClient by lazy { RealKaliumProfileApiClient(profileRuntime) }
@@ -247,6 +270,10 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
                 RealKaliumConversationApiClient(conversationRuntime)
             }
 
+            override val messageApiClient: MessageApiClient by lazy {
+                RealKaliumMessageApiClient(messageRuntime)
+            }
+
             override fun shutdown() {
                 if (authRuntimeLazy.isInitialized()) authRuntime.close()
                 if (profileRuntimeLazy.isInitialized()) profileRuntime.close()
@@ -254,6 +281,7 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
                 if (deviceRuntimeLazy.isInitialized()) deviceRuntime.shutdown()
                 if (syncRuntimeLazy.isInitialized()) syncRuntime.shutdown()
                 if (conversationRuntimeLazy.isInitialized()) conversationRuntime.shutdown()
+                if (messageRuntimeLazy.isInitialized()) messageRuntime.shutdown()
             }
         }
     }

@@ -16,10 +16,13 @@ import com.wire.kalium.logic.feature.auth.autoVersioningAuth.AutoVersionAuthScop
 import com.wire.kalium.logic.feature.client.RegisterClientParam
 import com.wire.kalium.logic.feature.client.RegisterClientResult
 import com.wire.kalium.logic.feature.server.GetServerConfigResult
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Real Kalium-backed implementation of the authentication client.
@@ -407,6 +410,7 @@ internal enum class AuthFailureCategory {
     NETWORK,
     SERVER,
     UNAUTHORIZED,
+    NOMAD_SINGLE_USER_VIOLATION,
     UNKNOWN,
 }
 
@@ -427,11 +431,20 @@ internal class SdkKaliumAuthRuntime(
 ) : RealKaliumAuthRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
+    init {
+        logger.debug { "SdkKaliumAuthRuntime initialized with CLI mode: $cliMode" }
+    }
+
     private val coreLogicLazy =
         lazy {
+            logger.debug { "Initializing Kalium CoreLogic for auth runtime" }
+            val rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium"
+            logger.debug { "Kalium data path: $rootPath" }
+            val configs = kaliumCliConfigs(cliMode)
+            logger.debug { "Kalium configs loaded for mode: $cliMode" }
             CoreLogic(
-                rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
-                kaliumConfigs = kaliumCliConfigs(cliMode),
+                rootPath = rootPath,
+                kaliumConfigs = configs,
                 userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}",
             )
         }
@@ -449,25 +462,35 @@ internal class SdkKaliumAuthRuntime(
      * @post On Success, scope can perform login operations without re-connecting
      */
     override fun resolveAuthScope(server: String?): AuthStepResult<KaliumAuthScope> {
+        logger.info { "SdkKaliumAuthRuntime: Resolving auth scope for server: ${server ?: "default"}" }
         return runBlocking {
+            logger.debug { "Resolving server configuration links" }
             when (val links = resolveServerLinks(server)) {
-                is AuthStepResult.Failure -> links
+                is AuthStepResult.Failure -> {
+                    logger.warn { "Failed to resolve server links: ${links.category}" }
+                    links
+                }
                 is AuthStepResult.Success -> {
+                    logger.debug { "Server links resolved successfully - creating auth scope" }
                     when (val authScope = coreLogic.versionedAuthenticationScope(links.value).invoke(null)) {
                         is AutoVersionAuthScopeUseCase.Result.Success -> {
+                            logger.debug { "Auth scope created successfully" }
                             AuthStepResult.Success(
                                 SdkKaliumAuthScope(authScope.authenticationScope),
                             )
                         }
                         is AutoVersionAuthScopeUseCase.Result.Failure.UnknownServerVersion -> {
+                            logger.error { "Unknown server version - auth scope creation failed" }
                             AuthStepResult.Failure(AuthFailureCategory.SERVER)
                         }
 
                         is AutoVersionAuthScopeUseCase.Result.Failure.TooNewVersion -> {
+                            logger.error { "Server version too new - auth scope creation failed" }
                             AuthStepResult.Failure(AuthFailureCategory.SERVER)
                         }
 
                         is AutoVersionAuthScopeUseCase.Result.Failure.Generic -> {
+                            logger.error { "Generic error creating auth scope: ${authScope.genericFailure}" }
                             AuthStepResult.Failure(coreFailureToCategory(authScope.genericFailure))
                         }
                     }
@@ -490,10 +513,16 @@ internal class SdkKaliumAuthRuntime(
      * @post Subsequent addAuthenticatedAccount calls with same userId replace previous account
      */
     override fun addAuthenticatedAccount(account: PersistedAccount): AuthStepResult<Unit> {
+        logger.info { "SdkKaliumAuthRuntime: Adding authenticated account for user: ${account.userId}" }
         return runBlocking {
             val userId =
                 account.userId.toQualifiedIdOrNull()
-                    ?: return@runBlocking AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+                    ?: run {
+                        logger.warn { "Invalid user ID format for persisting account: ${account.userId}" }
+                        return@runBlocking AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+                    }
+            logger.debug { "User ID qualified: $userId" }
+
             val authTokens =
                 AccountTokens(
                     userId = userId,
@@ -503,6 +532,7 @@ internal class SdkKaliumAuthRuntime(
                     cookieLabel = account.cookieLabel,
                 )
 
+            logger.debug { "Persisting authenticated account to storage" }
             when (
                 val result =
                     coreLogic.globalScope {
@@ -520,12 +550,20 @@ internal class SdkKaliumAuthRuntime(
                         )
                     }
             ) {
-                is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Success -> AuthStepResult.Success(Unit)
-                com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.UserAlreadyExists -> {
+                is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Success -> {
+                    logger.info { "Account persisted successfully for user: $userId" }
                     AuthStepResult.Success(Unit)
                 }
-
+                com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.UserAlreadyExists -> {
+                    logger.debug { "Account already exists for user: $userId - replacing" }
+                    AuthStepResult.Success(Unit)
+                }
+                com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.NomadSingleUserViolation -> {
+                    logger.error { "Nomad single user violation for user $userId" }
+                    AuthStepResult.Failure(AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION)
+                }
                 is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.Generic -> {
+                    logger.error { "Failed to persist account for user $userId: ${result.genericFailure}" }
                     AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
                 }
             }
@@ -617,18 +655,26 @@ internal class SdkKaliumAuthRuntime(
      * @post activeSessionUserIds is updated to track this session for cleanup
      */
     override fun logout(session: AuthSession): AuthStepResult<Unit> {
+        logger.info { "SdkKaliumAuthRuntime: Logging out user: ${session.userId}" }
         val userId =
             session.userId.toQualifiedIdOrNull()
-                ?: return AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+                ?: run {
+                    logger.warn { "Invalid user ID format for logout: ${session.userId}" }
+                    return AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+                }
         activeSessionUserIds += userId
+        logger.debug { "User ID qualified: $userId" }
 
         return runBlocking {
             try {
+                logger.debug { "Initiating logout for user: $userId" }
                 coreLogic.sessionScope(userId) {
                     logout(LogoutReason.SELF_HARD_LOGOUT, waitUntilCompletes = true)
                 }
+                logger.info { "Logout completed successfully for user: $userId" }
                 AuthStepResult.Success(Unit)
             } catch (error: Throwable) {
+                logger.error(error) { "Failed to logout user: $userId" }
                 AuthStepResult.Failure(categoryFromThrowable(error))
             }
         }
@@ -647,14 +693,22 @@ internal class SdkKaliumAuthRuntime(
      * @post Safe to call multiple times (checks lazy initialization)
      */
     override fun shutdown() {
-        if (!coreLogicLazy.isInitialized()) return
+        logger.debug { "SdkKaliumAuthRuntime: Shutting down auth runtime" }
+        if (!coreLogicLazy.isInitialized()) {
+            logger.debug { "CoreLogic not initialized - nothing to shutdown" }
+            return
+        }
 
+        logger.debug { "Cancelling ${activeSessionUserIds.size} active session scopes" }
         runBlocking {
             activeSessionUserIds.forEach { userId ->
+                logger.debug { "Cancelling session scope for user: $userId" }
                 coreLogic.sessionScope(userId) { cancel() }
             }
         }
+        logger.debug { "Cancelling global scope" }
         coreLogic.getGlobalScope().cancel()
+        logger.info { "Auth runtime shutdown complete" }
     }
 
     /**
@@ -880,6 +934,7 @@ private fun AuthStepResult.Failure.toAuthFailure(
             AuthFailureCategory.NETWORK -> AuthMessages.networkFailure(action)
             AuthFailureCategory.SERVER -> AuthMessages.authServiceUnavailable()
             AuthFailureCategory.UNAUTHORIZED -> AuthMessages.unauthorizedAction(action)
+            AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION -> "Nomad single user mode violation: cannot add additional users."
             AuthFailureCategory.UNKNOWN -> "Unexpected authentication error. Please retry."
         }
 
@@ -890,6 +945,7 @@ private fun AuthStepResult.Failure.toAuthFailure(
             AuthFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
             AuthFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             AuthFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION -> ExitCodes.NOMAD_SINGLE_USER_VIOLATION
             AuthFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 

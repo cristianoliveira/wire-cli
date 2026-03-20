@@ -6,6 +6,7 @@ import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.user.UserId
 import com.wire.kalium.logic.feature.client.DeleteClientResult
 import com.wire.kalium.logic.feature.client.SelfClientsResult
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
@@ -13,6 +14,8 @@ import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Real Kalium-backed implementation of the device API client.
@@ -38,19 +41,34 @@ internal class RealKaliumDeviceApiClient(
      * @post Success result contains zero or more Device objects
      */
     override fun listDevices(session: AuthSession): DeviceListResult {
+        logger.info { "Listing devices for current user" }
+        logger.debug { "API call: GET /clients (list self devices)" }
+
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceFailure()
+                is DeviceStepResult.Success -> {
+                    logger.debug { "Session scope resolved successfully" }
+                    scope.value
+                }
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope: ${scope.category}" }
+                    return scope.toDeviceFailure()
+                }
             }
 
         return when (val devices = runtime.listDevices(sessionScope)) {
-            is DeviceStepResult.Success ->
+            is DeviceStepResult.Success -> {
+                logger.info { "Successfully retrieved ${devices.value.size} device(s)" }
+                logger.debug { "Device list result: ${devices.value.map { it.id }}" }
                 DeviceListResult.Success(
                     view = DeviceListView(devices = devices.value),
                 )
+            }
 
-            is DeviceStepResult.Failure -> devices.toDeviceFailure()
+            is DeviceStepResult.Failure -> {
+                logger.warn { "Failed to list devices: ${devices.category}" }
+                devices.toDeviceFailure()
+            }
         }
     }
 
@@ -70,19 +88,34 @@ internal class RealKaliumDeviceApiClient(
         session: AuthSession,
         userId: String,
     ): DeviceListResult {
+        logger.info { "Listing devices for user: $userId" }
+        logger.debug { "API call: GET /users/$userId/clients" }
+
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceFailure()
+                is DeviceStepResult.Success -> {
+                    logger.debug { "Session scope resolved for user listing" }
+                    scope.value
+                }
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope for user listing: ${scope.category}" }
+                    return scope.toDeviceFailure()
+                }
             }
 
         return when (val devices = runtime.listDevicesForUser(sessionScope, userId)) {
-            is DeviceStepResult.Success ->
+            is DeviceStepResult.Success -> {
+                logger.info { "Successfully retrieved ${devices.value.size} device(s) for user $userId" }
+                logger.debug { "Device list for user $userId: ${devices.value.map { it.id }}" }
                 DeviceListResult.Success(
                     view = DeviceListView(devices = devices.value),
                 )
+            }
 
-            is DeviceStepResult.Failure -> devices.toDeviceFailure()
+            is DeviceStepResult.Failure -> {
+                logger.warn { "Failed to list devices for user $userId: ${devices.category}" }
+                devices.toDeviceFailure()
+            }
         }
     }
 
@@ -103,14 +136,25 @@ internal class RealKaliumDeviceApiClient(
         session: AuthSession,
         deviceId: String,
     ): DeviceDetailResult {
+        logger.info { "Retrieving device detail: $deviceId" }
+        logger.debug { "API call: GET /clients/$deviceId" }
+
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceDetailFailure()
+                is DeviceStepResult.Success -> {
+                    logger.debug { "Session scope resolved for device detail request" }
+                    scope.value
+                }
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope for device detail: ${scope.category}" }
+                    return scope.toDeviceDetailFailure()
+                }
             }
 
         return when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
-            is DeviceStepResult.Success ->
+            is DeviceStepResult.Success -> {
+                logger.info { "Successfully retrieved device detail: ${device.value.id}" }
+                logger.debug { "Device type: ${device.value.type}, Last active: ${device.value.lastActive}" }
                 DeviceDetailResult.Success(
                     view =
                         DeviceDetailView(
@@ -118,8 +162,12 @@ internal class RealKaliumDeviceApiClient(
                             keyPackageStatus = KeyPackageStatus.VALID,
                         ),
                 )
+            }
 
-            is DeviceStepResult.Failure -> device.toDeviceDetailFailure()
+            is DeviceStepResult.Failure -> {
+                logger.warn { "Failed to retrieve device detail $deviceId: ${device.category}" }
+                device.toDeviceDetailFailure()
+            }
         }
     }
 
@@ -143,19 +191,34 @@ internal class RealKaliumDeviceApiClient(
         deviceId: String,
         password: String?,
     ): DeviceDeleteResult {
+        logger.info { "Deleting device: $deviceId" }
+        logger.debug { "API call: DELETE /clients/$deviceId (write operation)" }
+        logger.debug { "Password provided: ${password != null}" }
+
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = true)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceDeleteFailure()
+                is DeviceStepResult.Success -> {
+                    logger.debug { "Session scope resolved for device deletion" }
+                    scope.value
+                }
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope for device deletion: ${scope.category}" }
+                    return scope.toDeviceDeleteFailure()
+                }
             }
 
         return when (val result = runtime.deleteDevice(sessionScope, deviceId, password)) {
-            is DeviceStepResult.Success ->
+            is DeviceStepResult.Success -> {
+                logger.info { "Device deleted successfully: $deviceId" }
                 DeviceDeleteResult.Success(
                     message = "Device deleted successfully.",
                 )
+            }
 
-            is DeviceStepResult.Failure -> result.toDeviceDeleteFailure()
+            is DeviceStepResult.Failure -> {
+                logger.warn { "Failed to delete device $deviceId: ${result.category}" }
+                result.toDeviceDeleteFailure()
+            }
         }
     }
 
@@ -175,20 +238,35 @@ internal class RealKaliumDeviceApiClient(
         session: AuthSession,
         deviceId: String,
     ): DeviceVerifyResult {
+        logger.info { "Verifying device: $deviceId" }
+        logger.debug { "API call: GET /clients/$deviceId (verification)" }
+
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session, isWriteOperation = false)) {
-                is DeviceStepResult.Success -> scope.value
-                is DeviceStepResult.Failure -> return scope.toDeviceVerifyFailure()
+                is DeviceStepResult.Success -> {
+                    logger.debug { "Session scope resolved for device verification" }
+                    scope.value
+                }
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope for device verification: ${scope.category}" }
+                    return scope.toDeviceVerifyFailure()
+                }
             }
 
         return when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
-            is DeviceStepResult.Success ->
+            is DeviceStepResult.Success -> {
+                logger.info { "Device verified successfully: ${device.value.id}" }
+                logger.debug { "Fingerprint verified for device: ${device.value.id}" }
                 DeviceVerifyResult.Success(
                     message = "Device verified successfully.",
                     fingerprint = device.value.fingerprint,
                 )
+            }
 
-            is DeviceStepResult.Failure -> device.toDeviceVerifyFailure()
+            is DeviceStepResult.Failure -> {
+                logger.warn { "Failed to verify device $deviceId: ${device.category}" }
+                device.toDeviceVerifyFailure()
+            }
         }
     }
 }

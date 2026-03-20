@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="false">
+  <!-- Disable logback's own status logging to avoid polluting command output -->
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+
+  <!-- Log directory property with fallback to ~/.cache/wire-cli/logs -->
+  <property name="LOG_DIR" value="${WIRECLI_LOG_DIR:-${user.home}/.cache/wire-cli/logs}"/>
+
+  <!-- File log level (default INFO) -->
+  <!-- Can be overridden with WIRECLI_LOG_LEVEL environment variable or the log-level CLI option -->
+  <property name="FILE_LOG_LEVEL" value="${WIRECLI_LOG_LEVEL:-INFO}"/>
+
+  <!-- Console log level (default OFF) -->
+  <!-- Can be overridden with WIRECLI_CONSOLE_LOG_LEVEL env var/system property -->
+  <!-- Main.kt sets this early based on verbose/log-level/json flags -->
+  <property name="CONSOLE_LOG_LEVEL" value="${WIRECLI_CONSOLE_LOG_LEVEL:-OFF}"/>
+
+  <!-- APPENDER 1: Console Output (outputs to stderr) -->
+  <!-- Format: [LEVEL] message - clean and human-readable for users -->
+  <!-- Note: Logs are sent to System.err to avoid interfering with command output on System.out -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>${CONSOLE_LOG_LEVEL}</level>
+    </filter>
+    <encoder>
+      <pattern>%highlight([%-5level]) %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- APPENDER 2: File Output with Rotation -->
+  <!-- Format: timestamp | level | logger | thread | message - detailed for debugging -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/wire-cli.log</file>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>${FILE_LOG_LEVEL}</level>
+    </filter>
+    <encoder>
+      <pattern>%d{ISO8601} | %-5level | %logger{36} | %thread | %msg%n</pattern>
+    </encoder>
+
+    <!-- Rolling Policy: Size + Time + Count -->
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <!-- File pattern: wire-cli-2026-03-15.1.log.gz -->
+      <fileNamePattern>${LOG_DIR}/archive/wire-cli-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+
+      <!-- Rotate at 50MB (prevents single file from becoming too large) -->
+      <maxFileSize>50MB</maxFileSize>
+
+      <!-- Keep logs for 14 days -->
+      <maxHistory>14</maxHistory>
+
+      <!-- Maximum total size of all archived logs (e.g., 1GB) -->
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+  </appender>
+
+  <!-- Root Logger: All loggers inherit this configuration -->
+  <root level="${FILE_LOG_LEVEL}">
+    <!-- Console appender is off by default; enable via WIRECLI_CONSOLE_LOG_LEVEL or verbose/log-level flags -->
+    <appender-ref ref="CONSOLE" />
+    <!-- File appender always enabled for debugging and auditing -->
+    <appender-ref ref="FILE" />
+  </root>
+</configuration>

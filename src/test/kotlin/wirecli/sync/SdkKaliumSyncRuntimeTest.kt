@@ -49,6 +49,15 @@ class SdkKaliumSyncRuntimeTest {
     fun `RealKaliumSyncApiClient delegates to runtime`() {
         val runtime =
             object : RealKaliumSyncRuntime {
+                override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+                    return SyncStatusResult.Success(
+                        SyncStatusView(
+                            status = SyncStatus.READY,
+                            metrics = HealthMetrics(100L, 5, 85, "2025-03-13T10:30:00Z"),
+                        ),
+                    )
+                }
+
                 override fun getSyncStatus(session: AuthSession): SyncStatusResult {
                     return SyncStatusResult.Success(
                         SyncStatusView(

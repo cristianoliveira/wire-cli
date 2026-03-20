@@ -1,4 +1,11 @@
-.PHONY: format format-check lint test all ktlint-baseline
+.PHONY: format format-check lint test test-unit all ktlint-baseline
+
+JAVA_AVAILABLE := $(shell java -version >/dev/null 2>&1 && echo 1 || echo 0)
+ifeq ($(JAVA_AVAILABLE),1)
+GRADLEW := ./gradlew --no-daemon
+else
+GRADLEW := nix develop --command ./gradlew --no-daemon
+endif
 
 .PHONY: help
 help: ## Lists the available commands. Add a comment with '##' to describe a command.
@@ -7,18 +14,21 @@ help: ## Lists the available commands. Add a comment with '##' to describe a com
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 format: ## Formats the code
-	./gradlew --no-daemon ktlintFormat
+	$(GRADLEW) ktlintFormat
 
 format-check: ## Checks if the code is formatted
-	./gradlew --no-daemon ktlintCheck
+	$(GRADLEW) ktlintCheck
 
 lint: ## Checks the code
-	./gradlew --no-daemon detekt
+	$(GRADLEW) detekt
 
-test: ## Runs the tests
-	./gradlew --no-daemon test batsTest
+test: ## Runs all tests (unit + integration)
+	$(GRADLEW) test batsTest
+
+test-unit: ## Runs unit tests only (quick, for git hooks)
+	$(GRADLEW) test
 
 all: format-check lint test ## Runs the checks and tests
 
 ktlint-baseline: ## Generates the ktlint baseline
-	./gradlew --no-daemon ktlintGenerateBaseline
+	$(GRADLEW) ktlintGenerateBaseline

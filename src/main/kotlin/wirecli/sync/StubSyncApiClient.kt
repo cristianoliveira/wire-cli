@@ -7,6 +7,39 @@ import wirecli.auth.ExitCodes
 class StubSyncApiClient(
     private val environment: Map<String, String>,
 ) : SyncApiClient {
+    override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "sync_wait_timeout" ->
+                SyncStatusResult.Failure(
+                    message = "Timed out waiting for sync to reach live state after force sync.",
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+
+            "sync_wait_error", "network_error" ->
+                SyncStatusResult.Failure(
+                    message = SyncMessages.NETWORK_FAILURE,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            "sync_wait_unauthorized", "unauthorized" ->
+                SyncStatusResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            else ->
+                SyncStatusResult.Success(
+                    view =
+                        SyncStatusView(
+                            status = SyncStatus.READY,
+                            metrics = defaultHealthMetrics,
+                        ),
+                )
+        }
+    }
+
     private val defaultHealthMetrics =
         HealthMetrics(
             lag_ms = 100L,

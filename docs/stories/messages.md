@@ -152,6 +152,18 @@ Notes:
 - **Reconnection**: Automatic retry (3 attempts, exponential backoff) on connection drop
 - **Exit Codes**: 0 (success/graceful interrupt), 13 (network error), 11 (unauthorized)
 
+### `wire message typing`
+
+- **Input**:
+  - `<conversation-id>` (required)
+  - `--while-pid <pid>` (required)
+- **Behavior**:
+  - Emits `STARTED` immediately.
+  - Sends heartbeat `STARTED` updates every few seconds while the PID is alive.
+  - Emits `STOPPED` when the PID exits.
+  - Fails validation when PID is invalid or not running.
+- **Exit Codes**: 0 (success), 11 (unauthorized), 12 (network/timeout), 13 (server/not found), 14 (validation)
+
 ### Message Object Schema
 
 ```json
@@ -212,6 +224,18 @@ wire message fetch --conversation-id conv-abc123 --follow | grep "alert"
 #### Stream only from a specific user
 ```bash
 wire message fetch --conversation-id conv-abc123 --follow --from system@domain
+```
+
+#### Send typing status (Kalium-compatible STARTED/STOPPED)
+```bash
+long-running-task &
+wire message typing conv-abc123 --while-pid $!
+```
+
+#### Keep typing while a background task runs
+```bash
+long-running-task &
+wire message typing conv-abc123 --while-pid $!
 ```
 
 #### Bot example: React to "ping" with "pong"

@@ -3,6 +3,7 @@ package wirecli.profile
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.user.SelfUser
 import com.wire.kalium.logic.data.user.UserId
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
@@ -11,18 +12,27 @@ import wirecli.auth.ExitCodes
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 
+private val logger = KotlinLogging.logger {}
+
 internal class RealKaliumProfileApiClient(
     private val runtime: RealKaliumProfileRuntime,
 ) : ProfileApiClient {
     override fun fetchProfile(session: AuthSession): ProfileResult {
+        logger.debug { "RealKaliumProfileApiClient: Fetching profile for user: ${session.userId}" }
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session)) {
                 is ProfileStepResult.Success -> scope.value
-                is ProfileStepResult.Failure -> return scope.toProfileFailure()
+                is ProfileStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope for profile: ${scope.category}" }
+                    return scope.toProfileFailure()
+                }
             }
 
         return when (val selfUser = runtime.getSelfUser(sessionScope)) {
-            is ProfileStepResult.Success ->
+            is ProfileStepResult.Success -> {
+                logger.info {
+                    "Successfully retrieved profile: name=${selfUser.value.name}, email=${selfUser.value.email}, handle=${selfUser.value.handle}"
+                }
                 ProfileResult.Success(
                     profile =
                         ProfileView(
@@ -31,8 +41,12 @@ internal class RealKaliumProfileApiClient(
                             handle = selfUser.value.handle,
                         ),
                 )
+            }
 
-            is ProfileStepResult.Failure -> selfUser.toProfileFailure()
+            is ProfileStepResult.Failure -> {
+                logger.warn { "Failed to retrieve self user: ${selfUser.category}" }
+                selfUser.toProfileFailure()
+            }
         }
     }
 }
@@ -81,9 +95,14 @@ internal class SdkKaliumProfileRuntime(
 
     private val coreLogicLazy =
         lazy {
+            logger.debug { "SdkKaliumProfileRuntime: Initializing Kalium CoreLogic for profile runtime" }
+            val rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium"
+            logger.debug { "SdkKaliumProfileRuntime: Kalium data path: $rootPath" }
+            val configs = kaliumCliConfigs(cliMode)
+            logger.debug { "SdkKaliumProfileRuntime: Kalium configs loaded for mode: $cliMode" }
             CoreLogic(
-                rootPath = "${resolveHomeDirectory(environment)}/.wire/kalium",
-                kaliumConfigs = kaliumCliConfigs(cliMode),
+                rootPath = rootPath,
+                kaliumConfigs = configs,
                 userAgent = "wire-cli/${System.getProperty("http.agent") ?: "jvm"}",
             )
         }
@@ -92,7 +111,10 @@ internal class SdkKaliumProfileRuntime(
     override fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope> {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
-                ?: return ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
+                ?: run {
+                    logger.warn { "Invalid user ID format: ${session.userId}" }
+                    return ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
+                }
         activeSessionUserIds += qualifiedId
 
         return runBlocking {
@@ -102,6 +124,7 @@ internal class SdkKaliumProfileRuntime(
                         syncExecutor.request { waitUntilLiveOrFailure() }
                     }
                 }
+                logger.debug { "Profile session scope resolved successfully for user: ${session.userId}" }
                 ProfileStepResult.Success(
                     KaliumProfileSessionScope(
                         userId = session.userId,
@@ -109,6 +132,7 @@ internal class SdkKaliumProfileRuntime(
                     ),
                 )
             } catch (error: Throwable) {
+                logger.error(error) { "Failed to resolve profile session scope for user: ${session.userId}" }
                 ProfileStepResult.Failure(categoryFromThrowable(error))
             }
         }
@@ -123,15 +147,20 @@ internal class SdkKaliumProfileRuntime(
             }
         }
         coreLogic.getGlobalScope().cancel()
+        logger.debug { "SdkKaliumProfileRuntime: Profile runtime shutdown complete" }
     }
 
     override fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser> {
         val qualifiedId =
             sessionScope.userId.toQualifiedIdOrNull()
-                ?: return ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
+                ?: run {
+                    logger.warn { "Invalid user ID format for self user: ${sessionScope.userId}" }
+                    return ProfileStepResult.Failure(ProfileFailureCategory.UNAUTHORIZED)
+                }
 
         return runBlocking {
             try {
+                logger.debug { "Fetching self user data for: $qualifiedId" }
                 val selfUser: SelfUser =
                     coreLogic.sessionScope(qualifiedId) {
                         users.getSelfUser()
@@ -139,6 +168,7 @@ internal class SdkKaliumProfileRuntime(
                         ?: throw IllegalStateException(
                             "Self user data is unavailable - this indicates a failure to fetch profile information.",
                         )
+                logger.debug { "Self user data retrieved successfully: name=${selfUser.name}, handle=${selfUser.handle}" }
                 ProfileStepResult.Success(
                     KaliumSelfUser(
                         name = selfUser.name,
@@ -147,6 +177,7 @@ internal class SdkKaliumProfileRuntime(
                     ),
                 )
             } catch (error: Throwable) {
+                logger.error(error) { "Failed to fetch self user for: $qualifiedId" }
                 ProfileStepResult.Failure(categoryFromThrowable(error))
             }
         }

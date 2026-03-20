@@ -24,13 +24,34 @@ class SyncCommand(
         subcommands(
             SyncStatusCommand(syncServiceProvider),
             DoctorDiagnoseCommand(syncServiceProvider),
+            DoctorSyncCommand(syncServiceProvider),
         )
     }
 
     override fun run() {
         if (currentContext.invokedSubcommand == null) {
             val syncService = syncServiceProvider()
-            outputSyncStatusResult(syncService.getCurrentSyncStatus())
+            outputSyncStatusResult(
+                runWithLoading("Collecting account health") {
+                    syncService.getCurrentSyncStatus()
+                },
+            )
+        }
+    }
+
+    private fun <T> runWithLoading(
+        message: String,
+        block: () -> T,
+    ): T {
+        if (System.console() == null) return block()
+
+        val startedAt = System.currentTimeMillis()
+        echo("$message...", err = true)
+        return try {
+            block()
+        } finally {
+            val elapsed = System.currentTimeMillis() - startedAt
+            echo("Done (${elapsed}ms)", err = true)
         }
     }
 
@@ -54,6 +75,55 @@ class SyncCommand(
             "error" -> SyncExitCodes.DEGRADED
             else -> SyncExitCodes.OK
         }
+}
+
+private class DoctorSyncCommand(
+    private val syncServiceProvider: () -> SyncService,
+) : CliktCommand(
+        name = "sync",
+        help = "Force sync and wait until live state.",
+    ) {
+    override fun run() {
+        val syncService = syncServiceProvider()
+        val result =
+            runWithLoading("Forcing sync and waiting for live state") {
+                syncService.forceSyncAndWait()
+            }
+
+        when (result) {
+            is SyncStatusResult.Success -> {
+                echo(SyncOutputFormatter.formatStatusHuman(result))
+                throw ProgramResult(getExitCodeForStatus(result.view.status.value))
+            }
+            is SyncStatusResult.Failure -> {
+                echo(AuthRedactor.redact(result.message), err = true)
+                throw ProgramResult(result.exitCode)
+            }
+        }
+    }
+
+    private fun getExitCodeForStatus(status: String): Int =
+        when (status) {
+            "ready" -> SyncExitCodes.OK
+            "initializing", "degraded", "error" -> SyncExitCodes.DEGRADED
+            else -> SyncExitCodes.OK
+        }
+
+    private fun <T> runWithLoading(
+        message: String,
+        block: () -> T,
+    ): T {
+        if (System.console() == null) return block()
+
+        val startedAt = System.currentTimeMillis()
+        echo("$message...", err = true)
+        return try {
+            block()
+        } finally {
+            val elapsed = System.currentTimeMillis() - startedAt
+            echo("Done (${elapsed}ms)", err = true)
+        }
+    }
 }
 
 private class SyncStatusCommand(
@@ -86,7 +156,10 @@ private class SyncStatusCommand(
     }
 
     private fun runStatus(syncService: SyncService) {
-        val result = syncService.getCurrentSyncStatus()
+        val result =
+            runWithLoading("Collecting account health") {
+                syncService.getCurrentSyncStatus()
+            }
 
         val output =
             when {
@@ -108,7 +181,10 @@ private class SyncStatusCommand(
     }
 
     private fun runDiagnose(syncService: SyncService) {
-        val result = syncService.getDiagnosticsReport()
+        val result =
+            runWithLoading("Running diagnostics") {
+                syncService.getDiagnosticsReport()
+            }
 
         val output =
             if (json) {
@@ -141,6 +217,22 @@ private class SyncStatusCommand(
         val hasErrors = report.checks.any { it.status in listOf("error", "fail") }
         return if (hasErrors) SyncExitCodes.DEGRADED else SyncExitCodes.OK
     }
+
+    private fun <T> runWithLoading(
+        message: String,
+        block: () -> T,
+    ): T {
+        if (System.console() == null || json) return block()
+
+        val startedAt = System.currentTimeMillis()
+        echo("$message...", err = true)
+        return try {
+            block()
+        } finally {
+            val elapsed = System.currentTimeMillis() - startedAt
+            echo("Done (${elapsed}ms)", err = true)
+        }
+    }
 }
 
 private class DoctorDiagnoseCommand(
@@ -161,7 +253,10 @@ private class DoctorDiagnoseCommand(
 
     override fun run() {
         val syncService = syncServiceProvider()
-        val result = syncService.getDiagnosticsReport()
+        val result =
+            runWithLoading("Running diagnostics") {
+                syncService.getDiagnosticsReport()
+            }
 
         val output =
             if (json) {
@@ -186,5 +281,21 @@ private class DoctorDiagnoseCommand(
         // Check if any check is in error/fail state (degraded is not an error)
         val hasErrors = report.checks.any { it.status in listOf("error", "fail") }
         return if (hasErrors) SyncExitCodes.DEGRADED else SyncExitCodes.OK
+    }
+
+    private fun <T> runWithLoading(
+        message: String,
+        block: () -> T,
+    ): T {
+        if (System.console() == null || json) return block()
+
+        val startedAt = System.currentTimeMillis()
+        echo("$message...", err = true)
+        return try {
+            block()
+        } finally {
+            val elapsed = System.currentTimeMillis() - startedAt
+            echo("Done (${elapsed}ms)", err = true)
+        }
     }
 }

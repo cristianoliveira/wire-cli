@@ -1,19 +1,26 @@
 package wirecli.auth
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
+
 class AuthSessionServiceImpl(
     private val apiClient: AuthApiClient,
     private val sessionStore: AuthSessionStore,
 ) : AuthSessionService {
     override fun login(input: LoginInput): AuthResult {
+        logger.debug { "Login process starting for email: ${input.email}" }
+
         return when (val loginResult = apiClient.login(input)) {
             is AuthApiResult.Success -> {
+                logger.debug { "Authentication API call succeeded - attempting to persist session" }
                 try {
+                    logger.debug { "Writing active session to store for userId: ${loginResult.session.userId}" }
                     sessionStore.writeActiveSession(loginResult.session)
+                    logger.info { "Session persisted successfully for email: ${input.email}" }
                     AuthResult.Success("Login successful.")
                 } catch (e: RuntimeException) {
-                    // Explicitly capture the error context for debugging
-                    System.err.println("Session write failed during login: ${e.message}")
-                    e.printStackTrace(System.err)
+                    logger.error(e) { "Session write failed during login - session data not persisted" }
                     AuthResult.Failure(
                         message = "Login succeeded, but local session could not be saved. Try again.",
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -21,28 +28,41 @@ class AuthSessionServiceImpl(
                 }
             }
 
-            is AuthApiResult.Failure -> AuthResult.Failure(loginResult.message, loginResult.exitCode)
+            is AuthApiResult.Failure -> {
+                logger.warn { "Authentication API failed: ${AuthRedactor.redact(loginResult.message)}" }
+                AuthResult.Failure(loginResult.message, loginResult.exitCode)
+            }
         }
     }
 
     override fun logout(): AuthResult {
+        logger.debug { "Logout process starting" }
+
         val inventory = sessionStore.readSessionInventory()
+        logger.debug {
+            "Session inventory read: active=${inventory.activeSession != null}, valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
+        }
+
         val session =
             inventory.activeSession
-                ?: return AuthResult.Failure(
-                    message = missingSessionMessage(inventory),
-                    exitCode = ExitCodes.UNAUTHORIZED,
-                )
+                ?: run {
+                    logger.warn { "Logout failed - no active session found" }
+                    return AuthResult.Failure(
+                        message = missingSessionMessage(inventory),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    )
+                }
 
+        logger.debug { "Found active session for userId: ${session.userId} - calling API logout" }
         return when (val logoutResult = apiClient.logout(session)) {
             is AuthApiResult.Success -> {
+                logger.debug { "Logout API call succeeded - clearing local session" }
                 try {
                     sessionStore.clearActiveSession()
+                    logger.info { "Local session cleared successfully" }
                     AuthResult.Success("Logged out.")
                 } catch (e: RuntimeException) {
-                    // Explicitly capture the error context for debugging
-                    System.err.println("Session cleanup failed during logout: ${e.message}")
-                    e.printStackTrace(System.err)
+                    logger.error(e) { "Session cleanup failed during logout - remote session cleared but local session remains" }
                     AuthResult.Failure(
                         message = "Logout completed remotely, but local session cleanup failed.",
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -50,19 +70,29 @@ class AuthSessionServiceImpl(
                 }
             }
 
-            is AuthApiResult.Failure -> AuthResult.Failure(logoutResult.message, logoutResult.exitCode)
+            is AuthApiResult.Failure -> {
+                logger.warn { "Logout API failed: ${AuthRedactor.redact(logoutResult.message)}" }
+                AuthResult.Failure(logoutResult.message, logoutResult.exitCode)
+            }
         }
     }
 
     override fun requireActiveSession(): AuthResult {
+        logger.debug { "Checking for active session requirement" }
+
         val inventory = sessionStore.readSessionInventory()
+        logger.debug {
+            "Session inventory: active=${inventory.activeSession != null}, valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
+        }
 
         return if (inventory.activeSession == null) {
+            logger.warn { "Active session requirement failed - no valid session found" }
             AuthResult.Failure(
                 message = missingSessionMessage(inventory),
                 exitCode = ExitCodes.UNAUTHORIZED,
             )
         } else {
+            logger.debug { "Active session available - requirement satisfied" }
             AuthResult.Success("Active session available.")
         }
     }

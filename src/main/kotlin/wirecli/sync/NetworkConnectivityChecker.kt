@@ -1,6 +1,9 @@
 package wirecli.sync
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Network connectivity checker interface.
@@ -48,39 +51,64 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
     private var attemptCount = 0
 
     override fun checkNetworkConnectivity(): NetworkMetrics? {
+        logger.debug { "Starting network connectivity check" }
         return try {
             val isConnected = isNetworkConnected()
-            val networkType = detectNetworkType()
+            logger.debug { "Network connection status: connected=$isConnected" }
 
-            NetworkMetrics(
-                connected = isConnected,
-                network_type = networkType,
-                estimated_latency_ms = estimateLatencyBasedOnSystemMetrics(),
-                error_rate = calculateErrorRate(errorCount, attemptCount),
-                last_recovery_time_ms = calculateLastRecoveryTime(),
-                reachability_check_timestamp = Instant.now().toString(),
-            )
+            val networkType = detectNetworkType()
+            logger.debug { "Detected network type: $networkType" }
+
+            val latency = estimateLatencyBasedOnSystemMetrics()
+            logger.debug { "Estimated network latency: ${latency}ms" }
+
+            val errorRate = calculateErrorRate(errorCount, attemptCount)
+            logger.debug {
+                "Network error rate: ${String.format("%.2f%%", errorRate * 100)} " +
+                    "(errors: $errorCount, attempts: $attemptCount)"
+            }
+
+            val lastRecovery = calculateLastRecoveryTime()
+            if (lastRecovery != null) {
+                logger.debug { "Time since last recovery: ${lastRecovery}ms ago" }
+            }
+
+            val metrics =
+                NetworkMetrics(
+                    connected = isConnected,
+                    network_type = networkType,
+                    estimated_latency_ms = latency,
+                    error_rate = errorRate,
+                    last_recovery_time_ms = lastRecovery,
+                    reachability_check_timestamp = Instant.now().toString(),
+                )
+
+            logger.info { "Network connectivity check completed: connected=$isConnected, type=$networkType, latency=${latency}ms" }
+            metrics
         } catch (e: Exception) {
-            // If we can't determine network status, return null
+            logger.error(e) { "Failed to check network connectivity" }
             null
         }
     }
 
     override fun estimateNetworkLatency(syncLagMs: Long): Long {
-        // Estimate latency as approximately half the sync lag (since lag includes processing time)
-        // Minimum 10ms to account for actual network latency
-        return maxOf(10L, syncLagMs / 2)
+        val estimated = maxOf(10L, syncLagMs / 2)
+        logger.debug { "Estimated network latency from sync lag: ${syncLagMs}ms -> ${estimated}ms" }
+        return estimated
     }
 
     override fun calculateErrorRate(
         failureCount: Int,
         totalAttempts: Int,
     ): Double {
-        return if (totalAttempts == 0) {
-            0.0
-        } else {
-            (failureCount.toDouble() / totalAttempts.toDouble()).coerceIn(0.0, 1.0)
-        }
+        val rate =
+            if (totalAttempts == 0) {
+                0.0
+            } else {
+                (failureCount.toDouble() / totalAttempts.toDouble()).coerceIn(0.0, 1.0)
+            }
+        logger.debug { "Calculated error rate: $failureCount failures / $totalAttempts attempts = ${String.format("%.2f%%", rate * 100)}" }
+        return rate
     }
 
     /**
@@ -88,9 +116,13 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
      */
     private fun isNetworkConnected(): Boolean {
         return try {
-            // Try to resolve a reliable DNS - Google's public DNS
-            java.net.InetAddress.getByName("8.8.8.8").hostAddress != null
+            logger.debug { "Checking network connectivity by resolving DNS (8.8.8.8)" }
+            val address = java.net.InetAddress.getByName("8.8.8.8")
+            val connected = address.hostAddress != null
+            logger.debug { "DNS resolution result: ${address.hostAddress} (connected: $connected)" }
+            connected
         } catch (e: Exception) {
+            logger.warn(e) { "DNS resolution failed - network may be unavailable" }
             false
         }
     }
@@ -100,27 +132,37 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
      */
     private fun detectNetworkType(): NetworkType {
         if (!isNetworkConnected()) {
+            logger.debug { "Network is disconnected - returning DISCONNECTED type" }
             return NetworkType.DISCONNECTED
         }
 
         return try {
             val osName = System.getProperty("os.name").lowercase()
-            when {
-                osName.contains("mac") -> {
-                    // On macOS, we can detect WiFi vs Ethernet
-                    if (isWiFiConnected()) NetworkType.WIFI else NetworkType.WIRED
+            logger.debug { "Detecting network type on OS: $osName" }
+
+            val type =
+                when {
+                    osName.contains("mac") -> {
+                        logger.debug { "macOS detected - checking WiFi vs Ethernet" }
+                        if (isWiFiConnected()) NetworkType.WIFI else NetworkType.WIRED
+                    }
+                    osName.contains("linux") -> {
+                        logger.debug { "Linux detected - checking WiFi vs Ethernet" }
+                        if (isWiFiConnected()) NetworkType.WIFI else NetworkType.WIRED
+                    }
+                    osName.contains("windows") -> {
+                        logger.debug { "Windows detected - checking WiFi vs Ethernet" }
+                        if (isWiFiConnected()) NetworkType.WIFI else NetworkType.WIRED
+                    }
+                    else -> {
+                        logger.debug { "Unknown OS - defaulting to UNKNOWN network type" }
+                        NetworkType.UNKNOWN
+                    }
                 }
-                osName.contains("linux") -> {
-                    // On Linux, check for WiFi vs Ethernet
-                    if (isWiFiConnected()) NetworkType.WIFI else NetworkType.WIRED
-                }
-                osName.contains("windows") -> {
-                    // On Windows, similar detection
-                    if (isWiFiConnected()) NetworkType.WIFI else NetworkType.WIRED
-                }
-                else -> NetworkType.UNKNOWN
-            }
+            logger.debug { "Detected network type: $type" }
+            type
         } catch (e: Exception) {
+            logger.warn(e) { "Failed to detect network type - defaulting to UNKNOWN" }
             NetworkType.UNKNOWN
         }
     }
@@ -133,19 +175,30 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
             val osName = System.getProperty("os.name").lowercase()
             when {
                 osName.contains("mac") -> {
-                    // macOS: check for en0 or en1 (WiFi interfaces)
-                    val result = Runtime.getRuntime().exec("networksetup -getairportnetwork en0").inputStream.bufferedReader().readText()
-                    result.isNotEmpty() && !result.contains("off")
+                    logger.debug { "Checking WiFi connection on macOS using networksetup" }
+                    val process = Runtime.getRuntime().exec(arrayOf("networksetup", "-getairportnetwork", "en0"))
+                    val result = process.inputStream.bufferedReader().readText()
+                    val isConnected = result.isNotEmpty() && !result.contains("off")
+                    logger.debug { "macOS WiFi check result: connected=$isConnected (output: ${result.trim()})" }
+                    isConnected
                 }
                 osName.contains("linux") -> {
-                    // Linux: check for wlan interface
+                    logger.debug { "Checking WiFi connection on Linux by scanning network interfaces" }
                     val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-                    interfaces.asSequence()
-                        .any { it.name.startsWith("wlan") && it.isUp }
+                    val hasWiFi =
+                        interfaces.asSequence()
+                            .filter { it.name.startsWith("wlan") && it.isUp }
+                            .toList()
+                    logger.debug { "Linux WiFi interfaces found: ${hasWiFi.map { it.name }}" }
+                    hasWiFi.isNotEmpty()
                 }
-                else -> false
+                else -> {
+                    logger.debug { "WiFi detection not supported on this OS" }
+                    false
+                }
             }
         } catch (e: Exception) {
+            logger.warn(e) { "Failed to check WiFi connection status" }
             false
         }
     }
@@ -155,19 +208,23 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
      */
     private fun estimateLatencyBasedOnSystemMetrics(): Long {
         return try {
-            // Try to ping a reliable host with timeout
+            logger.debug { "Estimating latency by pinging 8.8.8.8" }
             val runtime = Runtime.getRuntime()
             val process = runtime.exec(arrayOf("ping", "-c", "1", "-W", "1000", "8.8.8.8"))
             val startTime = System.currentTimeMillis()
             val exitCode = process.waitFor()
             val endTime = System.currentTimeMillis()
+            val duration = endTime - startTime
 
             if (exitCode == 0) {
-                (endTime - startTime).coerceIn(1L, 5000L)
+                logger.debug { "Ping successful: ${duration}ms" }
+                duration.coerceIn(1L, 5000L)
             } else {
+                logger.debug { "Ping failed with exit code $exitCode - using default latency estimate" }
                 100L // Default estimate if ping fails
             }
         } catch (e: Exception) {
+            logger.debug(e) { "Unable to ping for latency estimation - using default estimate" }
             50L // Default estimate if unable to ping
         }
     }
@@ -190,6 +247,11 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
         errorCount++
         attemptCount++
         lastErrorTime = Instant.now()
+        val errorRate = calculateErrorRate(errorCount, attemptCount)
+        logger.warn {
+            "Network error recorded: errorCount=$errorCount, attemptCount=$attemptCount, " +
+                "errorRate=${String.format("%.2f%%", errorRate * 100)}"
+        }
     }
 
     /**
@@ -197,6 +259,11 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
      */
     fun recordNetworkSuccess() {
         attemptCount++
+        val errorRate = calculateErrorRate(errorCount, attemptCount)
+        logger.debug {
+            "Network success recorded: errorCount=$errorCount, attemptCount=$attemptCount, " +
+                "errorRate=${String.format("%.2f%%", errorRate * 100)}"
+        }
     }
 }
 

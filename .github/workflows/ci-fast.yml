@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   ci:
@@ -14,19 +15,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v24
+        uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             experimental-features = nix-command flakes
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@v14
+        uses: cachix/cachix-action@v16
         with:
           name: wire-cli
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
@@ -38,15 +39,15 @@ jobs:
 
       - name: Build with Nix
         run: |
-          nix build .#cli
+          nix build
 
       - name: Test the built binary
         run: |
-          ./result/bin/cli --help
+          ./result/bin/wire-cli --help
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: |

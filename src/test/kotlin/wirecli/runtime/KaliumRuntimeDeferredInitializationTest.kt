@@ -12,6 +12,9 @@ import wirecli.device.DeviceDeleteResult
 import wirecli.device.DeviceDetailResult
 import wirecli.device.DeviceListResult
 import wirecli.device.DeviceVerifyResult
+import wirecli.message.FetchMessagesResult
+import wirecli.message.MessageApiClient
+import wirecli.message.SendMessageResult
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceResult
 import wirecli.presence.WritablePresenceState
@@ -55,6 +58,7 @@ class KaliumRuntimeDeferredInitializationTest {
         assertEquals(0, counters.presenceApiClientAccesses)
         assertEquals(0, counters.deviceApiClientAccesses)
         assertEquals(0, counters.syncApiClientAccesses)
+        assertEquals(0, counters.messageApiClientAccesses)
         assertEquals(0, counters.shutdownCalls)
     }
 }
@@ -65,6 +69,7 @@ private data class BackendCounters(
     var presenceApiClientAccesses: Int = 0,
     var deviceApiClientAccesses: Int = 0,
     var syncApiClientAccesses: Int = 0,
+    var messageApiClientAccesses: Int = 0,
     var shutdownCalls: Int = 0,
 )
 
@@ -104,6 +109,12 @@ private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFac
                     get() {
                         counters.syncApiClientAccesses += 1
                         return NoopSyncApiClient
+                    }
+
+                override val messageApiClient: MessageApiClient
+                    get() {
+                        counters.messageApiClientAccesses += 1
+                        return NoopMessageApiClient
                     }
 
                 override fun shutdown() {
@@ -179,6 +190,10 @@ private object NoopDeviceApiClient : DeviceApiClient {
 }
 
 private object NoopSyncApiClient : SyncApiClient {
+    override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+        return SyncStatusResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
         return SyncStatusResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
@@ -206,5 +221,22 @@ private object NoopSyncApiClient : SyncApiClient {
         conversationId: String,
     ): PerConversationDiagnosticsResult {
         return PerConversationDiagnosticsResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+}
+
+private object NoopMessageApiClient : MessageApiClient {
+    override fun sendMessage(
+        session: AuthSession,
+        conversationId: String,
+        text: String,
+    ): SendMessageResult {
+        return SendMessageResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun fetchMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): FetchMessagesResult {
+        return FetchMessagesResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

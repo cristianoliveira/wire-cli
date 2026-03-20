@@ -8,8 +8,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # Kalium submodule as a separate input
+    # kalium = {
+    #   url = "github:wireapp/kalium";
+    #   flake = false;
+    # };
     kalium = {
-      url = "github:wireapp/kalium";
+      url = "github:cristianoliveira/kalium/6764d0ff048fd78e02c21feec9636df74303950d";
       flake = false;
     };
   };
@@ -68,6 +72,13 @@
 
             # Update buildSrc/settings.gradle.kts to use centralized repository management
             cat > $out/vendor/kalium/buildSrc/settings.gradle.kts << 'EOF'
+            pluginManagement {
+                repositories {
+                    gradlePluginPortal()
+                    google()
+                    mavenCentral()
+                }
+            }
             dependencyResolutionManagement {
                 repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
                 repositories {
@@ -86,11 +97,11 @@
             # Remove repositories block from buildSrc/build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
             sed -i '/^repositories {/,/^}/d' $out/vendor/kalium/buildSrc/build.gradle.kts
 
-            # NOTE: com.wire:detekt-rules dependency has been permanently removed from
-            # vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
-            # It was hosted on a custom Ivy repo (GitHub raw) which doesn't follow Maven patterns
-            # and was causing 404 errors in Nix builds. Since detekt is only for linting and nix
-            # build doesn't run detekt, the dependency is no longer needed.
+            # Remove com.wire:detekt-rules dependency - it's hosted on a custom Ivy repo (GitHub raw)
+            # which doesn't follow Maven patterns. Since detekt is only for linting and nix build
+            # doesn't run detekt, we can safely remove this dependency.
+            # Remove the entire block: detektPlugins("com.wire:detekt-rules:...") { isChanging = true }
+            sed -i '/detektPlugins("com.wire:detekt-rules:/,/}/d' $out/vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
 
             # Patch main kalium settings.gradle.kts to use centralized repository management
             # This is required for buildGradleApplication to replace repositories with the offline maven repo
@@ -107,6 +118,10 @@
                     }\
                 }\
             }' $out/vendor/kalium/settings.gradle.kts
+
+            # Remove buildscript repositories block from kalium/build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
+            # This is needed because buildscript dependencies will come from pluginManagement in settings
+            sed -i '/^buildscript {/,/^}/s/repositories {[^}]*}//' $out/vendor/kalium/build.gradle.kts || true
 
             # Remove repositories block from kalium/build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
             # This block includes wireDetektRulesRepo() which is an Ivy repo that doesn't follow Maven patterns
@@ -130,7 +145,6 @@
                     google()\
                 }\
             }' $out/settings.gradle.kts
-
             # Remove repositories block from main build.gradle.kts since we use FAIL_ON_PROJECT_REPOS
             sed -i '/^repositories {/,/^}/d' $out/build.gradle.kts
 
@@ -145,6 +159,10 @@
                         # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
                         # The logic module explicitly creates iOS targets which fail in sandbox without SDK
                         sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
+
+            # Also remove the detekt-rules entry from verification-metadata.xml
+            # This prevents Gradle from trying to verify and download the non-existent artifact
+            sed -i '/<component group="com.wire" name="detekt-rules"/,/<\/component>/d' $out/gradle/verification-metadata.xml
           '';
         in
         {
@@ -174,14 +192,19 @@
               pkgs.protobuf
             ];
 
-            # Set JAVA_HOME so Gradle's toolchain detection can find the JDK
-            # Set GITHUB_SHA to avoid git command for version detection in kalium
-            # Set GRADLE_OPTS to disable Apple/iOS targets in Nix builds
+            # This is a CLI, but Kalium/Gradle plugins can still initialize Android/Kotlin
+            # metrics paths. In the Nix sandbox HOME may resolve to /var/empty, so we force
+            # writable paths to avoid stalls/warnings during configuration.
             env = {
               JAVA_HOME = "${jdk}";
               GITHUB_SHA = "nixbuild";
-              GRADLE_OPTS = "-Dnix.build=true";
-              ANDROID_USER_HOME = "/tmp/.android_nix";
+              HOME = "/tmp/wire-cli-home";
+              GRADLE_USER_HOME = "/tmp/wire-cli-gradle";
+              ANDROID_USER_HOME = "/tmp/wire-cli-android";
+              XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
+              XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
+              XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
+              GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle";
             };
 
             meta = with pkgs.lib; {
@@ -213,6 +236,8 @@
               # Additional development tools
               nil # Nix LSP
               nixfmt-rfc-style # Nix formatter
+              # Git hooks
+              prek
             ];
 
             shellHook = ''

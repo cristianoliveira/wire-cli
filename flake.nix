@@ -192,14 +192,19 @@
               pkgs.protobuf
             ];
 
-            # Set JAVA_HOME so Gradle's toolchain detection can find the JDK
-            # Set GITHUB_SHA to avoid git command for version detection in kalium
-            # Set GRADLE_OPTS to disable Apple/iOS targets in Nix builds
+            # This is a CLI, but Kalium/Gradle plugins can still initialize Android/Kotlin
+            # metrics paths. In the Nix sandbox HOME may resolve to /var/empty, so we force
+            # writable paths to avoid stalls/warnings during configuration.
             env = {
               JAVA_HOME = "${jdk}";
               GITHUB_SHA = "nixbuild";
-              GRADLE_OPTS = "-Dnix.build=true";
-              ANDROID_USER_HOME = "/tmp/.android_nix";
+              HOME = "/tmp/wire-cli-home";
+              GRADLE_USER_HOME = "/tmp/wire-cli-gradle";
+              ANDROID_USER_HOME = "/tmp/wire-cli-android";
+              XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
+              XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
+              XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
+              GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle";
             };
 
             meta = with pkgs.lib; {

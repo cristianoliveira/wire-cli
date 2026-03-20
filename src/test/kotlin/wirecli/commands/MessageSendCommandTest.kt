@@ -1,5 +1,7 @@
 package wirecli.commands
 
+import wirecli.message.FetchMessagesResult
+import wirecli.message.FetchMessagesView
 import wirecli.message.MessageService
 import wirecli.message.SendMessageResult
 import kotlin.test.Test
@@ -214,6 +216,15 @@ class MessageSendCommandTest {
             }
 
             return sendMessageResult
+        }
+
+        override fun fetchMessages(conversationId: String): FetchMessagesResult {
+            return FetchMessagesResult.Success(
+                FetchMessagesView(
+                    conversationId = conversationId,
+                    messages = emptyList(),
+                ),
+            )
         }
     }
 }

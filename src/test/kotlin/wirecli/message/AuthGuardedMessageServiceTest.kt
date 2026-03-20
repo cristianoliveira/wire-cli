@@ -140,6 +140,40 @@ class AuthGuardedMessageServiceTest {
         assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
     }
 
+    @Test
+    fun `fetchMessages returns unauthorized when requireActiveSession fails`() {
+        val service =
+            AuthGuardedMessageService(
+                authSessionService =
+                    FakeAuthSessionService(
+                        authResult = AuthResult.Failure("Not logged in", ExitCodes.UNAUTHORIZED),
+                    ),
+                delegate = FakeMessageService(result = SendMessageResult.Success),
+            )
+
+        val result = service.fetchMessages("conv-123")
+
+        val failure = assertIs<FetchMessagesResult.Failure>(result)
+        assertEquals("Not logged in", failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `fetchMessages delegates to wrapped service when authorized`() {
+        val service =
+            AuthGuardedMessageService(
+                authSessionService =
+                    FakeAuthSessionService(
+                        authResult = AuthResult.Success("Authorized"),
+                    ),
+                delegate = FakeMessageService(result = SendMessageResult.Success),
+            )
+
+        val result = service.fetchMessages("conv-123")
+
+        assertIs<FetchMessagesResult.Success>(result)
+    }
+
     private class FakeAuthSessionService(private val authResult: AuthResult) : AuthSessionService {
         override fun login(input: wirecli.auth.LoginInput): AuthResult {
             return AuthResult.Success("Logged in")
@@ -162,6 +196,15 @@ class AuthGuardedMessageServiceTest {
         ): SendMessageResult {
             captureRequests?.add(Pair(conversationId, text))
             return result
+        }
+
+        override fun fetchMessages(conversationId: String): FetchMessagesResult {
+            return FetchMessagesResult.Success(
+                FetchMessagesView(
+                    conversationId = conversationId,
+                    messages = emptyList(),
+                ),
+            )
         }
     }
 }

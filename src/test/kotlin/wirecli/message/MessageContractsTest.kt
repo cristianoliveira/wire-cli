@@ -62,6 +62,7 @@ class MessageContractsTest {
         val methodNames = MessageApiClient::class.java.methods.map { it.name }
 
         assert(methodNames.contains("sendMessage"))
+        assert(methodNames.contains("fetchMessages"))
     }
 
     @Test
@@ -70,6 +71,31 @@ class MessageContractsTest {
         val methodNames = MessageService::class.java.methods.map { it.name }
 
         assert(methodNames.contains("sendMessage"))
+        assert(methodNames.contains("fetchMessages"))
+    }
+
+    @Test
+    fun `FetchMessagesResult Success exposes conversation and messages`() {
+        val result: FetchMessagesResult =
+            FetchMessagesResult.Success(
+                FetchMessagesView(
+                    conversationId = "conv-123",
+                    messages =
+                        listOf(
+                            ConversationMessage(
+                                id = "msg-1",
+                                senderId = "alice@example.com",
+                                senderName = "Alice",
+                                timestamp = "2026-03-20T10:00:00Z",
+                                content = "hello",
+                            ),
+                        ),
+                ),
+            )
+
+        val success = assertIs<FetchMessagesResult.Success>(result)
+        assertEquals("conv-123", success.view.conversationId)
+        assertEquals(1, success.view.messages.size)
     }
 
     @Test

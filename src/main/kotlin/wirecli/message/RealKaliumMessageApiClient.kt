@@ -67,4 +67,48 @@ internal class RealKaliumMessageApiClient(
             }
         }
     }
+
+    override fun fetchMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): FetchMessagesResult {
+        return when (val result = runtime.fetchMessages(session, conversationId)) {
+            is MessageStepResult.Success ->
+                FetchMessagesResult.Success(
+                    view =
+                        FetchMessagesView(
+                            conversationId = conversationId,
+                            messages = result.value,
+                        ),
+                )
+
+            is MessageStepResult.Failure -> {
+                val (message, exitCode) =
+                    when (result.category) {
+                        MessageFailureCategory.VALIDATION ->
+                            MessageUserMessages.VALIDATION_ERROR to MessageExitCodes.VALIDATION_ERROR
+
+                        MessageFailureCategory.UNAUTHORIZED ->
+                            AuthMessages.invalidOrExpiredSession() to ExitCodes.UNAUTHORIZED
+
+                        MessageFailureCategory.TIMEOUT ->
+                            MessageUserMessages.FETCH_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
+
+                        MessageFailureCategory.NETWORK ->
+                            MessageUserMessages.FETCH_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
+
+                        MessageFailureCategory.SERVER ->
+                            MessageUserMessages.FETCH_SERVER_ERROR to ExitCodes.SERVER_ERROR
+
+                        MessageFailureCategory.NOT_FOUND ->
+                            MessageUserMessages.CONVERSATION_NOT_FOUND to MessageExitCodes.NOT_FOUND
+
+                        MessageFailureCategory.UNKNOWN ->
+                            MessageUserMessages.FETCH_UNKNOWN_ERROR to ExitCodes.UNKNOWN_ERROR
+                    }
+
+                FetchMessagesResult.Failure(message = message, exitCode = exitCode)
+            }
+        }
+    }
 }

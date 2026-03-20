@@ -4,11 +4,14 @@ import com.wire.kalium.common.error.CoreFailure
 import com.wire.kalium.common.error.NetworkFailure
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.id.ConversationId
+import com.wire.kalium.logic.data.message.Message
+import com.wire.kalium.logic.data.message.MessageContent
 import com.wire.kalium.logic.data.user.UserId
 import com.wire.kalium.logic.feature.message.MessageOperationResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -28,7 +31,12 @@ internal interface RealKaliumMessageRuntime {
         session: AuthSession,
         conversationId: String,
         text: String,
-    ): MessageStepResult
+    ): MessageStepResult<Unit>
+
+    fun fetchMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): MessageStepResult<List<ConversationMessage>>
 
     fun close() {
         shutdown()
@@ -37,10 +45,10 @@ internal interface RealKaliumMessageRuntime {
     fun shutdown()
 }
 
-internal sealed interface MessageStepResult {
-    data object Success : MessageStepResult
+internal sealed interface MessageStepResult<out T> {
+    data class Success<T>(val value: T) : MessageStepResult<T>
 
-    data class Failure(val category: MessageFailureCategory) : MessageStepResult
+    data class Failure(val category: MessageFailureCategory) : MessageStepResult<Nothing>
 }
 
 internal enum class MessageFailureCategory {
@@ -54,6 +62,7 @@ internal enum class MessageFailureCategory {
 }
 
 private const val PREFLIGHT_SYNC_TIMEOUT_MS = 15_000L
+private const val FETCH_MESSAGES_LIMIT = 10
 internal const val MESSAGE_SEND_TIMEOUT_ENV = "WIRECLI_MESSAGE_SEND_TIMEOUT_MS"
 internal const val DEFAULT_SEND_TIMEOUT_MS = 60_000L
 internal const val MAX_SEND_TIMEOUT_MS = 300_000L
@@ -106,7 +115,7 @@ internal class SdkKaliumMessageRuntime(
         session: AuthSession,
         conversationId: String,
         text: String,
-    ): MessageStepResult {
+    ): MessageStepResult<Unit> {
         // Validate inputs
         if (conversationId.isBlank()) {
             logger.debug { "sendMessage: Validation failed - conversationId is blank" }
@@ -197,7 +206,7 @@ internal class SdkKaliumMessageRuntime(
                 return@runBlocking when (result) {
                     is MessageOperationResult.Success -> {
                         logger.info { "message-send runtime outcome=success conversationId=$conversationId" }
-                        MessageStepResult.Success
+                        MessageStepResult.Success(Unit)
                     }
 
                     is MessageOperationResult.Failure -> {
@@ -213,6 +222,109 @@ internal class SdkKaliumMessageRuntime(
                 val mappedCategory = categoryFromThrowable(error)
                 logger.error(error) {
                     "message-send runtime exception: conversationId=$conversationId " +
+                        "exceptionClass=${error::class.qualifiedName} message=${error.message} mappedCategory=$mappedCategory"
+                }
+                MessageStepResult.Failure(mappedCategory)
+            }
+        }
+    }
+
+    override fun fetchMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): MessageStepResult<List<ConversationMessage>> {
+        if (conversationId.isBlank()) {
+            logger.debug { "fetchMessages: Validation failed - conversationId is blank" }
+            return MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+        }
+
+        val qualifiedId =
+            session.userId.toQualifiedIdOrNull()
+                ?: run {
+                    logger.warn { "fetchMessages: Invalid user ID format: ${session.userId}" }
+                    return MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
+                }
+        activeSessionUserIds += qualifiedId
+
+        return runBlocking {
+            try {
+                logger.info {
+                    "message-fetch runtime start: conversationId=$conversationId, userId=${session.userId}"
+                }
+
+                // 1. MLS sync preflight (MANDATORY before fetch operation)
+                val preflightStartNanos = System.nanoTime()
+                logger.info { "message-fetch preflight sync start: conversationId=$conversationId" }
+                try {
+                    withTimeout(PREFLIGHT_SYNC_TIMEOUT_MS) {
+                        coreLogic.sessionScope(qualifiedId) {
+                            withContext(Dispatchers.Default) {
+                                syncExecutor.request { waitUntilLiveOrFailure() }
+                            }
+                        }
+                    }
+                } catch (error: TimeoutCancellationException) {
+                    logger.warn {
+                        "message-fetch preflight sync timeout: conversationId=$conversationId timeoutMs=$PREFLIGHT_SYNC_TIMEOUT_MS"
+                    }
+                    return@runBlocking MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
+                }
+                val preflightElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - preflightStartNanos)
+                logger.info {
+                    "message-fetch preflight sync end: conversationId=$conversationId, elapsedMs=$preflightElapsedMs"
+                }
+
+                // 2. Create conversation ID with domain
+                val kaliumConvId =
+                    ConversationId(
+                        value = conversationId,
+                        domain = session.server ?: "wire.com",
+                    )
+
+                // 3. Fetch recent messages via Kalium SDK
+                val fetchStartNanos = System.nanoTime()
+                logger.info { "message-fetch getRecentMessages start: conversationId=$conversationId" }
+                val result =
+                    try {
+                        withTimeout(sendTimeoutMs) {
+                            coreLogic.sessionScope(qualifiedId) {
+                                withContext(Dispatchers.Default) {
+                                    logger.info { "message-fetch request start: conversationId=$conversationId" }
+                                    val fetchResult =
+                                        syncExecutor.request {
+                                            logger.info {
+                                                "message-fetch getRecentMessages request body start: " +
+                                                    "conversationId=$conversationId"
+                                            }
+                                            messages.getRecentMessages(kaliumConvId, limit = FETCH_MESSAGES_LIMIT).first()
+                                        }
+                                    logger.info { "message-fetch request end: conversationId=$conversationId" }
+                                    fetchResult
+                                }
+                            }
+                        }
+                    } catch (error: TimeoutCancellationException) {
+                        logger.warn {
+                            "message-fetch getRecentMessages timeout: conversationId=$conversationId timeoutMs=$sendTimeoutMs"
+                        }
+                        return@runBlocking MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
+                    }
+                val fetchElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - fetchStartNanos)
+                logger.info {
+                    "message-fetch getRecentMessages end: conversationId=$conversationId, elapsedMs=$fetchElapsedMs"
+                }
+
+                val mappedMessages =
+                    result
+                        .mapNotNull { message -> message.toConversationMessageOrNull() }
+                        .sortedWith(compareBy<ConversationMessage> { it.timestamp }.thenBy { it.id })
+
+                logger.info { "message-fetch runtime outcome=success conversationId=$conversationId" }
+                MessageStepResult.Success(mappedMessages)
+            } catch (error: Throwable) {
+                val mappedCategory = categoryFromThrowable(error)
+                logger.error(error) {
+                    "message-fetch runtime exception: conversationId=$conversationId " +
                         "exceptionClass=${error::class.qualifiedName} message=${error.message} mappedCategory=$mappedCategory"
                 }
                 MessageStepResult.Failure(mappedCategory)
@@ -333,6 +445,29 @@ internal class SdkKaliumMessageRuntime(
             }
         }
     }
+}
+
+private fun Message.toConversationMessageOrNull(): ConversationMessage? {
+    val text =
+        when (val messageContent = content) {
+            is MessageContent.Text -> messageContent.value
+            else -> return null
+        }
+
+    val senderDisplayName =
+        when (this) {
+            is Message.Regular -> senderUserName
+            is Message.Signaling -> senderUserName
+            is Message.System -> senderUserName
+        }
+
+    return ConversationMessage(
+        id = id,
+        senderId = senderUserId.toString(),
+        senderName = senderDisplayName ?: sender?.name ?: senderUserId.toString(),
+        timestamp = date.toString(),
+        content = text,
+    )
 }
 
 private fun String.toQualifiedIdOrNull(): UserId? {

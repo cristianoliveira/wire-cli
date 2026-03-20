@@ -39,4 +39,32 @@ class SessionBackedMessageService(
             }
         }
     }
+
+    override fun fetchMessages(conversationId: String): FetchMessagesResult {
+        logger.debug { "Service operation: fetchMessages(conversationId=$conversationId) started" }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return FetchMessagesResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for fetchMessages($conversationId)" } }
+
+        logger.info {
+            "message-fetch session resolved: userId=${session.userId}, conversationId=$conversationId"
+        }
+        return apiClient.fetchMessages(session, conversationId).also { result ->
+            when (result) {
+                is FetchMessagesResult.Success ->
+                    logger.info {
+                        "message-fetch service outcome=success conversationId=$conversationId count=${result.view.messages.size}"
+                    }
+
+                is FetchMessagesResult.Failure ->
+                    logger.warn {
+                        "message-fetch service outcome=failure conversationId=$conversationId exitCode=${result.exitCode}"
+                    }
+            }
+        }
+    }
 }

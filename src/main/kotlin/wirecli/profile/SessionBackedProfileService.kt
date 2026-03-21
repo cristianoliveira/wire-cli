@@ -3,8 +3,8 @@ package wirecli.profile
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
-import wirecli.auth.AuthSessionStore
 import wirecli.auth.ExitCodes
+import wirecli.auth.SessionProvider
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceResult
 import wirecli.presence.PresenceState
@@ -12,7 +12,7 @@ import wirecli.presence.PresenceState
 private val logger = KotlinLogging.logger {}
 
 class SessionBackedProfileService(
-    private val sessionStore: AuthSessionStore,
+    private val sessionStore: SessionProvider,
     private val apiClient: ProfileApiClient,
     private val presenceApiClient: PresenceApiClient,
 ) : ProfileService {

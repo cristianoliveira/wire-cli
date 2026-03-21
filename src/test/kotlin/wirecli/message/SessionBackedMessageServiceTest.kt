@@ -2,9 +2,8 @@ package wirecli.message
 
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
-import wirecli.auth.AuthSessionStore
 import wirecli.auth.ExitCodes
-import wirecli.auth.SessionInventory
+import wirecli.auth.SessionProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -290,19 +289,8 @@ class SessionBackedMessageServiceTest {
         assertEquals(MessageExitCodes.SERVER_ERROR, failure.exitCode)
     }
 
-    private class FakeSessionStore(private val activeSession: AuthSession?) : AuthSessionStore {
+    private class FakeSessionStore(private val activeSession: AuthSession?) : SessionProvider {
         override fun readActiveSession(): AuthSession? = activeSession
-
-        override fun readSessionInventory(): SessionInventory =
-            SessionInventory(
-                activeSession = activeSession,
-                validSessions = if (activeSession != null) 1 else 0,
-                invalidSessions = 0,
-            )
-
-        override fun writeActiveSession(session: AuthSession) {}
-
-        override fun clearActiveSession() {}
     }
 
     private class FakeMessageApiClient(

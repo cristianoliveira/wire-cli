@@ -2,9 +2,8 @@ package wirecli.device
 
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
-import wirecli.auth.AuthSessionStore
 import wirecli.auth.ExitCodes
-import wirecli.auth.SessionInventory
+import wirecli.auth.SessionProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -170,21 +169,8 @@ class SessionBackedDeviceServiceTest {
         assertEquals("device-001", apiClient.lastDeleteDeviceId)
     }
 
-    private class FakeSessionStore(private val activeSession: AuthSession?) : AuthSessionStore {
+    private class FakeSessionStore(private val activeSession: AuthSession?) : SessionProvider {
         override fun readActiveSession(): AuthSession? = activeSession
-
-        override fun readSessionInventory(): SessionInventory =
-            SessionInventory(
-                activeSession = activeSession,
-                validSessions = if (activeSession == null) 0 else 1,
-                invalidSessions = 0,
-            )
-
-        override fun writeActiveSession(session: AuthSession) {
-        }
-
-        override fun clearActiveSession() {
-        }
     }
 
     private class FakeDeviceApiClient(

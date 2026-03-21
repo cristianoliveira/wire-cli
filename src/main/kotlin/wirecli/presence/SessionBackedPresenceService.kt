@@ -2,13 +2,13 @@ package wirecli.presence
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthMessages
-import wirecli.auth.AuthSessionStore
 import wirecli.auth.ExitCodes
+import wirecli.auth.SessionProvider
 
 private val logger = KotlinLogging.logger {}
 
 class SessionBackedPresenceService(
-    private val sessionStore: AuthSessionStore,
+    private val sessionStore: SessionProvider,
     private val apiClient: PresenceApiClient,
 ) : PresenceService {
     // TODO: Consider using SessionInventory diagnostics for richer direct errors when not guarded.

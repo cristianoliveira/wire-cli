@@ -32,33 +32,33 @@ class MessageTypingCommand(
         option("--while-pid", help = "Keep STARTED heartbeats while this PID is alive").long().required()
 
     override fun run() {
-        if (conversationId.isBlank()) {
-            echo("validation error: conversation required", err = true)
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-        }
-        if (whilePid <= 0L) {
-            echo("validation error: while-pid must be a positive integer", err = true)
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-        }
-        if (!isProcessAlive(whilePid)) {
+        val validatedConversationId =
+            requireValueOrExit(
+                value = conversationId,
+                fieldName = "Conversation ID",
+                errorMessage = "conversation required",
+            )
+        val validatedWhilePid = validatePositiveLongOrExit(whilePid, "while-pid")
+
+        if (!isProcessAlive(validatedWhilePid)) {
             echo("validation error: while-pid must reference a running process", err = true)
             throw ProgramResult(ExitCodes.VALIDATION_ERROR)
         }
 
         val messageService = messageServiceProvider()
 
-        sendOrExit(messageService.sendTypingStatus(conversationId, TypingStatus.STARTED))
+        sendOrExit(messageService.sendTypingStatus(validatedConversationId, TypingStatus.STARTED))
         echo("Typing started.")
 
         while (true) {
             sleep(heartbeatIntervalMs)
-            if (!isProcessAlive(whilePid)) {
+            if (!isProcessAlive(validatedWhilePid)) {
                 break
             }
-            sendOrExit(messageService.sendTypingStatus(conversationId, TypingStatus.STARTED))
+            sendOrExit(messageService.sendTypingStatus(validatedConversationId, TypingStatus.STARTED))
         }
 
-        sendOrExit(messageService.sendTypingStatus(conversationId, TypingStatus.STOPPED))
+        sendOrExit(messageService.sendTypingStatus(validatedConversationId, TypingStatus.STOPPED))
         echo("Typing stopped.")
     }
 

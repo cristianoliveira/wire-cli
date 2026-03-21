@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.options.option
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthRedactor
 import wirecli.auth.ExitCodes
@@ -20,6 +21,8 @@ class PresenceCommand(
         help = "Get or set current user presence.",
         invokeWithoutSubcommand = true,
     ) {
+    private val conversationId by option("--conversation-id", help = "Optional conversation ID (UUID)")
+
     init {
         subcommands(
             PresenceGetCommand(presenceServiceProvider),
@@ -28,6 +31,10 @@ class PresenceCommand(
     }
 
     override fun run() {
+        if (conversationId != null) {
+            validateConversationIdOrExit(conversationId!!)
+        }
+
         if (currentContext.invokedSubcommand == null) {
             logger.info { "Presence command started (get)" }
             val presenceService = presenceServiceProvider()
@@ -53,7 +60,13 @@ class PresenceCommand(
 private class PresenceGetCommand(
     private val presenceServiceProvider: () -> PresenceService,
 ) : CliktCommand(name = "get", help = "Get current user presence.") {
+    private val conversationId by option("--conversation-id", help = "Optional conversation ID (UUID)")
+
     override fun run() {
+        if (conversationId != null) {
+            validateConversationIdOrExit(conversationId!!)
+        }
+
         logger.info { "Presence get command started" }
         val presenceService = presenceServiceProvider()
         when (val result = presenceService.getCurrentPresence()) {
@@ -73,9 +86,14 @@ private class PresenceGetCommand(
 private class PresenceSetCommand(
     private val presenceServiceProvider: () -> PresenceService,
 ) : CliktCommand(name = "set", help = "Set current user presence.") {
+    private val conversationId by option("--conversation-id", help = "Optional conversation ID (UUID)")
     private val status by argument(name = "status", help = "online|busy|away|offline")
 
     override fun run() {
+        if (conversationId != null) {
+            validateConversationIdOrExit(conversationId!!)
+        }
+
         logger.info { "Presence set command started: status=$status" }
         val presenceService = presenceServiceProvider()
         val writableState = PresenceStatusContract.parseWritable(status)

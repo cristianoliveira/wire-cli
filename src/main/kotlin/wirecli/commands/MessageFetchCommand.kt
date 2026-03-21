@@ -3,13 +3,9 @@ package wirecli.commands
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
-import io.github.oshai.kotlinlogging.KotlinLogging
-import wirecli.auth.ExitCodes
 import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageFetchFormatter
 import wirecli.message.MessageService
-
-private val logger = KotlinLogging.logger {}
 
 class MessageFetchCommand(
     private val messageServiceProvider: () -> MessageService,
@@ -20,14 +16,15 @@ class MessageFetchCommand(
     private val conversationId by argument(name = "CONVERSATION_ID", help = "The conversation ID to fetch messages from")
 
     override fun run() {
-        if (conversationId.isBlank()) {
-            logger.warn { "Validation failed: blank conversation ID for message fetch" }
-            echo("validation error: conversation required", err = true)
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-        }
+        val validatedConversationId =
+            requireValueOrExit(
+                value = conversationId,
+                fieldName = "Conversation ID",
+                errorMessage = "conversation required",
+            )
 
         val messageService = messageServiceProvider()
-        when (val result = messageService.fetchMessages(conversationId)) {
+        when (val result = messageService.fetchMessages(validatedConversationId)) {
             is FetchMessagesResult.Success -> {
                 val formatter = MessageFetchFormatter()
                 val output = formatter.toHumanReadable(result.view.messages)

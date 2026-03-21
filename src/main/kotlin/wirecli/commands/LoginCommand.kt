@@ -1,5 +1,4 @@
 package wirecli.commands
-// TODO: Add validation for email format and server URL.
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
@@ -12,6 +11,7 @@ import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
 import wirecli.auth.ExitCodes
 import wirecli.auth.LoginInput
+import wirecli.validation.InputValidator
 
 private val logger = KotlinLogging.logger {}
 
@@ -59,7 +59,8 @@ class LoginCommand(
      * @post If failed, error message is printed and exit code indicates failure type
      */
     override fun run() {
-        logger.info { "Login command started for email: $email" }
+        val validatedEmail = validateOrExit { InputValidator.validateEmail(email) }
+        logger.info { "Login command started for email: $validatedEmail" }
 
         if (passwordStdin && password != null) {
             logger.warn { "Both --password and --password-stdin provided; must use only one" }
@@ -90,31 +91,27 @@ class LoginCommand(
                 }
             }
 
-        if (resolvedPassword.isNullOrEmpty()) {
-            logger.warn { "Password validation failed: no password provided" }
-            echo("Password is required. Use interactive prompt, --password-stdin, or --password.", err = true)
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-        }
+        val validatedPassword = validateOrExit { InputValidator.validatePassword(resolvedPassword ?: "") }
 
-        logger.debug { "Password resolved successfully (${resolvedPassword.length} characters)" }
-        logger.debug { "Calling authentication service with email: $email, server: $server" }
+        logger.debug { "Password resolved successfully (${validatedPassword.length} characters)" }
+        logger.debug { "Calling authentication service with email: $validatedEmail, server: $server" }
 
         when (
             val result =
                 authSessionService.login(
                     LoginInput(
-                        email = email,
-                        password = resolvedPassword,
+                        email = validatedEmail,
+                        password = validatedPassword,
                         server = server,
                     ),
                 )
         ) {
             is AuthResult.Success -> {
-                logger.info { "Login successful for email: $email" }
+                logger.info { "Login successful for email: $validatedEmail" }
                 echo(result.message)
             }
             is AuthResult.Failure -> {
-                logger.warn { "Login failed for email: $email - ${AuthRedactor.redact(result.message)}" }
+                logger.warn { "Login failed for email: $validatedEmail - ${AuthRedactor.redact(result.message)}" }
                 echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }

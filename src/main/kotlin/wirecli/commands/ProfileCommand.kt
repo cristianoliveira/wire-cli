@@ -2,6 +2,8 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.optional
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthRedactor
 import wirecli.profile.ProfileResult
@@ -12,6 +14,8 @@ private val logger = KotlinLogging.logger {}
 class ProfileCommand(
     private val profileServiceProvider: () -> ProfileService,
 ) : CliktCommand(name = "profile", help = "Show current user profile.") {
+    private val userId by argument(name = "user-id", help = "Optional user ID (value@domain)").optional()
+
     override fun run() {
         logger.info { "Profile command started" }
         val profileService = profileServiceProvider()

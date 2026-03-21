@@ -42,7 +42,7 @@ run_wire_message_with_stdin() {
 setup_active_session() {
 	export WIRE_STUB_MODE="login_ok"
 	# First need to login
-	run_wire login --email "test@example.com" --password "password"
+	run_wire login --email "test@example.com" --password "Password1"
 	export WIRE_STUB_MODE="" # Reset stub mode after login
 }
 

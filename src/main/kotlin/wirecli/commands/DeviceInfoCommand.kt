@@ -16,8 +16,9 @@ class DeviceInfoCommand(
     private val json by option("--json", help = "Output as JSON").flag(default = false)
 
     override fun run() {
+        val validatedDeviceId = validateDeviceIdOrExit(deviceId)
         val deviceService = deviceServiceProvider()
-        when (val result = deviceService.getDetail(deviceId)) {
+        when (val result = deviceService.getDetail(validatedDeviceId)) {
             is DeviceDetailResult.Success -> {
                 val device = result.view.device
                 if (json) {

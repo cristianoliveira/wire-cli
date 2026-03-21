@@ -4,7 +4,10 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
 import io.github.oshai.kotlinlogging.KotlinLogging
+import wirecli.auth.ExitCodes
+import wirecli.device.DeviceExitCodes
 import wirecli.device.DeviceService
+import wirecli.validation.InputValidator
 
 private val logger = KotlinLogging.logger {}
 
@@ -35,5 +38,64 @@ class DeviceCommand(
         }
 
         logger.debug { "Device subcommand routing to: ${currentContext.invokedSubcommand}" }
+    }
+}
+
+internal inline fun <T> CliktCommand.validateOrExit(
+    exitCode: Int = ExitCodes.VALIDATION_ERROR,
+    defaultMessage: String = "Invalid input.",
+    errorFormatter: (String) -> String = { it },
+    block: () -> T,
+): T {
+    return try {
+        block()
+    } catch (error: IllegalArgumentException) {
+        val message = error.message ?: defaultMessage
+        echo(errorFormatter(message), err = true)
+        throw ProgramResult(exitCode)
+    }
+}
+
+internal fun CliktCommand.validateDeviceIdOrExit(deviceId: String): String {
+    return validateOrExit(
+        exitCode = DeviceExitCodes.INVALID_INPUT,
+        defaultMessage = "Invalid device ID.",
+    ) {
+        InputValidator.validateDeviceId(deviceId)
+    }
+}
+
+internal fun CliktCommand.validateConversationIdOrExit(conversationId: String): String {
+    return validateOrExit(
+        defaultMessage = "Invalid conversation ID.",
+    ) {
+        InputValidator.validateConversationId(conversationId)
+    }
+}
+
+internal fun CliktCommand.requireValueOrExit(
+    value: String,
+    fieldName: String,
+    errorMessage: String,
+): String {
+    return validateOrExit(
+        defaultMessage = errorMessage,
+        errorFormatter = { "validation error: $errorMessage" },
+    ) {
+        InputValidator.validateRequiredText(value, fieldName)
+    }
+}
+
+internal fun CliktCommand.validatePositiveLongOrExit(
+    value: Long,
+    fieldName: String,
+): Long {
+    return validateOrExit(
+        errorFormatter = {
+            val normalizedMessage = it.removeSuffix(".")
+            "validation error: ${normalizedMessage.replaceFirstChar { char -> char.lowercaseChar() }}"
+        },
+    ) {
+        InputValidator.validatePositiveLong(value, fieldName)
     }
 }

@@ -38,11 +38,12 @@ class MessageWatchCommand(
     private val conversationId by argument(name = "CONVERSATION_ID", help = "The conversation ID to watch")
 
     override fun run() {
-        if (conversationId.isBlank()) {
-            logger.warn { "Validation failed: blank conversation ID for message watch" }
-            echo("validation error: conversation required", err = true)
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-        }
+        val validatedConversationId =
+            requireValueOrExit(
+                value = conversationId,
+                fieldName = "Conversation ID",
+                errorMessage = "conversation required",
+            )
 
         val messageService = messageServiceProvider()
         val knownMessageIds = mutableSetOf<String>()
@@ -50,7 +51,7 @@ class MessageWatchCommand(
         var transientFailureCount = 0
 
         while (keepWatching()) {
-            when (val fetchResult = messageService.fetchMessages(conversationId)) {
+            when (val fetchResult = messageService.fetchMessages(validatedConversationId)) {
                 is FetchMessagesResult.Success -> {
                     if (!hasBaselineSnapshot) {
                         fetchResult.view.messages.forEach { knownMessageIds += it.id }
@@ -69,7 +70,7 @@ class MessageWatchCommand(
                         transientFailureCount += 1
                         val delayMs = calculateRetryDelayMs(transientFailureCount)
                         logger.warn {
-                            "Transient message watch fetch failure for conversationId=$conversationId; retrying in ${delayMs}ms: ${fetchResult.message}"
+                            "Transient message watch fetch failure for conversationId=$validatedConversationId; retrying in ${delayMs}ms: ${fetchResult.message}"
                         }
                         echo("${fetchResult.message}; retrying in ${delayMs}ms", err = true)
                         sleep(delayMs)

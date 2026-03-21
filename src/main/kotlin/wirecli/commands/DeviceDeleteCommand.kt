@@ -25,8 +25,10 @@ class DeviceDeleteCommand(
             .flag(default = false)
 
     override fun run() {
+        val validatedDeviceId = validateDeviceIdOrExit(deviceId)
+
         if (yes != true) {
-            echo("Are you sure you want to delete device '$deviceId'? (y/n)")
+            echo("Are you sure you want to delete device '$validatedDeviceId'? (y/n)")
             val input = readLine()
             if (input?.lowercase() != "y") {
                 echo("Device deletion cancelled.")
@@ -56,7 +58,7 @@ class DeviceDeleteCommand(
             }
 
         val deviceService = deviceServiceProvider()
-        when (val result = deviceService.remove(deviceId, resolvedPassword)) {
+        when (val result = deviceService.remove(validatedDeviceId, resolvedPassword)) {
             is DeviceDeleteResult.Success -> {
                 echo(result.message)
             }

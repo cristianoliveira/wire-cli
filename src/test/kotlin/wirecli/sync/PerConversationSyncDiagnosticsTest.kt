@@ -19,7 +19,7 @@ import kotlin.time.Duration.Companion.seconds
  * - Diagnostics accuracy per conversation
  */
 class PerConversationSyncDiagnosticsTest {
-    private val generator = TestConversationDiagnosticsGenerator()
+    private val generator = ProductionConversationDiagnosticsGenerator()
 
     // ==================== CONVERSATION SYNC STATUS TESTS ====================
 
@@ -275,7 +275,7 @@ class PerConversationSyncDiagnosticsTest {
 
         val hints = generator.generateConversationRecoveryHints(checks, "test-conv-123")
 
-        val connHint = hints.find { it.description.contains("unreachable") }
+        val connHint = hints.find { it.description.contains("connectivity", ignoreCase = true) }
         assertFalse(connHint == null, "Should generate connectivity recovery hint")
     }
 
@@ -452,85 +452,41 @@ class PerConversationSyncDiagnosticsTest {
      * Helper class that provides per-conversation diagnostics generation methods.
      * This mirrors the actual implementation in RealKaliumSyncApiClient.
      */
-    private class TestConversationDiagnosticsGenerator {
+    private class ProductionConversationDiagnosticsGenerator {
         fun generateConversationMetrics(
             conversationId: String,
             syncState: SyncState,
         ): ConversationMetrics {
-            return ConversationMetrics(
-                conversation_id = conversationId,
-                lag_ms = calculateConversationLagMs(syncState),
-                pending_messages = calculateConversationPendingMessages(syncState),
-                sync_completeness_pct = calculateSyncCompletenessPercentage(syncState),
-                timestamp = "2025-03-13T10:30:00Z",
-            )
+            return withRuntime { runtime ->
+                ConversationMetrics(
+                    conversation_id = conversationId,
+                    lag_ms = calculateConversationLagMs(runtime, syncState),
+                    pending_messages = calculateConversationPendingMessages(runtime, syncState),
+                    sync_completeness_pct = calculateSyncCompletenessPercentage(runtime, syncState),
+                    timestamp = "2025-03-13T10:30:00Z",
+                )
+            }
         }
 
         fun generateConversationChecks(
             conversationId: String,
             syncState: SyncState,
         ): List<Check> {
-            val checks = mutableListOf<Check>()
-
-            checks.add(
-                Check(
-                    name = "Conversation State",
-                    status = "Pass",
-                    details = "Conversation ID: $conversationId",
-                ),
-            )
-
-            val messageSyncStatus =
-                when (syncState) {
-                    is SyncState.Live -> "Pass"
-                    is SyncState.SlowSync -> "Warn"
-                    is SyncState.GatheringPendingEvents -> "Warn"
-                    is SyncState.Waiting -> "Warn"
-                    is SyncState.Failed -> "Fail"
-                }
-            checks.add(
-                Check(
-                    name = "Message Sync",
-                    status = messageSyncStatus,
-                    details = "Message sync state: ${syncState::class.simpleName}",
-                ),
-            )
-
-            val completeness = calculateSyncCompletenessPercentage(syncState)
-            checks.add(
-                Check(
-                    name = "Sync Completeness",
-                    status =
-                        when {
-                            completeness >= 95 -> "Pass"
-                            completeness >= 70 -> "Warn"
-                            else -> "Fail"
-                        },
-                    details = "Sync completeness: $completeness%",
-                ),
-            )
-
-            checks.add(
-                Check(
-                    name = "Conversation Connectivity",
-                    status = if (syncState !is SyncState.Failed) "Pass" else "Fail",
-                    details =
-                        if (syncState !is SyncState.Failed) {
-                            "Conversation is reachable"
-                        } else {
-                            "Conversation connectivity issues detected"
-                        },
-                ),
-            )
-
-            return checks
+            return withRuntime { runtime ->
+                listOf(
+                    buildConversationStateCheck(runtime, conversationId),
+                    buildMessageSyncCheck(runtime, syncState),
+                    buildCompletenessCheck(runtime, syncState),
+                    buildConversationNetworkCheck(runtime, syncState),
+                )
+            }
         }
 
         fun generateConversationSummary(checks: List<Check>): String {
-            return when {
-                checks.all { it.status == "Pass" } -> "Conversation is fully synced and healthy."
-                checks.any { it.status == "Fail" } -> "Conversation sync has failed. Recovery actions may help."
-                else -> "Conversation sync is in progress. Check back soon."
+            return withRuntime { runtime ->
+                val method = runtime.javaClass.getDeclaredMethod("buildConversationSummary", List::class.java)
+                method.isAccessible = true
+                method.invoke(runtime, checks) as String
             }
         }
 
@@ -538,81 +494,112 @@ class PerConversationSyncDiagnosticsTest {
             checks: List<Check>,
             conversationId: String,
         ): List<RecoveryHint> {
-            val hints = mutableListOf<RecoveryHint>()
-
-            if (checks.any { it.name == "Message Sync" && it.status == "Fail" }) {
-                hints.add(
-                    RecoveryHint(
-                        description = "Message sync failed for conversation",
-                        command = "wire-cli sync status --conversation $conversationId --retry",
-                    ),
-                )
+            return withRuntime { runtime ->
+                val method = runtime.javaClass.getDeclaredMethod("generateConversationRecoveryHints", List::class.java, String::class.java)
+                method.isAccessible = true
+                @Suppress("UNCHECKED_CAST")
+                method.invoke(runtime, checks, conversationId) as List<RecoveryHint>
             }
-
-            if (checks.any { it.name == "Sync Completeness" && it.status == "Fail" }) {
-                hints.add(
-                    RecoveryHint(
-                        description = "Conversation sync is incomplete",
-                        command = "Check network connection and retry full sync for $conversationId",
-                    ),
-                )
-            }
-
-            if (checks.any { it.name == "Conversation Connectivity" && it.status == "Fail" }) {
-                hints.add(
-                    RecoveryHint(
-                        description = "Conversation is unreachable",
-                        command = "Verify conversation $conversationId exists and you have access permissions",
-                    ),
-                )
-            }
-
-            return hints
         }
 
         fun mapSyncStateToStatus(syncState: SyncState): SyncStatus {
-            return when (syncState) {
-                is SyncState.Live -> SyncStatus.READY
-                is SyncState.SlowSync -> SyncStatus.INITIALIZING
-                is SyncState.GatheringPendingEvents -> SyncStatus.INITIALIZING
-                is SyncState.Waiting -> SyncStatus.INITIALIZING
-                is SyncState.Failed -> SyncStatus.DEGRADED
+            return withRuntime { runtime ->
+                val method = runtime.javaClass.getDeclaredMethod("mapSyncStateToStatus", SyncState::class.java)
+                method.isAccessible = true
+                method.invoke(runtime, syncState) as SyncStatus
             }
         }
 
         fun calculateConversationLagMs(syncState: SyncState): Long {
-            return when (syncState) {
-                is SyncState.Live -> 0L
-                is SyncState.SlowSync -> 5000L
-                is SyncState.GatheringPendingEvents -> 2000L
-                is SyncState.Waiting -> 1000L
-                is SyncState.Failed -> 10000L
-            }
+            return withRuntime { runtime -> calculateConversationLagMs(runtime, syncState) }
         }
 
         fun calculateConversationPendingMessages(syncState: SyncState): Int {
-            return when (syncState) {
-                is SyncState.Live -> 0
-                is SyncState.SlowSync -> 100
-                is SyncState.GatheringPendingEvents -> 50
-                is SyncState.Waiting -> 10
-                is SyncState.Failed -> 0
-            }
+            return withRuntime { runtime -> calculateConversationPendingMessages(runtime, syncState) }
         }
 
         fun calculateSyncCompletenessPercentage(syncState: SyncState?): Int {
-            return when (syncState) {
-                is SyncState.Live -> 100
-                is SyncState.SlowSync -> 10
-                is SyncState.GatheringPendingEvents -> 70
-                is SyncState.Waiting -> 5
-                is SyncState.Failed -> 0
-                null -> 0
-            }
+            return withRuntime { runtime -> calculateSyncCompletenessPercentage(runtime, syncState) }
         }
 
         fun validateConversationId(conversationId: String): Boolean {
             return conversationId.isNotBlank()
+        }
+
+        private fun buildConversationStateCheck(
+            runtime: SdkKaliumSyncRuntime,
+            conversationId: String,
+        ): Check {
+            val method = runtime.javaClass.getDeclaredMethod("buildConversationStateCheck", String::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, conversationId) as Check
+        }
+
+        private fun buildMessageSyncCheck(
+            runtime: SdkKaliumSyncRuntime,
+            syncState: SyncState,
+        ): Check {
+            val method = runtime.javaClass.getDeclaredMethod("buildMessageSyncCheck", SyncState::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, syncState) as Check
+        }
+
+        private fun buildCompletenessCheck(
+            runtime: SdkKaliumSyncRuntime,
+            syncState: SyncState,
+        ): Check {
+            val method = runtime.javaClass.getDeclaredMethod("buildCompletenessCheck", SyncState::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, syncState) as Check
+        }
+
+        private fun buildConversationNetworkCheck(
+            runtime: SdkKaliumSyncRuntime,
+            syncState: SyncState,
+        ): Check {
+            val method = runtime.javaClass.getDeclaredMethod("buildConversationNetworkCheck", SyncState::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, syncState) as Check
+        }
+
+        private fun calculateConversationLagMs(
+            runtime: SdkKaliumSyncRuntime,
+            syncState: SyncState?,
+        ): Long {
+            val method = runtime.javaClass.getDeclaredMethod("calculateConversationLagMs", SyncState::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, syncState) as Long
+        }
+
+        private fun calculateConversationPendingMessages(
+            runtime: SdkKaliumSyncRuntime,
+            syncState: SyncState?,
+        ): Int {
+            val method = runtime.javaClass.getDeclaredMethod("calculateConversationPendingMessages", SyncState::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, syncState) as Int
+        }
+
+        private fun calculateSyncCompletenessPercentage(
+            runtime: SdkKaliumSyncRuntime,
+            syncState: SyncState?,
+        ): Int {
+            val method = runtime.javaClass.getDeclaredMethod("calculateSyncCompletenessPercentage", SyncState::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, syncState) as Int
+        }
+
+        private fun <T> withRuntime(block: (SdkKaliumSyncRuntime) -> T): T {
+            val runtime =
+                SdkKaliumSyncRuntime(
+                    environment = emptyMap(),
+                    networkConnectivityChecker = StubNetworkConnectivityChecker(),
+                )
+            return try {
+                block(runtime)
+            } finally {
+                runtime.shutdown()
+            }
         }
     }
 }

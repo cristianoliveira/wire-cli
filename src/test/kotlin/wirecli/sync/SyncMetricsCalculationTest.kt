@@ -382,6 +382,30 @@ class SyncMetricsCalculationTest {
         runtime.shutdown()
     }
 
+    @Test
+    fun `SdkKaliumSyncRuntime delegates pending messages calculation to SyncMetricsCalculator`() {
+        val calculator = RecordingSyncMetricsCalculator(pendingToReturn = 17)
+        val runtime = SdkKaliumSyncRuntime(environment = emptyMap(), syncMetricsCalculator = calculator)
+
+        val pending = invokeRuntimePendingMessagesCalculation(runtime, SyncState.Live)
+
+        assertEquals(17, pending)
+        assertEquals(1, calculator.pendingCalls)
+        runtime.shutdown()
+    }
+
+    @Test
+    fun `SdkKaliumSyncRuntime delegates MLS percentage calculation to SyncMetricsCalculator`() {
+        val calculator = RecordingSyncMetricsCalculator(mlsToReturn = 73)
+        val runtime = SdkKaliumSyncRuntime(environment = emptyMap(), syncMetricsCalculator = calculator)
+
+        val mlsPercentage = invokeRuntimeMlsPercentageCalculation(runtime, SyncState.Live)
+
+        assertEquals(73, mlsPercentage)
+        assertEquals(1, calculator.mlsCalls)
+        runtime.shutdown()
+    }
+
     private fun invokeRuntimeLagCalculation(
         runtime: SdkKaliumSyncRuntime,
         syncState: SyncState,
@@ -400,12 +424,34 @@ class SyncMetricsCalculationTest {
         return method.invoke(runtime, syncState) as SyncStatus
     }
 
+    private fun invokeRuntimePendingMessagesCalculation(
+        runtime: SdkKaliumSyncRuntime,
+        syncState: SyncState,
+    ): Int {
+        val method = runtime.javaClass.getDeclaredMethod("calculatePendingMessages", SyncState::class.java)
+        method.isAccessible = true
+        return method.invoke(runtime, syncState) as Int
+    }
+
+    private fun invokeRuntimeMlsPercentageCalculation(
+        runtime: SdkKaliumSyncRuntime,
+        syncState: SyncState,
+    ): Int {
+        val method = runtime.javaClass.getDeclaredMethod("calculateMlsPercentage", SyncState::class.java)
+        method.isAccessible = true
+        return method.invoke(runtime, syncState) as Int
+    }
+
     private class RecordingSyncMetricsCalculator(
         private val statusToReturn: SyncStatus = SyncStatus.READY,
         private val lagToReturn: Long = 0L,
+        private val pendingToReturn: Int = 0,
+        private val mlsToReturn: Int = 0,
     ) : SyncMetricsCalculator {
         var statusCalls: Int = 0
         var lagCalls: Int = 0
+        var pendingCalls: Int = 0
+        var mlsCalls: Int = 0
 
         override fun mapSyncStateToStatus(syncState: SyncState): SyncStatus {
             statusCalls += 1
@@ -417,8 +463,14 @@ class SyncMetricsCalculationTest {
             return lagToReturn
         }
 
-        override fun calculatePendingMessages(syncState: SyncState): Int = 0
+        override fun calculatePendingMessages(syncState: SyncState): Int {
+            pendingCalls += 1
+            return pendingToReturn
+        }
 
-        override fun calculateMlsPercentage(syncState: SyncState): Int = 0
+        override fun calculateMlsPercentage(syncState: SyncState): Int {
+            mlsCalls += 1
+            return mlsToReturn
+        }
     }
 }

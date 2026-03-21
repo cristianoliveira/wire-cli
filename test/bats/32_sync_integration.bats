@@ -31,7 +31,7 @@ validate_json() {
 
 login_stub_session() {
   export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
 }
 

@@ -6,12 +6,14 @@ import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
+import wirecli.auth.ExitCodes
 import wirecli.sync.DiagnosticsReport
 import wirecli.sync.DiagnosticsResult
 import wirecli.sync.SyncExitCodes
 import wirecli.sync.SyncOutputFormatter
 import wirecli.sync.SyncService
 import wirecli.sync.SyncStatusResult
+import wirecli.validation.InputValidator
 
 class SyncCommand(
     private val syncServiceProvider: () -> SyncService,
@@ -20,6 +22,9 @@ class SyncCommand(
         help = "Check account health and sync status.",
         invokeWithoutSubcommand = true,
     ) {
+    private val deviceId: String? by option("--device-id", help = "Optional device ID context")
+    private val conversationId: String? by option("--conversation-id", help = "Optional conversation ID (UUID) context")
+
     init {
         subcommands(
             SyncStatusCommand(syncServiceProvider),
@@ -29,6 +34,8 @@ class SyncCommand(
     }
 
     override fun run() {
+        validateSyncContextOrExit(deviceId, conversationId)
+
         if (currentContext.invokedSubcommand == null) {
             val syncService = syncServiceProvider()
             outputSyncStatusResult(
@@ -83,7 +90,12 @@ private class DoctorSyncCommand(
         name = "sync",
         help = "Force sync and wait until live state.",
     ) {
+    private val deviceId: String? by option("--device-id", help = "Optional device ID context")
+    private val conversationId: String? by option("--conversation-id", help = "Optional conversation ID (UUID) context")
+
     override fun run() {
+        validateSyncContextOrExit(deviceId, conversationId)
+
         val syncService = syncServiceProvider()
         val result =
             runWithLoading("Forcing sync and waiting for live state") {
@@ -132,6 +144,8 @@ private class SyncStatusCommand(
         name = "status",
         help = "Get current sync status.",
     ) {
+    private val deviceId: String? by option("--device-id", help = "Optional device ID context")
+    private val conversationId: String? by option("--conversation-id", help = "Optional conversation ID (UUID) context")
     private val verbose: Boolean by option(
         "--verbose",
         "-v",
@@ -147,6 +161,8 @@ private class SyncStatusCommand(
     ).flag(default = false)
 
     override fun run() {
+        validateSyncContextOrExit(deviceId, conversationId)
+
         val syncService = syncServiceProvider()
         if (diagnose) {
             runDiagnose(syncService)
@@ -241,6 +257,8 @@ private class DoctorDiagnoseCommand(
         name = "diagnose",
         help = "Run diagnostic checks with recovery hints.",
     ) {
+    private val deviceId: String? by option("--device-id", help = "Optional device ID context")
+    private val conversationId: String? by option("--conversation-id", help = "Optional conversation ID (UUID) context")
     private val verbose: Boolean by option(
         "--verbose",
         "-v",
@@ -252,6 +270,8 @@ private class DoctorDiagnoseCommand(
     ).flag(default = false)
 
     override fun run() {
+        validateSyncContextOrExit(deviceId, conversationId)
+
         val syncService = syncServiceProvider()
         val result =
             runWithLoading("Running diagnostics") {
@@ -297,5 +317,22 @@ private class DoctorDiagnoseCommand(
             val elapsed = System.currentTimeMillis() - startedAt
             echo("Done (${elapsed}ms)", err = true)
         }
+    }
+}
+
+private fun CliktCommand.validateSyncContextOrExit(
+    deviceId: String?,
+    conversationId: String?,
+) {
+    try {
+        if (deviceId != null) {
+            InputValidator.validateDeviceId(deviceId)
+        }
+        if (conversationId != null) {
+            InputValidator.validateConversationId(conversationId)
+        }
+    } catch (error: IllegalArgumentException) {
+        echo(error.message ?: "Invalid input.", err = true)
+        throw ProgramResult(ExitCodes.VALIDATION_ERROR)
     }
 }

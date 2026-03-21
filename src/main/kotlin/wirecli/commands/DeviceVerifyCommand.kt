@@ -16,8 +16,9 @@ class DeviceVerifyCommand(
     private val json by option("--json", help = "Output as JSON").flag(default = false)
 
     override fun run() {
+        val validatedDeviceId = validateDeviceIdOrExit(deviceId)
         val deviceService = deviceServiceProvider()
-        when (val result = deviceService.verify(deviceId)) {
+        when (val result = deviceService.verify(validatedDeviceId)) {
             is DeviceVerifyResult.Success -> {
                 if (json) {
                     outputAsJson(result)

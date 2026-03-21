@@ -20,7 +20,7 @@ teardown() {
 
 setup_active_session() {
 	export WIRE_STUB_MODE="login_ok"
-	run_wire login --email "test@example.com" --password "password"
+	run_wire login --email "test@example.com" --password "Password1"
 	export WIRE_STUB_MODE=""
 }
 

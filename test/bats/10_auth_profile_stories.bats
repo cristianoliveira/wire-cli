@@ -43,7 +43,7 @@ run_wire_with_stdin() {
 
 @test "Given invalid credentials, when login runs, then auth fails and no session is created" {
   export WIRE_STUB_MODE="login_invalid"
-  run_wire login --email "jane@example.com" --password "wrong"
+  run_wire login --email "jane@example.com" --password "WrongPass1"
   assert_status 10
   [[ "${output}" == *"Invalid email or password"* ]]
   [ ! -f "${WIRE_SESSION_FILE}" ]
@@ -51,7 +51,7 @@ run_wire_with_stdin() {
 
 @test "Given auth network failure, when login runs, then actionable error and non-zero exit are returned" {
   export WIRE_STUB_MODE="login_network_error"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 12
   [[ "${output}" == *"Check your connection and retry"* ]]
   [ ! -f "${WIRE_SESSION_FILE}" ]
@@ -59,7 +59,7 @@ run_wire_with_stdin() {
 
 @test "Given password from stdin, when login runs, then session is persisted without password arg" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire_with_stdin "correct-horse" login --email "jane@example.com" --password-stdin
+  run_wire_with_stdin "CorrectHorse1" login --email "jane@example.com" --password-stdin
   assert_status 0
   [ "${output}" = "Login successful." ]
   [[ "${output}" != *"deprecated"* ]]
@@ -68,7 +68,7 @@ run_wire_with_stdin() {
 
 @test "Given incompatible password flags, when login runs, then validation error is returned" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire_with_stdin "correct-horse" login --email "jane@example.com" --password "correct-horse" --password-stdin
+  run_wire_with_stdin "CorrectHorse1" login --email "jane@example.com" --password "CorrectHorse1" --password-stdin
   assert_status 14
   [[ "${output}" == *"Use either --password or --password-stdin"* ]]
   [ ! -f "${WIRE_SESSION_FILE}" ]
@@ -76,7 +76,7 @@ run_wire_with_stdin() {
 
 @test "Given sensitive auth failure details, when login fails, then secrets are redacted" {
   export WIRE_STUB_MODE="login_secret_failure"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 10
   [[ "${output}" == *"token=<redacted>"* ]]
   [[ "${output}" == *"password=<redacted>"* ]]
@@ -86,7 +86,7 @@ run_wire_with_stdin() {
 
 @test "Given valid credentials, when login runs, then session is persisted" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
   [[ "${output}" == *"Login successful."* ]]
   [ -f "${WIRE_SESSION_FILE}" ]
@@ -94,7 +94,7 @@ run_wire_with_stdin() {
 
 @test "Given successful login, when session is saved, then file and directory permissions are restricted" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
   [ -f "${WIRE_SESSION_FILE}" ]
 
@@ -105,7 +105,7 @@ run_wire_with_stdin() {
 
 @test "Given persisted session, when profile runs in new process, then no relogin is needed" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
   [ -f "${WIRE_SESSION_FILE}" ]
 
@@ -162,7 +162,7 @@ run_wire_with_stdin() {
 
 @test "Given missing optional profile fields, when profile runs, then output remains readable" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
 
   export WIRE_STUB_MODE="profile_missing_optional"
@@ -175,7 +175,7 @@ run_wire_with_stdin() {
 
 @test "Given upstream network failure, when profile runs, then actionable error and non-zero exit are returned" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
 
   export WIRE_STUB_MODE="profile_network_error"
@@ -186,7 +186,7 @@ run_wire_with_stdin() {
 
 @test "Given upstream server failure, when profile runs, then clear error and non-zero exit are returned" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
 
   export WIRE_STUB_MODE="profile_server_error"
@@ -197,7 +197,7 @@ run_wire_with_stdin() {
 
 @test "Given expired or invalid session, when profile runs, then unauthorized guidance and non-zero exit are returned" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
 
   export WIRE_STUB_MODE="profile_unauthorized"
@@ -237,7 +237,7 @@ run_wire_with_stdin() {
 
 @test "Given authenticated user, when login profile logout run in sequence, then flow succeeds end-to-end" {
   export WIRE_STUB_MODE="login_ok"
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
   [ -f "${WIRE_SESSION_FILE}" ]
 
@@ -260,7 +260,7 @@ run_wire_with_stdin() {
   export WIRE_BACKEND="stub"
   export WIRE_STUB_MODE="login_ok"
 
-  run_wire login --email "jane@example.com" --password "correct-horse"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
   assert_status 0
   [[ "${output}" == *"Login successful."* ]]
   [ -f "${WIRE_SESSION_FILE}" ]

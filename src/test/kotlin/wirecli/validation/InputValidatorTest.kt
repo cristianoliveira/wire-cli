@@ -97,4 +97,18 @@ class InputValidatorTest {
 
         assertEquals("User ID format is invalid. Expected format: value@domain.", error.message)
     }
+
+    @Test
+    fun `validateRequiredText rejects blank value`() {
+        val error = assertFailsWith<IllegalArgumentException> { InputValidator.validateRequiredText("  ", "Message") }
+
+        assertEquals("Message must not be empty.", error.message)
+    }
+
+    @Test
+    fun `validatePositiveLong rejects zero`() {
+        val error = assertFailsWith<IllegalArgumentException> { InputValidator.validatePositiveLong(0L, "while-pid") }
+
+        assertEquals("while-pid must be a positive integer.", error.message)
+    }
 }

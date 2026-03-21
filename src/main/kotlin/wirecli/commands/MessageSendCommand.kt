@@ -5,7 +5,6 @@ import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
 import io.github.oshai.kotlinlogging.KotlinLogging
-import wirecli.auth.ExitCodes
 import wirecli.message.MessageService
 import wirecli.message.SendMessageResult
 
@@ -61,34 +60,33 @@ class MessageSendCommand(
             logger.debug { "message-send input source=stdin, messageLength=${finalMessage.length}" }
         }
 
-        // Validate conversation ID
-        if (conversation.isBlank()) {
-            logger.warn { "Validation failed: blank conversation ID" }
-            echo("validation error: conversation required", err = true)
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-        }
+        val validatedConversation =
+            requireValueOrExit(
+                value = conversation,
+                fieldName = "Conversation ID",
+                errorMessage = "conversation required",
+            )
+        val validatedMessage =
+            requireValueOrExit(
+                value = finalMessage,
+                fieldName = "Message",
+                errorMessage = "message required",
+            )
 
-        // Validate message
-        if (finalMessage.isBlank()) {
-            logger.warn { "Validation failed: blank message" }
-            echo("validation error: message required", err = true)
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-        }
-
-        logger.debug { "message-send validation passed: conversationId=$conversation" }
+        logger.debug { "message-send validation passed: conversationId=$validatedConversation" }
 
         // Send message
         val messageService = messageServiceProvider()
-        val result = messageService.sendMessage(conversation, finalMessage)
+        val result = messageService.sendMessage(validatedConversation, validatedMessage)
         when (result) {
             is SendMessageResult.Success -> {
-                logger.info { "message-send outcome=success conversationId=$conversation" }
+                logger.info { "message-send outcome=success conversationId=$validatedConversation" }
                 echo("Message sent.")
             }
 
             is SendMessageResult.Failure -> {
                 logger.warn {
-                    "message-send outcome=failure conversationId=$conversation exitCode=${result.exitCode} message=${result.message}"
+                    "message-send outcome=failure conversationId=$validatedConversation exitCode=${result.exitCode} message=${result.message}"
                 }
                 echo(result.message, err = true)
                 throw ProgramResult(result.exitCode)

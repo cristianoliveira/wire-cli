@@ -57,4 +57,20 @@ object InputValidator {
         }
         return normalizedId
     }
+
+    fun validateRequiredText(
+        value: String,
+        fieldName: String,
+    ): String {
+        require(value.isNotBlank()) { "$fieldName must not be empty." }
+        return value
+    }
+
+    fun validatePositiveLong(
+        value: Long,
+        fieldName: String,
+    ): Long {
+        require(value > 0) { "$fieldName must be a positive integer." }
+        return value
+    }
 }

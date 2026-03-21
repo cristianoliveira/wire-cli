@@ -38,9 +38,11 @@ sealed interface AuthApiResult {
     data class Failure(val message: String, val exitCode: Int) : AuthApiResult
 }
 
-interface AuthSessionStore {
+interface SessionProvider {
     fun readActiveSession(): AuthSession?
+}
 
+interface AuthSessionStore : SessionProvider {
     fun readSessionInventory(): SessionInventory
 
     fun writeActiveSession(session: AuthSession)

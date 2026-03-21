@@ -2,9 +2,8 @@ package wirecli.conversation
 
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
-import wirecli.auth.AuthSessionStore
 import wirecli.auth.ExitCodes
-import wirecli.auth.SessionInventory
+import wirecli.auth.SessionProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -131,23 +130,8 @@ class SessionBackedConversationServiceTest {
 // Fake implementations for testing
 class FakeSessionStore(
     private val activeSession: AuthSession?,
-) : AuthSessionStore {
+) : SessionProvider {
     override fun readActiveSession(): AuthSession? = activeSession
-
-    override fun readSessionInventory(): SessionInventory =
-        SessionInventory(
-            activeSession = activeSession,
-            validSessions = 0,
-            invalidSessions = 0,
-        )
-
-    override fun writeActiveSession(session: AuthSession) {
-        // Fake implementation
-    }
-
-    override fun clearActiveSession() {
-        // Fake implementation
-    }
 }
 
 class FakeConversationApiClient(

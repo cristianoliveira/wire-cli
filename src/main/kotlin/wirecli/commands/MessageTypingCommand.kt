@@ -10,6 +10,8 @@ import wirecli.auth.ExitCodes
 import wirecli.message.MessageService
 import wirecli.message.SendTypingResult
 import wirecli.message.TypingStatus
+import wirecli.shared.Result.Success
+import wirecli.shared.Result.Failure
 
 class MessageTypingCommand(
     private val messageServiceProvider: () -> MessageService,

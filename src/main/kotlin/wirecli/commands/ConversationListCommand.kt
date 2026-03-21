@@ -8,6 +8,8 @@ import wirecli.auth.AuthRedactor
 import wirecli.conversation.ConversationFormatter
 import wirecli.conversation.ConversationService
 import wirecli.conversation.ListConversationsResult
+import wirecli.shared.Result.Success
+import wirecli.shared.Result.Failure
 
 class ConversationListCommand(
     private val conversationServiceProvider: () -> ConversationService,

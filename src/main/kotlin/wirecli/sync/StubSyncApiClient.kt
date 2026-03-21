@@ -3,6 +3,8 @@ package wirecli.sync
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import wirecli.shared.Result.Success
+import wirecli.shared.Result.Failure
 
 class StubSyncApiClient(
     private val environment: Map<String, String>,
@@ -12,25 +14,25 @@ class StubSyncApiClient(
 
         return when (mode) {
             "sync_wait_timeout" ->
-                SyncStatusResult.Failure(
+                Failure(
                     message = "Timed out waiting for sync to reach live state after force sync.",
                     exitCode = SyncExitCodes.DEGRADED,
                 )
 
             "sync_wait_error", "network_error" ->
-                SyncStatusResult.Failure(
+                Failure(
                     message = SyncMessages.NETWORK_FAILURE,
                     exitCode = ExitCodes.NETWORK_ERROR,
                 )
 
             "sync_wait_unauthorized", "unauthorized" ->
-                SyncStatusResult.Failure(
+                Failure(
                     message = AuthMessages.invalidOrExpiredSession(),
                     exitCode = ExitCodes.UNAUTHORIZED,
                 )
 
             else ->
-                SyncStatusResult.Success(
+                Success(
                     view =
                         SyncStatusView(
                             status = SyncStatus.READY,
@@ -69,7 +71,7 @@ class StubSyncApiClient(
 
         return when (mode) {
             "status_ready" ->
-                SyncStatusResult.Success(
+                Success(
                     view =
                         SyncStatusView(
                             status = SyncStatus.READY,
@@ -78,7 +80,7 @@ class StubSyncApiClient(
                 )
 
             "status_initializing" ->
-                SyncStatusResult.Success(
+                Success(
                     view =
                         SyncStatusView(
                             status = SyncStatus.INITIALIZING,
@@ -93,7 +95,7 @@ class StubSyncApiClient(
                 )
 
             "status_degraded" ->
-                SyncStatusResult.Success(
+                Success(
                     view =
                         SyncStatusView(
                             status = SyncStatus.DEGRADED,
@@ -102,7 +104,7 @@ class StubSyncApiClient(
                 )
 
             "status_error" ->
-                SyncStatusResult.Success(
+                Success(
                     view =
                         SyncStatusView(
                             status = SyncStatus.ERROR,
@@ -111,25 +113,25 @@ class StubSyncApiClient(
                 )
 
             "network_error" ->
-                SyncStatusResult.Failure(
+                Failure(
                     message = SyncMessages.NETWORK_FAILURE,
                     exitCode = ExitCodes.NETWORK_ERROR,
                 )
 
             "server_error" ->
-                SyncStatusResult.Failure(
+                Failure(
                     message = SyncMessages.SERVER_FAILURE,
                     exitCode = SyncExitCodes.SERVER_ERROR,
                 )
 
             "unauthorized" ->
-                SyncStatusResult.Failure(
+                Failure(
                     message = AuthMessages.invalidOrExpiredSession(),
                     exitCode = ExitCodes.UNAUTHORIZED,
                 )
 
             else ->
-                SyncStatusResult.Success(
+                Success(
                     view =
                         SyncStatusView(
                             status = SyncStatus.READY,
@@ -144,7 +146,7 @@ class StubSyncApiClient(
 
         return when (mode) {
             "status_ready", "diagnostics_healthy" ->
-                DiagnosticsResult.Success(
+                Success(
                     report =
                         DiagnosticsReport(
                             checks =
@@ -181,7 +183,7 @@ class StubSyncApiClient(
                 )
 
             "status_initializing", "diagnostics_initializing" ->
-                DiagnosticsResult.Success(
+                Success(
                     report =
                         DiagnosticsReport(
                             checks =
@@ -224,7 +226,7 @@ class StubSyncApiClient(
                 )
 
             "status_degraded", "diagnostics_degraded" ->
-                DiagnosticsResult.Success(
+                Success(
                     report =
                         DiagnosticsReport(
                             checks =
@@ -271,7 +273,7 @@ class StubSyncApiClient(
                 )
 
             "status_error", "diagnostics_error" ->
-                DiagnosticsResult.Success(
+                Success(
                     report =
                         DiagnosticsReport(
                             checks =
@@ -322,25 +324,25 @@ class StubSyncApiClient(
                 )
 
             "diagnostics_network_error" ->
-                DiagnosticsResult.Failure(
+                Failure(
                     message = SyncMessages.DIAGNOSTICS_NETWORK_FAILURE,
                     exitCode = ExitCodes.NETWORK_ERROR,
                 )
 
             "diagnostics_server_error" ->
-                DiagnosticsResult.Failure(
+                Failure(
                     message = SyncMessages.DIAGNOSTICS_SERVER_FAILURE,
                     exitCode = SyncExitCodes.SERVER_ERROR,
                 )
 
             "diagnostics_unauthorized" ->
-                DiagnosticsResult.Failure(
+                Failure(
                     message = AuthMessages.invalidOrExpiredSession(),
                     exitCode = ExitCodes.UNAUTHORIZED,
                 )
 
             else ->
-                DiagnosticsResult.Success(
+                Success(
                     report =
                         DiagnosticsReport(
                             checks =
@@ -385,7 +387,7 @@ class StubSyncApiClient(
         val mode = environment["WIRE_STUB_MODE"]
 
         if (conversationId.isBlank()) {
-            return ConversationSyncStatusResult.Failure(
+            return ConversationFailure(
                 message = SyncMessages.CONVERSATION_NOT_FOUND,
                 exitCode = SyncExitCodes.DEGRADED,
             )
@@ -393,7 +395,7 @@ class StubSyncApiClient(
 
         return when (mode) {
             "conversation_ready" ->
-                ConversationSyncStatusResult.Success(
+                ConversationSuccess(
                     status =
                         ConversationSyncStatus(
                             conversation_id = conversationId,
@@ -411,7 +413,7 @@ class StubSyncApiClient(
                 )
 
             "conversation_initializing" ->
-                ConversationSyncStatusResult.Success(
+                ConversationSuccess(
                     status =
                         ConversationSyncStatus(
                             conversation_id = conversationId,
@@ -429,7 +431,7 @@ class StubSyncApiClient(
                 )
 
             "conversation_degraded" ->
-                ConversationSyncStatusResult.Success(
+                ConversationSuccess(
                     status =
                         ConversationSyncStatus(
                             conversation_id = conversationId,
@@ -447,19 +449,19 @@ class StubSyncApiClient(
                 )
 
             "conversation_network_error" ->
-                ConversationSyncStatusResult.Failure(
+                ConversationFailure(
                     message = SyncMessages.CONVERSATION_SYNC_NETWORK_FAILURE,
                     exitCode = SyncExitCodes.DEGRADED,
                 )
 
             "conversation_not_found" ->
-                ConversationSyncStatusResult.Failure(
+                ConversationFailure(
                     message = SyncMessages.CONVERSATION_NOT_FOUND,
                     exitCode = SyncExitCodes.DEGRADED,
                 )
 
             else ->
-                ConversationSyncStatusResult.Success(
+                ConversationSuccess(
                     status =
                         ConversationSyncStatus(
                             conversation_id = conversationId,
@@ -485,7 +487,7 @@ class StubSyncApiClient(
         val mode = environment["WIRE_STUB_MODE"]
 
         if (conversationId.isBlank()) {
-            return PerConversationDiagnosticsResult.Failure(
+            return PerConversationFailure(
                 message = SyncMessages.CONVERSATION_NOT_FOUND,
                 exitCode = SyncExitCodes.DEGRADED,
             )
@@ -493,7 +495,7 @@ class StubSyncApiClient(
 
         return when (mode) {
             "conversation_ready", "conversation_diagnostics_healthy" ->
-                PerConversationDiagnosticsResult.Success(
+                PerConversationSuccess(
                     report =
                         PerConversationDiagnosticsReport(
                             conversation_id = conversationId,
@@ -526,7 +528,7 @@ class StubSyncApiClient(
                 )
 
             "conversation_initializing", "conversation_diagnostics_initializing" ->
-                PerConversationDiagnosticsResult.Success(
+                PerConversationSuccess(
                     report =
                         PerConversationDiagnosticsReport(
                             conversation_id = conversationId,
@@ -565,7 +567,7 @@ class StubSyncApiClient(
                 )
 
             "conversation_degraded", "conversation_diagnostics_degraded" ->
-                PerConversationDiagnosticsResult.Success(
+                PerConversationSuccess(
                     report =
                         PerConversationDiagnosticsReport(
                             conversation_id = conversationId,
@@ -604,19 +606,19 @@ class StubSyncApiClient(
                 )
 
             "conversation_network_error" ->
-                PerConversationDiagnosticsResult.Failure(
+                PerConversationFailure(
                     message = SyncMessages.CONVERSATION_SYNC_NETWORK_FAILURE,
                     exitCode = SyncExitCodes.DEGRADED,
                 )
 
             "conversation_not_found" ->
-                PerConversationDiagnosticsResult.Failure(
+                PerConversationFailure(
                     message = SyncMessages.CONVERSATION_NOT_FOUND,
                     exitCode = SyncExitCodes.DEGRADED,
                 )
 
             else ->
-                PerConversationDiagnosticsResult.Success(
+                PerConversationSuccess(
                     report =
                         PerConversationDiagnosticsReport(
                             conversation_id = conversationId,
@@ -658,30 +660,30 @@ class StubSyncApiClient(
 
         return when (mode) {
             "reset_success" ->
-                ResetResult.Success(
+                Success(
                     message = "Sync reset completed successfully",
                 )
             "reset_forced" ->
-                ResetResult.Success(
+                Success(
                     message = "Sync reset completed successfully (forced)",
                 )
             "reset_error", "network_error" ->
-                ResetResult.Failure(
+                Failure(
                     message = SyncMessages.NETWORK_FAILURE,
                     exitCode = ExitCodes.NETWORK_ERROR,
                 )
             "reset_server_error", "server_error" ->
-                ResetResult.Failure(
+                Failure(
                     message = SyncMessages.SERVER_FAILURE,
                     exitCode = SyncExitCodes.SERVER_ERROR,
                 )
             "reset_unauthorized", "unauthorized" ->
-                ResetResult.Failure(
+                Failure(
                     message = AuthMessages.invalidOrExpiredSession(),
                     exitCode = ExitCodes.UNAUTHORIZED,
                 )
             else ->
-                ResetResult.Success(
+                Success(
                     message = "Sync reset completed successfully",
                 )
         }

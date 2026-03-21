@@ -1,6 +1,7 @@
 package wirecli.conversation
 
 import wirecli.auth.AuthSession
+import wirecli.shared.ConversationResult
 
 // Enum for conversation types
 enum class ConversationType(val value: String) {
@@ -43,33 +44,11 @@ data class ConversationDetailView(
     val conversation: Conversation,
 )
 
-// Sealed interface for list conversations result
-sealed interface ListConversationsResult {
-    data class Success(val view: ConversationListView) : ListConversationsResult
-
-    data class Failure(val message: String, val exitCode: Int) : ListConversationsResult
-}
-
-// Sealed interface for get conversation result
-sealed interface GetConversationResult {
-    data class Success(val view: ConversationDetailView) : GetConversationResult
-
-    data class Failure(val message: String, val exitCode: Int) : GetConversationResult
-}
-
-// Sealed interface for create conversation result
-sealed interface CreateConversationResult {
-    data class Success(val view: ConversationDetailView) : CreateConversationResult
-
-    data class Failure(val message: String, val exitCode: Int) : CreateConversationResult
-}
-
-// Sealed interface for delete conversation result
-sealed interface DeleteConversationResult {
-    data class Success(val message: String) : DeleteConversationResult
-
-    data class Failure(val message: String, val exitCode: Int) : DeleteConversationResult
-}
+// Result type aliases for conversation operations
+typealias ListConversationsResult = ConversationResult<ConversationListView>
+typealias GetConversationResult = ConversationResult<ConversationDetailView>
+typealias CreateConversationResult = ConversationResult<ConversationDetailView>
+typealias DeleteConversationResult = ConversationResult<String>
 
 // API Client interface defining contract for conversation operations
 interface ConversationApiClient {

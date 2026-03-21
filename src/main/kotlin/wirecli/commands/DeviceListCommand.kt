@@ -9,6 +9,8 @@ import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
 import wirecli.device.DeviceListResult
 import wirecli.device.DeviceService
+import wirecli.shared.Result.Success
+import wirecli.shared.Result.Failure
 
 /**
  * CLI command to list devices registered to the current user or another user.

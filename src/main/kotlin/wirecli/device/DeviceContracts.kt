@@ -1,8 +1,7 @@
 package wirecli.device
 
 import wirecli.auth.AuthSession
-
-// TODO: Consider unifying DeviceListResult, DeviceDetailResult, DeviceDeleteResult into a generic DeviceResult<T> to reduce duplication
+import wirecli.shared.DeviceResult
 enum class DeviceType(val value: String) {
     DESKTOP("desktop"),
     MOBILE("mobile"),
@@ -46,29 +45,15 @@ data class DeviceDetailView(
     val keyPackageStatus: KeyPackageStatus,
 )
 
-sealed interface DeviceListResult {
-    data class Success(val view: DeviceListView) : DeviceListResult
+typealias DeviceListResult = DeviceResult<DeviceListView>
+typealias DeviceDetailResult = DeviceResult<DeviceDetailView>
+typealias DeviceDeleteResult = DeviceResult<String>
+typealias DeviceVerifyResult = DeviceResult<DeviceVerifySuccess>
 
-    data class Failure(val message: String, val exitCode: Int) : DeviceListResult
-}
-
-sealed interface DeviceDetailResult {
-    data class Success(val view: DeviceDetailView) : DeviceDetailResult
-
-    data class Failure(val message: String, val exitCode: Int) : DeviceDetailResult
-}
-
-sealed interface DeviceDeleteResult {
-    data class Success(val message: String) : DeviceDeleteResult
-
-    data class Failure(val message: String, val exitCode: Int) : DeviceDeleteResult
-}
-
-sealed interface DeviceVerifyResult {
-    data class Success(val message: String, val fingerprint: String) : DeviceVerifyResult
-
-    data class Failure(val message: String, val exitCode: Int) : DeviceVerifyResult
-}
+data class DeviceVerifySuccess(
+    val message: String,
+    val fingerprint: String,
+)
 
 interface DeviceApiClient {
     fun listDevices(session: AuthSession): DeviceListResult

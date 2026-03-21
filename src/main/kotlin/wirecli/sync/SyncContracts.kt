@@ -1,6 +1,7 @@
 package wirecli.sync
 
 import wirecli.auth.AuthSession
+import wirecli.shared.SyncResult
 
 // ==================== NETWORK METRICS ====================
 
@@ -123,23 +124,9 @@ data class SyncStatusView(
     val diagnosticsReport: DiagnosticsReport? = null,
 )
 
-sealed interface SyncStatusResult {
-    data class Success(val view: SyncStatusView) : SyncStatusResult
-
-    data class Failure(val message: String, val exitCode: Int) : SyncStatusResult
-}
-
-sealed interface DiagnosticsResult {
-    data class Success(val report: DiagnosticsReport) : DiagnosticsResult
-
-    data class Failure(val message: String, val exitCode: Int) : DiagnosticsResult
-}
-
-sealed interface ResetResult {
-    data class Success(val message: String) : ResetResult
-
-    data class Failure(val message: String, val exitCode: Int) : ResetResult
-}
+typealias SyncStatusResult = SyncResult<SyncStatusView>
+typealias DiagnosticsResult = SyncResult<DiagnosticsReport>
+typealias ResetResult = SyncResult<String>
 
 interface SyncStatusApiClient {
     fun getSyncStatus(session: AuthSession): SyncStatusResult
@@ -210,17 +197,8 @@ data class PerConversationDiagnosticsReport(
     val recoveryHints: List<RecoveryHint> = emptyList(),
 )
 
-sealed interface ConversationSyncStatusResult {
-    data class Success(val status: ConversationSyncStatus) : ConversationSyncStatusResult
-
-    data class Failure(val message: String, val exitCode: Int) : ConversationSyncStatusResult
-}
-
-sealed interface PerConversationDiagnosticsResult {
-    data class Success(val report: PerConversationDiagnosticsReport) : PerConversationDiagnosticsResult
-
-    data class Failure(val message: String, val exitCode: Int) : PerConversationDiagnosticsResult
-}
+typealias ConversationSyncStatusResult = SyncResult<ConversationSyncStatus>
+typealias PerConversationDiagnosticsResult = SyncResult<PerConversationDiagnosticsReport>
 
 interface SyncService {
     fun getCurrentSyncStatus(): SyncStatusResult

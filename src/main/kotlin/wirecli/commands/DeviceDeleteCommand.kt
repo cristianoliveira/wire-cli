@@ -9,6 +9,8 @@ import wirecli.auth.AuthRedactor
 import wirecli.auth.ExitCodes
 import wirecli.device.DeviceDeleteResult
 import wirecli.device.DeviceService
+import wirecli.shared.Result.Success
+import wirecli.shared.Result.Failure
 
 class DeviceDeleteCommand(
     private val deviceServiceProvider: () -> DeviceService,

@@ -1,6 +1,7 @@
 package wirecli.presence
 
 import wirecli.auth.AuthSession
+import wirecli.shared.PresenceResult
 
 enum class PresenceState(val value: String) {
     ONLINE("online"),
@@ -62,11 +63,7 @@ object PresenceNormalizer {
 
 data class PresenceView(val state: PresenceState)
 
-sealed interface PresenceResult {
-    data class Success(val presence: PresenceView) : PresenceResult
-
-    data class Failure(val message: String, val exitCode: Int) : PresenceResult
-}
+typealias PresenceResult = PresenceResult<PresenceView>
 
 interface PresenceApiClient {
     fun fetchPresence(session: AuthSession): PresenceResult

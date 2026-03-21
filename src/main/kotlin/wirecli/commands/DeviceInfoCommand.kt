@@ -8,6 +8,8 @@ import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
 import wirecli.device.DeviceDetailResult
 import wirecli.device.DeviceService
+import wirecli.shared.Result.Success
+import wirecli.shared.Result.Failure
 
 class DeviceInfoCommand(
     private val deviceServiceProvider: () -> DeviceService,

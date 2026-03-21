@@ -8,6 +8,8 @@ import wirecli.auth.ExitCodes
 import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageFetchFormatter
 import wirecli.message.MessageService
+import wirecli.shared.Result.Success
+import wirecli.shared.Result.Failure
 
 private val logger = KotlinLogging.logger {}
 

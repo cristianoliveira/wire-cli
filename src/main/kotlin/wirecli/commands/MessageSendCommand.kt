@@ -8,6 +8,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.ExitCodes
 import wirecli.message.MessageService
 import wirecli.message.SendMessageResult
+import wirecli.shared.Result.Success
+import wirecli.shared.Result.Failure
 
 private val logger = KotlinLogging.logger {}
 

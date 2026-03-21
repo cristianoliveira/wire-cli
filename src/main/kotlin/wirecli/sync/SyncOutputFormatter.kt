@@ -3,6 +3,8 @@ package wirecli.sync
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import wirecli.shared.Result.Success
+import wirecli.shared.Result.Failure
 
 /**
  * Formatter for sync status and diagnostics output.
@@ -13,36 +15,36 @@ object SyncOutputFormatter {
 
     fun formatStatusHuman(result: SyncStatusResult): String =
         when (result) {
-            is SyncStatusResult.Success -> formatSuccessStatus(result.view)
-            is SyncStatusResult.Failure -> result.message
+            is Success -> formatSuccessStatus(result.value)
+            is Failure -> result.message
         }
 
     fun formatStatusVerbose(result: SyncStatusResult): String =
         when (result) {
-            is SyncStatusResult.Success -> formatVerboseStatus(result.view)
-            is SyncStatusResult.Failure -> result.message
+            is Success -> formatVerboseStatus(result.value)
+            is Failure -> result.message
         }
 
     fun formatStatusJson(result: SyncStatusResult): String =
         when (result) {
-            is SyncStatusResult.Success ->
+            is Success ->
                 json.encodeToString(
                     StatusJsonOutput.Success(
-                        status = result.view.status.value,
-                        auth = result.view.metrics.auth_status,
-                        encryption = result.view.metrics.encryption_status,
+                        status = result.value.status.value,
+                        auth = result.value.metrics.auth_status,
+                        encryption = result.value.metrics.encryption_status,
                         metrics =
                             MetricsJson(
-                                lag_ms = result.view.metrics.lag_ms,
-                                pending_messages = result.view.metrics.pending_messages,
-                                mls_pct = result.view.metrics.mls_pct,
-                                timestamp = result.view.metrics.timestamp,
-                                last_message_received_ms = result.view.metrics.last_message_received_ms,
+                                lag_ms = result.value.metrics.lag_ms,
+                                pending_messages = result.value.metrics.pending_messages,
+                                mls_pct = result.value.metrics.mls_pct,
+                                timestamp = result.value.metrics.timestamp,
+                                last_message_received_ms = result.value.metrics.last_message_received_ms,
                             ),
-                        uptime_ms = result.view.metrics.uptime_ms,
+                        uptime_ms = result.value.metrics.uptime_ms,
                     ),
                 )
-            is SyncStatusResult.Failure ->
+            is Failure ->
                 json.encodeToString(
                     StatusJsonOutput.Failure(
                         error = result.message,
@@ -53,18 +55,18 @@ object SyncOutputFormatter {
 
     fun formatDiagnosticsHuman(result: DiagnosticsResult): String =
         when (result) {
-            is DiagnosticsResult.Success -> formatSuccessDiagnostics(result.report)
-            is DiagnosticsResult.Failure -> result.message
+            is Success -> formatSuccessDiagnostics(result.value)
+            is Failure -> result.message
         }
 
     fun formatDiagnosticsJson(result: DiagnosticsResult): String =
         when (result) {
-            is DiagnosticsResult.Success -> {
+            is Success -> {
                 val jsonOutput =
                     DiagnosticsJsonOutput.Success(
-                        summary = result.report.summary,
+                        summary = result.value.summary,
                         checks =
-                            result.report.checks.map { check ->
+                            result.value.checks.map { check ->
                                 CheckJson(
                                     name = check.name,
                                     status = check.status,
@@ -72,7 +74,7 @@ object SyncOutputFormatter {
                                 )
                             },
                         recoveryHints =
-                            result.report.recoveryHints.map { hint ->
+                            result.value.recoveryHints.map { hint ->
                                 RecoveryHintJson(
                                     description = hint.description,
                                     command = hint.command,
@@ -81,7 +83,7 @@ object SyncOutputFormatter {
                     )
                 json.encodeToString(jsonOutput)
             }
-            is DiagnosticsResult.Failure ->
+            is Failure ->
                 json.encodeToString(
                     DiagnosticsJsonOutput.Failure(
                         error = result.message,

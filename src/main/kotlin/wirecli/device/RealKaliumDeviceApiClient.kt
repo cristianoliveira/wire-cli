@@ -41,6 +41,9 @@ internal class RealKaliumDeviceApiClient(
      * @post Success result contains zero or more Device objects
      */
     override fun listDevices(session: AuthSession): DeviceListResult {
+        require(session.userId.isNotBlank()) { "List devices requires a non-blank session user ID." }
+        require(session.accessToken.isNotBlank()) { "List devices requires a non-blank session access token." }
+
         logger.info { "Listing devices for current user" }
         logger.debug { "API call: GET /clients (list self devices)" }
 
@@ -56,20 +59,31 @@ internal class RealKaliumDeviceApiClient(
                 }
             }
 
-        return when (val devices = runtime.listDevices(sessionScope)) {
-            is DeviceStepResult.Success -> {
-                logger.info { "Successfully retrieved ${devices.value.size} device(s)" }
-                logger.debug { "Device list result: ${devices.value.map { it.id }}" }
-                DeviceListResult.Success(
-                    view = DeviceListView(devices = devices.value),
-                )
+        val result =
+            when (val devices = runtime.listDevices(sessionScope)) {
+                is DeviceStepResult.Success -> {
+                    logger.info { "Successfully retrieved ${devices.value.size} device(s)" }
+                    logger.debug { "Device list result: ${devices.value.map { it.id }}" }
+                    DeviceListResult.Success(
+                        view = DeviceListView(devices = devices.value),
+                    )
+                }
+
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to list devices: ${devices.category}" }
+                    devices.toDeviceFailure()
+                }
             }
 
-            is DeviceStepResult.Failure -> {
-                logger.warn { "Failed to list devices: ${devices.category}" }
-                devices.toDeviceFailure()
+        if (result is DeviceListResult.Success) {
+            check(result.view.devices.all { it.id.isNotBlank() }) {
+                "Device list success must only include devices with non-blank IDs."
+            }
+            check(result.view.devices.all { it.fingerprint.isNotBlank() }) {
+                "Device list success must only include devices with non-blank fingerprints."
             }
         }
+        return result
     }
 
     /**
@@ -88,6 +102,10 @@ internal class RealKaliumDeviceApiClient(
         session: AuthSession,
         userId: String,
     ): DeviceListResult {
+        require(session.userId.isNotBlank()) { "List devices for user requires a non-blank session user ID." }
+        require(session.accessToken.isNotBlank()) { "List devices for user requires a non-blank session access token." }
+        require(userId.isNotBlank()) { "List devices for user requires a non-blank target user ID." }
+
         logger.info { "Listing devices for user: $userId" }
         logger.debug { "API call: GET /users/$userId/clients" }
 
@@ -103,20 +121,31 @@ internal class RealKaliumDeviceApiClient(
                 }
             }
 
-        return when (val devices = runtime.listDevicesForUser(sessionScope, userId)) {
-            is DeviceStepResult.Success -> {
-                logger.info { "Successfully retrieved ${devices.value.size} device(s) for user $userId" }
-                logger.debug { "Device list for user $userId: ${devices.value.map { it.id }}" }
-                DeviceListResult.Success(
-                    view = DeviceListView(devices = devices.value),
-                )
+        val result =
+            when (val devices = runtime.listDevicesForUser(sessionScope, userId)) {
+                is DeviceStepResult.Success -> {
+                    logger.info { "Successfully retrieved ${devices.value.size} device(s) for user $userId" }
+                    logger.debug { "Device list for user $userId: ${devices.value.map { it.id }}" }
+                    DeviceListResult.Success(
+                        view = DeviceListView(devices = devices.value),
+                    )
+                }
+
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to list devices for user $userId: ${devices.category}" }
+                    devices.toDeviceFailure()
+                }
             }
 
-            is DeviceStepResult.Failure -> {
-                logger.warn { "Failed to list devices for user $userId: ${devices.category}" }
-                devices.toDeviceFailure()
+        if (result is DeviceListResult.Success) {
+            check(result.view.devices.all { it.id.isNotBlank() }) {
+                "User device list success must only include devices with non-blank IDs."
+            }
+            check(result.view.devices.all { it.lastActive.isNotBlank() }) {
+                "User device list success must only include devices with non-blank lastActive values."
             }
         }
+        return result
     }
 
     /**
@@ -136,6 +165,10 @@ internal class RealKaliumDeviceApiClient(
         session: AuthSession,
         deviceId: String,
     ): DeviceDetailResult {
+        require(session.userId.isNotBlank()) { "Get device detail requires a non-blank session user ID." }
+        require(session.accessToken.isNotBlank()) { "Get device detail requires a non-blank session access token." }
+        require(deviceId.isNotBlank()) { "Get device detail requires a non-blank device ID." }
+
         logger.info { "Retrieving device detail: $deviceId" }
         logger.debug { "API call: GET /clients/$deviceId" }
 
@@ -151,24 +184,35 @@ internal class RealKaliumDeviceApiClient(
                 }
             }
 
-        return when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
-            is DeviceStepResult.Success -> {
-                logger.info { "Successfully retrieved device detail: ${device.value.id}" }
-                logger.debug { "Device type: ${device.value.type}, Last active: ${device.value.lastActive}" }
-                DeviceDetailResult.Success(
-                    view =
-                        DeviceDetailView(
-                            device = device.value,
-                            keyPackageStatus = KeyPackageStatus.VALID,
-                        ),
-                )
+        val result =
+            when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
+                is DeviceStepResult.Success -> {
+                    logger.info { "Successfully retrieved device detail: ${device.value.id}" }
+                    logger.debug { "Device type: ${device.value.type}, Last active: ${device.value.lastActive}" }
+                    DeviceDetailResult.Success(
+                        view =
+                            DeviceDetailView(
+                                device = device.value,
+                                keyPackageStatus = KeyPackageStatus.VALID,
+                            ),
+                    )
+                }
+
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to retrieve device detail $deviceId: ${device.category}" }
+                    device.toDeviceDetailFailure()
+                }
             }
 
-            is DeviceStepResult.Failure -> {
-                logger.warn { "Failed to retrieve device detail $deviceId: ${device.category}" }
-                device.toDeviceDetailFailure()
+        if (result is DeviceDetailResult.Success) {
+            check(result.view.device.id == deviceId) {
+                "Device detail success must return the requested device ID."
+            }
+            check(result.view.device.fingerprint.isNotBlank()) {
+                "Device detail success must include a non-blank fingerprint."
             }
         }
+        return result
     }
 
     /**
@@ -191,6 +235,13 @@ internal class RealKaliumDeviceApiClient(
         deviceId: String,
         password: String?,
     ): DeviceDeleteResult {
+        require(session.userId.isNotBlank()) { "Delete device requires a non-blank session user ID." }
+        require(session.accessToken.isNotBlank()) { "Delete device requires a non-blank session access token." }
+        require(deviceId.isNotBlank()) { "Delete device requires a non-blank device ID." }
+        require(password == null || password.isNotBlank()) {
+            "Delete device password must be null or non-blank."
+        }
+
         logger.info { "Deleting device: $deviceId" }
         logger.debug { "API call: DELETE /clients/$deviceId (write operation)" }
         logger.debug { "Password provided: ${password != null}" }
@@ -207,19 +258,35 @@ internal class RealKaliumDeviceApiClient(
                 }
             }
 
-        return when (val result = runtime.deleteDevice(sessionScope, deviceId, password)) {
-            is DeviceStepResult.Success -> {
-                logger.info { "Device deleted successfully: $deviceId" }
-                DeviceDeleteResult.Success(
-                    message = "Device deleted successfully.",
-                )
+        val result =
+            when (val deleteResult = runtime.deleteDevice(sessionScope, deviceId, password)) {
+                is DeviceStepResult.Success -> {
+                    logger.info { "Device deleted successfully: $deviceId" }
+                    DeviceDeleteResult.Success(
+                        message = "Device deleted successfully.",
+                    )
+                }
+
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to delete device $deviceId: ${deleteResult.category}" }
+                    deleteResult.toDeviceDeleteFailure()
+                }
             }
 
-            is DeviceStepResult.Failure -> {
-                logger.warn { "Failed to delete device $deviceId: ${result.category}" }
-                result.toDeviceDeleteFailure()
+        when (result) {
+            is DeviceDeleteResult.Success -> {
+                check(result.message.isNotBlank()) {
+                    "Delete device success must provide a non-blank confirmation message."
+                }
+            }
+
+            is DeviceDeleteResult.Failure -> {
+                check(result.exitCode > 0) {
+                    "Delete device failure must include a positive exit code."
+                }
             }
         }
+        return result
     }
 
     /**
@@ -238,6 +305,10 @@ internal class RealKaliumDeviceApiClient(
         session: AuthSession,
         deviceId: String,
     ): DeviceVerifyResult {
+        require(session.userId.isNotBlank()) { "Verify device requires a non-blank session user ID." }
+        require(session.accessToken.isNotBlank()) { "Verify device requires a non-blank session access token." }
+        require(deviceId.isNotBlank()) { "Verify device requires a non-blank device ID." }
+
         logger.info { "Verifying device: $deviceId" }
         logger.debug { "API call: GET /clients/$deviceId (verification)" }
 
@@ -253,21 +324,37 @@ internal class RealKaliumDeviceApiClient(
                 }
             }
 
-        return when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
-            is DeviceStepResult.Success -> {
-                logger.info { "Device verified successfully: ${device.value.id}" }
-                logger.debug { "Fingerprint verified for device: ${device.value.id}" }
-                DeviceVerifyResult.Success(
-                    message = "Device verified successfully.",
-                    fingerprint = device.value.fingerprint,
-                )
+        val result =
+            when (val device = runtime.getDeviceDetail(sessionScope, deviceId)) {
+                is DeviceStepResult.Success -> {
+                    logger.info { "Device verified successfully: ${device.value.id}" }
+                    logger.debug { "Fingerprint verified for device: ${device.value.id}" }
+                    DeviceVerifyResult.Success(
+                        message = "Device verified successfully.",
+                        fingerprint = device.value.fingerprint,
+                    )
+                }
+
+                is DeviceStepResult.Failure -> {
+                    logger.warn { "Failed to verify device $deviceId: ${device.category}" }
+                    device.toDeviceVerifyFailure()
+                }
             }
 
-            is DeviceStepResult.Failure -> {
-                logger.warn { "Failed to verify device $deviceId: ${device.category}" }
-                device.toDeviceVerifyFailure()
+        when (result) {
+            is DeviceVerifyResult.Success -> {
+                check(result.fingerprint.isNotBlank()) {
+                    "Verify device success must include a non-blank fingerprint."
+                }
+            }
+
+            is DeviceVerifyResult.Failure -> {
+                check(result.exitCode > 0) {
+                    "Verify device failure must include a positive exit code."
+                }
             }
         }
+        return result
     }
 }
 
@@ -475,70 +562,105 @@ internal class SdkKaliumDeviceRuntime(
         session: AuthSession,
         isWriteOperation: Boolean,
     ): DeviceStepResult<KaliumDeviceSessionScope> {
+        require(session.userId.isNotBlank()) { "Session scope resolution requires a non-blank user ID." }
+        require(session.accessToken.isNotBlank()) { "Session scope resolution requires a non-blank access token." }
+
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: return DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
         activeSessionUserIds += qualifiedId
 
-        return runBlocking {
-            try {
-                // For read operations, skip strict sync validation to allow fresh sessions
-                // For write operations, enforce sync validation only if explicitly enabled
-                if (!cliMode.disableSessionSyncWait && isWriteOperation) {
-                    coreLogic.sessionScope(qualifiedId) {
-                        syncExecutor.request { waitUntilLiveOrFailure() }
+        val result =
+            runBlocking {
+                try {
+                    // For read operations, skip strict sync validation to allow fresh sessions
+                    // For write operations, enforce sync validation only if explicitly enabled
+                    if (!cliMode.disableSessionSyncWait && isWriteOperation) {
+                        coreLogic.sessionScope(qualifiedId) {
+                            syncExecutor.request { waitUntilLiveOrFailure() }
+                        }
                     }
+                    DeviceStepResult.Success(
+                        KaliumDeviceSessionScope(
+                            userId = session.userId,
+                            server = session.server,
+                        ),
+                    )
+                } catch (error: Throwable) {
+                    DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
-                DeviceStepResult.Success(
-                    KaliumDeviceSessionScope(
-                        userId = session.userId,
-                        server = session.server,
-                    ),
-                )
-            } catch (error: Throwable) {
-                DeviceStepResult.Failure(categoryFromThrowable(error))
+            }
+
+        check(activeSessionUserIds.contains(qualifiedId)) {
+            "Resolved session scopes must track active user IDs for cleanup."
+        }
+        if (result is DeviceStepResult.Success) {
+            check(result.value.userId == session.userId) {
+                "Resolved device session scope must preserve the requested user ID."
             }
         }
+        return result
     }
 
     override fun listDevices(sessionScope: KaliumDeviceSessionScope): DeviceStepResult<List<Device>> {
+        require(sessionScope.userId.isNotBlank()) { "List devices requires a non-blank session scope user ID." }
+
         val qualifiedId =
             sessionScope.userId.toQualifiedIdOrNull()
                 ?: return DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
 
-        return runBlocking {
-            try {
-                val result =
-                    coreLogic.sessionScope(qualifiedId) {
-                        client.fetchSelfClients()
+        val result =
+            runBlocking {
+                try {
+                    val result =
+                        coreLogic.sessionScope(qualifiedId) {
+                            client.fetchSelfClients()
+                        }
+
+                    when (result) {
+                        is SelfClientsResult.Success ->
+                            DeviceStepResult.Success(
+                                result.clients.map { kaliumClient ->
+                                    Device(
+                                        id = kaliumClient.id.value,
+                                        type = mapDeviceType(kaliumClient.deviceType),
+                                        fingerprint = kaliumClient.id.value, // Use client ID as fingerprint for now
+                                        lastActive = formatLastActive(kaliumClient),
+                                    )
+                                },
+                            )
+
+                        is SelfClientsResult.Failure.Generic ->
+                            DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-
-                when (result) {
-                    is SelfClientsResult.Success ->
-                        DeviceStepResult.Success(
-                            result.clients.map { kaliumClient ->
-                                Device(
-                                    id = kaliumClient.id.value,
-                                    type = mapDeviceType(kaliumClient.deviceType),
-                                    fingerprint = kaliumClient.id.value, // Use client ID as fingerprint for now
-                                    lastActive = formatLastActive(kaliumClient),
-                                )
-                            },
-                        )
-
-                    is SelfClientsResult.Failure.Generic ->
-                        DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
+                } catch (error: Throwable) {
+                    DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
-            } catch (error: Throwable) {
-                DeviceStepResult.Failure(categoryFromThrowable(error))
+            }
+
+        when (result) {
+            is DeviceStepResult.Success -> {
+                check(result.value.all { it.id.isNotBlank() }) {
+                    "List devices success must only include devices with non-blank IDs."
+                }
+            }
+
+            is DeviceStepResult.Failure -> {
+                check(result.category in DeviceFailureCategory.entries) {
+                    "List devices failures must map to known DeviceFailureCategory values."
+                }
             }
         }
+        return result
     }
 
     override fun listDevicesForUser(
         sessionScope: KaliumDeviceSessionScope,
         userId: String,
     ): DeviceStepResult<List<Device>> {
+        require(sessionScope.userId.isNotBlank()) { "List devices for user requires a non-blank session scope user ID." }
+        require(userId.isNotBlank()) { "List devices for user requires a non-blank target user ID." }
+
         val sessionUserId =
             sessionScope.userId.toQualifiedIdOrNull()
                 ?: return DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
@@ -547,60 +669,83 @@ internal class SdkKaliumDeviceRuntime(
             userId.toQualifiedIdOrNull()
                 ?: return DeviceStepResult.Failure(DeviceFailureCategory.DEVICE_NOT_FOUND)
 
-        return runBlocking {
-            try {
-                // This feature requires proper Flow collection from Kalium SDK
-                // Currently unsupported - explicitly fail rather than return empty list
-                throw UnsupportedOperationException(
-                    "Fetching devices for other users is not yet implemented. " +
-                        "This requires proper Flow-based device collection from Kalium SDK.",
-                )
-            } catch (error: Throwable) {
-                DeviceStepResult.Failure(categoryFromThrowable(error))
+        val result =
+            runBlocking {
+                try {
+                    // This feature requires proper Flow collection from Kalium SDK
+                    // Currently unsupported - explicitly fail rather than return empty list
+                    throw UnsupportedOperationException(
+                        "Fetching devices for other users is not yet implemented. " +
+                            "This requires proper Flow-based device collection from Kalium SDK.",
+                    )
+                } catch (error: Throwable) {
+                    DeviceStepResult.Failure(categoryFromThrowable(error))
+                }
             }
+
+        check(sessionUserId == sessionScope.userId.toQualifiedIdOrNull()) {
+            "List devices for user must keep a stable authenticated session user ID."
         }
+        check(targetUserId == userId.toQualifiedIdOrNull()) {
+            "List devices for user must keep a stable target user ID."
+        }
+        return result
     }
 
     override fun getDeviceDetail(
         sessionScope: KaliumDeviceSessionScope,
         deviceId: String,
     ): DeviceStepResult<Device> {
+        require(sessionScope.userId.isNotBlank()) { "Get device detail requires a non-blank session scope user ID." }
+        require(deviceId.isNotBlank()) { "Get device detail requires a non-blank device ID." }
+
         val qualifiedId =
             sessionScope.userId.toQualifiedIdOrNull()
                 ?: return DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
 
-        return runBlocking {
-            try {
-                val result =
-                    coreLogic.sessionScope(qualifiedId) {
-                        client.fetchSelfClients()
+        val result =
+            runBlocking {
+                try {
+                    val result =
+                        coreLogic.sessionScope(qualifiedId) {
+                            client.fetchSelfClients()
+                        }
+
+                    when (result) {
+                        is SelfClientsResult.Success -> {
+                            val foundClient =
+                                result.clients.find { it.id.value == deviceId }
+                                    ?: return@runBlocking DeviceStepResult.Failure(
+                                        DeviceFailureCategory.DEVICE_NOT_FOUND,
+                                    )
+
+                            DeviceStepResult.Success(
+                                Device(
+                                    id = foundClient.id.value,
+                                    type = mapDeviceType(foundClient.deviceType),
+                                    fingerprint = foundClient.id.value, // Use client ID as fingerprint for now
+                                    lastActive = formatLastActive(foundClient),
+                                ),
+                            )
+                        }
+
+                        is SelfClientsResult.Failure.Generic ->
+                            DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-
-                when (result) {
-                    is SelfClientsResult.Success -> {
-                        val foundClient =
-                            result.clients.find { it.id.value == deviceId }
-                                ?: return@runBlocking DeviceStepResult.Failure(
-                                    DeviceFailureCategory.DEVICE_NOT_FOUND,
-                                )
-
-                        DeviceStepResult.Success(
-                            Device(
-                                id = foundClient.id.value,
-                                type = mapDeviceType(foundClient.deviceType),
-                                fingerprint = foundClient.id.value, // Use client ID as fingerprint for now
-                                lastActive = formatLastActive(foundClient),
-                            ),
-                        )
-                    }
-
-                    is SelfClientsResult.Failure.Generic ->
-                        DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
+                } catch (error: Throwable) {
+                    DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
-            } catch (error: Throwable) {
-                DeviceStepResult.Failure(categoryFromThrowable(error))
+            }
+
+        if (result is DeviceStepResult.Success) {
+            check(result.value.id == deviceId) {
+                "Get device detail success must return the requested device ID."
+            }
+            check(result.value.fingerprint.isNotBlank()) {
+                "Get device detail success must include a non-blank fingerprint."
             }
         }
+        return result
     }
 
     override fun deleteDevice(
@@ -608,39 +753,56 @@ internal class SdkKaliumDeviceRuntime(
         deviceId: String,
         password: String?,
     ): DeviceStepResult<Unit> {
+        require(sessionScope.userId.isNotBlank()) { "Delete device requires a non-blank session scope user ID." }
+        require(deviceId.isNotBlank()) { "Delete device requires a non-blank device ID." }
+        require(password == null || password.isNotBlank()) {
+            "Delete device password must be null or non-blank."
+        }
+
         val qualifiedId =
             sessionScope.userId.toQualifiedIdOrNull()
                 ?: return DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
 
-        return runBlocking {
-            try {
-                val result =
-                    coreLogic.sessionScope(qualifiedId) {
-                        client.deleteClient(
-                            com.wire.kalium.logic.data.client.DeleteClientParam(
-                                password = password,
-                                clientId = com.wire.kalium.logic.data.conversation.ClientId(deviceId),
-                            ),
-                        )
+        val result =
+            runBlocking {
+                try {
+                    val result =
+                        coreLogic.sessionScope(qualifiedId) {
+                            client.deleteClient(
+                                com.wire.kalium.logic.data.client.DeleteClientParam(
+                                    password = password,
+                                    clientId = com.wire.kalium.logic.data.conversation.ClientId(deviceId),
+                                ),
+                            )
+                        }
+
+                    when (result) {
+                        is DeleteClientResult.Success ->
+                            DeviceStepResult.Success(Unit)
+
+                        is DeleteClientResult.Failure.InvalidCredentials ->
+                            DeviceStepResult.Failure(DeviceFailureCategory.INVALID_CREDENTIALS)
+
+                        is DeleteClientResult.Failure.PasswordAuthRequired ->
+                            DeviceStepResult.Failure(DeviceFailureCategory.PASSWORD_REQUIRED)
+
+                        is DeleteClientResult.Failure.Generic ->
+                            DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-
-                when (result) {
-                    is DeleteClientResult.Success ->
-                        DeviceStepResult.Success(Unit)
-
-                    is DeleteClientResult.Failure.InvalidCredentials ->
-                        DeviceStepResult.Failure(DeviceFailureCategory.INVALID_CREDENTIALS)
-
-                    is DeleteClientResult.Failure.PasswordAuthRequired ->
-                        DeviceStepResult.Failure(DeviceFailureCategory.PASSWORD_REQUIRED)
-
-                    is DeleteClientResult.Failure.Generic ->
-                        DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
+                } catch (error: Throwable) {
+                    DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
-            } catch (error: Throwable) {
-                DeviceStepResult.Failure(categoryFromThrowable(error))
+            }
+
+        if (result is DeviceStepResult.Failure) {
+            check(result.category in DeviceFailureCategory.entries) {
+                "Delete device failures must map to known DeviceFailureCategory values."
             }
         }
+        check(activeSessionUserIds.contains(qualifiedId)) {
+            "Delete device must keep session user tracked for runtime cleanup."
+        }
+        return result
     }
 
     override fun shutdown() {
@@ -651,7 +813,14 @@ internal class SdkKaliumDeviceRuntime(
                 coreLogic.sessionScope(userId) { cancel() }
             }
         }
+        activeSessionUserIds.clear()
+        check(activeSessionUserIds.isEmpty()) {
+            "Device runtime shutdown must clear tracked active sessions."
+        }
         coreLogic.getGlobalScope().cancel()
+        check(coreLogicLazy.isInitialized()) {
+            "Device runtime shutdown expects initialized CoreLogic before cancellation."
+        }
     }
 
     @Suppress("UNCHECKED_CAST", "CANNOT_ACCESS_CLASS")

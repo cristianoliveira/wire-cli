@@ -2,6 +2,7 @@ package wirecli.auth
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 class RealKaliumAuthClientTest {
@@ -118,6 +119,20 @@ class RealKaliumAuthClientTest {
             "Authentication failed: token=<redacted> password=<redacted>",
             failure.message,
         )
+    }
+
+    @Test
+    fun `throws on blank login email precondition`() {
+        val client =
+            RealKaliumAuthClient(
+                FakeRuntime(
+                    authScopeResult = AuthStepResult.Failure(AuthFailureCategory.UNKNOWN),
+                ),
+            )
+
+        assertFailsWith<IllegalArgumentException> {
+            client.login(LoginInput(email = " ", password = "valid-password", server = null))
+        }
     }
 
     private fun authenticatedPrincipal(): AuthenticatedPrincipal {

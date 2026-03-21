@@ -11,7 +11,6 @@ import wirecli.auth.ExitCodes
 import wirecli.presence.PresenceResult
 import wirecli.presence.PresenceService
 import wirecli.presence.PresenceStatusContract
-import wirecli.validation.InputValidator
 
 private val logger = KotlinLogging.logger {}
 
@@ -118,14 +117,5 @@ private class PresenceSetCommand(
                 throw ProgramResult(result.exitCode)
             }
         }
-    }
-}
-
-private fun CliktCommand.validateConversationIdOrExit(conversationId: String): String {
-    return try {
-        InputValidator.validateConversationId(conversationId)
-    } catch (error: IllegalArgumentException) {
-        echo(error.message ?: "Invalid conversation ID.", err = true)
-        throw ProgramResult(ExitCodes.VALIDATION_ERROR)
     }
 }

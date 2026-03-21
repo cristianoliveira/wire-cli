@@ -6,7 +6,6 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthRedactor
-import wirecli.auth.ExitCodes
 import wirecli.profile.ProfileResult
 import wirecli.profile.ProfileService
 import wirecli.validation.InputValidator
@@ -39,15 +38,6 @@ class ProfileCommand(
                 echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }
-        }
-    }
-
-    private fun <T> validateOrExit(block: () -> T): T {
-        return try {
-            block()
-        } catch (error: IllegalArgumentException) {
-            echo(error.message ?: "Invalid input.", err = true)
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
         }
     }
 }

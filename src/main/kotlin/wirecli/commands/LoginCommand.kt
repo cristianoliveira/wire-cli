@@ -118,15 +118,6 @@ class LoginCommand(
         }
     }
 
-    private fun <T> validateOrExit(block: () -> T): T {
-        return try {
-            block()
-        } catch (error: IllegalArgumentException) {
-            echo(error.message ?: "Invalid input.", err = true)
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-        }
-    }
-
     /**
      * Reads password from stdin stream (non-interactive).
      *

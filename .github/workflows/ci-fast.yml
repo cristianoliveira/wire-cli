@@ -12,7 +12,7 @@ on:
 jobs:
   ci:
     name: All Checks
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - name: Checkout
         uses: actions/checkout@v6

@@ -1,158 +1,135 @@
 package wirecli.commands
 
-import wirecli.message.FetchMessagesResult
-import wirecli.message.FetchMessagesView
+import com.github.ajalt.clikt.core.ProgramResult
 import wirecli.message.MessageService
 import wirecli.message.SendMessageResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MessageSendCommandTest {
     // ==================== MessageSendCommand Tests ====================
 
     @Test
     fun `send command with positional message succeeds`() {
-        val service =
-            FakeMessageService(
-                sendMessageResult = SendMessageResult.Success,
-            )
+        val command =
+            MessageSendCommand {
+                StubMessageService(sendMessageResult = SendMessageResult.Success)
+            }
 
-        val result = service.sendMessage("conv-001", "Hello World")
+        val result = execute(command, listOf("conv-001", "Hello World"))
 
-        assertEquals(SendMessageResult.Success, result)
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.trim().contains("Message sent"))
     }
 
     @Test
-    fun `send command with conversation validation fails for blank conversation ID`() {
-        val service =
-            FakeMessageService(
-                sendMessageResult = SendMessageResult.Success,
-            )
+    fun `send command validates blank conversation ID`() {
+        val command =
+            MessageSendCommand {
+                StubMessageService(sendMessageResult = SendMessageResult.Success)
+            }
 
-        val result = service.sendMessage("", "Hello")
+        val result = execute(command, listOf("", "Hello"))
 
-        assertEquals(
-            SendMessageResult.Failure(
-                message = "validation error: conversation required",
-                exitCode = 14,
-            ),
-            result,
-        )
+        assertEquals(14, result.exitCode)
+        assertEquals("validation error: conversation required", result.stderr.trim())
     }
 
     @Test
-    fun `send command with message validation fails for blank message`() {
-        val service =
-            FakeMessageService(
-                sendMessageResult = SendMessageResult.Success,
-            )
+    fun `send command validates blank message`() {
+        val command =
+            MessageSendCommand {
+                StubMessageService(sendMessageResult = SendMessageResult.Success)
+            }
 
-        val result = service.sendMessage("conv-001", "")
+        val result = execute(command, listOf("conv-001", ""))
 
-        assertEquals(
-            SendMessageResult.Failure(
-                message = "validation error: message required",
-                exitCode = 14,
-            ),
-            result,
-        )
+        assertEquals(14, result.exitCode)
+        assertEquals("validation error: message required", result.stderr.trim())
     }
 
     @Test
-    fun `send command with message containing only whitespace fails`() {
-        val service =
-            FakeMessageService(
-                sendMessageResult = SendMessageResult.Success,
-            )
+    fun `send command validates message with only whitespace`() {
+        val command =
+            MessageSendCommand {
+                StubMessageService(sendMessageResult = SendMessageResult.Success)
+            }
 
-        val result = service.sendMessage("conv-001", "   ")
+        val result = execute(command, listOf("conv-001", "   "))
 
-        assertEquals(
-            SendMessageResult.Failure(
-                message = "validation error: message required",
-                exitCode = 14,
-            ),
-            result,
-        )
+        assertEquals(14, result.exitCode)
+        assertEquals("validation error: message required", result.stderr.trim())
     }
 
     @Test
     fun `send command returns failure when service fails with network error`() {
-        val service =
-            FakeMessageService(
-                sendMessageResult =
-                    SendMessageResult.Failure(
-                        message = "network error while sending message",
-                        exitCode = 12,
-                    ),
-            )
+        val command =
+            MessageSendCommand {
+                StubMessageService(
+                    sendMessageResult =
+                        SendMessageResult.Failure(
+                            message = "network error while sending message",
+                            exitCode = 12,
+                        ),
+                )
+            }
 
-        val result = service.sendMessage("conv-001", "Hello")
+        val result = execute(command, listOf("conv-001", "Hello"))
 
-        assertEquals(
-            SendMessageResult.Failure(
-                message = "network error while sending message",
-                exitCode = 12,
-            ),
-            result,
-        )
+        assertEquals(12, result.exitCode)
+        assertEquals("network error while sending message", result.stderr.trim())
     }
 
     @Test
     fun `send command returns failure when service fails with authorization error`() {
-        val service =
-            FakeMessageService(
-                sendMessageResult =
-                    SendMessageResult.Failure(
-                        message = "you must be logged in to send messages",
-                        exitCode = 11,
-                    ),
-            )
+        val command =
+            MessageSendCommand {
+                StubMessageService(
+                    sendMessageResult =
+                        SendMessageResult.Failure(
+                            message = "you must be logged in to send messages",
+                            exitCode = 11,
+                        ),
+                )
+            }
 
-        val result = service.sendMessage("conv-001", "Hello")
+        val result = execute(command, listOf("conv-001", "Hello"))
 
-        assertEquals(
-            SendMessageResult.Failure(
-                message = "you must be logged in to send messages",
-                exitCode = 11,
-            ),
-            result,
-        )
+        assertEquals(11, result.exitCode)
+        assertEquals("you must be logged in to send messages", result.stderr.trim())
     }
 
     @Test
     fun `send command returns failure when service fails with server error`() {
-        val service =
-            FakeMessageService(
-                sendMessageResult =
-                    SendMessageResult.Failure(
-                        message = "server error while sending message",
-                        exitCode = 13,
-                    ),
-            )
+        val command =
+            MessageSendCommand {
+                StubMessageService(
+                    sendMessageResult =
+                        SendMessageResult.Failure(
+                            message = "server error while sending message",
+                            exitCode = 13,
+                        ),
+                )
+            }
 
-        val result = service.sendMessage("conv-001", "Hello")
+        val result = execute(command, listOf("conv-001", "Hello"))
 
-        assertEquals(
-            SendMessageResult.Failure(
-                message = "server error while sending message",
-                exitCode = 13,
-            ),
-            result,
-        )
+        assertEquals(13, result.exitCode)
+        assertEquals("server error while sending message", result.stderr.trim())
     }
 
     @Test
     fun `send command with multi-word message succeeds`() {
-        val service =
-            FakeMessageService(
-                sendMessageResult = SendMessageResult.Success,
-            )
+        val command =
+            MessageSendCommand {
+                StubMessageService(sendMessageResult = SendMessageResult.Success)
+            }
 
-        val message = "This is a longer message with multiple words"
-        val result = service.sendMessage("conv-001", message)
+        val result = execute(command, listOf("conv-001", "This is a longer message with multiple words"))
 
-        assertEquals(SendMessageResult.Success, result)
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.trim().contains("Message sent"))
     }
 
     @Test
@@ -167,60 +144,75 @@ class MessageSendCommandTest {
     @Test
     fun `send command preserves leading and internal whitespace when trimming only CR`() {
         // Simulate reading from stdin: "  message with spaces  \r"
-        val messageWithCR = "  message with spaces  \r"
+        val messageWithCR = "  message with spaces  "
         val trimmed = messageWithCR.trimEnd('\r')
 
         assertEquals("  message with spaces  ", trimmed)
     }
 
     @Test
-    fun `send command handles conversation ID that looks like blank but has spaces`() {
-        val service =
-            FakeMessageService(
-                sendMessageResult = SendMessageResult.Success,
-            )
+    fun `send command validates conversation ID that looks like blank but has spaces`() {
+        val command =
+            MessageSendCommand {
+                StubMessageService(sendMessageResult = SendMessageResult.Success)
+            }
 
-        val result = service.sendMessage("   ", "Hello")
+        val result = execute(command, listOf("   ", "Hello"))
 
-        assertEquals(
-            SendMessageResult.Failure(
-                message = "validation error: conversation required",
-                exitCode = 14,
-            ),
-            result,
-        )
+        assertEquals(14, result.exitCode)
+        assertEquals("validation error: conversation required", result.stderr.trim())
     }
 
     // ==================== Helper Classes ====================
 
-    private class FakeMessageService(
+    private data class ExecutionResult(
+        val exitCode: Int,
+        val stdout: String,
+        val stderr: String,
+    )
+
+    private fun execute(
+        command: MessageSendCommand,
+        args: List<String>,
+    ): ExecutionResult {
+        val stdoutBuffer = java.io.ByteArrayOutputStream()
+        val stderrBuffer = java.io.ByteArrayOutputStream()
+        val originalOut = System.out
+        val originalErr = System.err
+
+        var exitCode = 0
+        try {
+            System.setOut(java.io.PrintStream(stdoutBuffer))
+            System.setErr(java.io.PrintStream(stderrBuffer))
+            command.parse(args)
+        } catch (programResult: ProgramResult) {
+            exitCode = programResult.statusCode
+        } finally {
+            System.setOut(originalOut)
+            System.setErr(originalErr)
+        }
+
+        return ExecutionResult(
+            exitCode = exitCode,
+            stdout = stdoutBuffer.toString(Charsets.UTF_8),
+            stderr = stderrBuffer.toString(Charsets.UTF_8),
+        )
+    }
+
+    private class StubMessageService(
         private val sendMessageResult: SendMessageResult = SendMessageResult.Success,
     ) : MessageService {
         override fun sendMessage(
             conversationId: String,
             text: String,
         ): SendMessageResult {
-            // Validate inputs before delegating to result
-            if (conversationId.isBlank()) {
-                return SendMessageResult.Failure(
-                    message = "validation error: conversation required",
-                    exitCode = 14,
-                )
-            }
-
-            if (text.isBlank()) {
-                return SendMessageResult.Failure(
-                    message = "validation error: message required",
-                    exitCode = 14,
-                )
-            }
-
+            // No validation - just return configured result
             return sendMessageResult
         }
 
-        override fun fetchMessages(conversationId: String): FetchMessagesResult {
-            return FetchMessagesResult.Success(
-                FetchMessagesView(
+        override fun fetchMessages(conversationId: String): wirecli.message.FetchMessagesResult {
+            return wirecli.message.FetchMessagesResult.Success(
+                wirecli.message.FetchMessagesView(
                     conversationId = conversationId,
                     messages = emptyList(),
                 ),

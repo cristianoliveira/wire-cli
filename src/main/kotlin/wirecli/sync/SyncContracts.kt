@@ -141,17 +141,8 @@ sealed interface ResetResult {
     data class Failure(val message: String, val exitCode: Int) : ResetResult
 }
 
-interface SyncApiClient {
+interface SyncStatusApiClient {
     fun getSyncStatus(session: AuthSession): SyncStatusResult
-
-    fun getDiagnostics(session: AuthSession): DiagnosticsResult
-
-    fun resetSync(
-        session: AuthSession,
-        force: Boolean = false,
-    ): ResetResult
-
-    fun forceSyncAndWait(session: AuthSession): SyncStatusResult
 
     /**
      * Retrieves sync status for a specific conversation.
@@ -164,6 +155,10 @@ interface SyncApiClient {
         session: AuthSession,
         conversationId: String,
     ): ConversationSyncStatusResult
+}
+
+interface SyncDiagnosticsApiClient {
+    fun getDiagnostics(session: AuthSession): DiagnosticsResult
 
     /**
      * Retrieves detailed diagnostics for a conversation's sync status.
@@ -177,6 +172,17 @@ interface SyncApiClient {
         conversationId: String,
     ): PerConversationDiagnosticsResult
 }
+
+interface SyncControlApiClient {
+    fun forceSyncAndWait(session: AuthSession): SyncStatusResult
+
+    fun resetSync(
+        session: AuthSession,
+        force: Boolean = false,
+    ): ResetResult
+}
+
+interface SyncApiClient : SyncStatusApiClient, SyncDiagnosticsApiClient, SyncControlApiClient
 
 // ==================== PER-CONVERSATION SYNC DIAGNOSTICS ====================
 

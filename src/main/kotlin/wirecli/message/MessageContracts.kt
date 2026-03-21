@@ -51,16 +51,14 @@ interface MessageApiClient {
         session: AuthSession,
         conversationId: String,
     ): FetchMessagesResult
+}
 
+interface MessageTypingApiClient {
     fun sendTypingStatus(
         session: AuthSession,
         conversationId: String,
         status: TypingStatus,
-    ): SendTypingResult =
-        SendTypingResult.Failure(
-            message = MessageUserMessages.TYPING_UNSUPPORTED,
-            exitCode = MessageExitCodes.SERVER_ERROR,
-        )
+    ): SendTypingResult
 }
 
 // High-level service interface - abstracts away session management

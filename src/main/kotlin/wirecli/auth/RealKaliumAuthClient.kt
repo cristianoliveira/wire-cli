@@ -52,10 +52,24 @@ internal class RealKaliumAuthClient(
      * @see AuthApiResult.Failure
      */
     override fun login(input: LoginInput): AuthApiResult {
-        return when (val authScope = runtime.resolveAuthScope(input.server)) {
-            is AuthStepResult.Success -> continueLogin(input, authScope.value)
-            is AuthStepResult.Failure -> authScope.toAuthFailure(action = "Authentication")
+        require(input.email.isNotBlank()) { "Login email must not be blank." }
+        require(input.password.isNotBlank()) { "Login password must not be blank." }
+
+        val result =
+            when (val authScope = runtime.resolveAuthScope(input.server)) {
+                is AuthStepResult.Success -> continueLogin(input, authScope.value)
+                is AuthStepResult.Failure -> authScope.toAuthFailure(action = "Authentication")
+            }
+
+        if (result is AuthApiResult.Success) {
+            check(result.session.userId.isNotBlank()) {
+                "Authentication success must include a non-blank user ID."
+            }
+            check(result.session.accessToken.isNotBlank()) {
+                "Authentication success must include a non-blank access token."
+            }
         }
+        return result
     }
 
     /**
@@ -74,10 +88,24 @@ internal class RealKaliumAuthClient(
      * @see AuthApiResult.Failure
      */
     override fun logout(session: AuthSession): AuthApiResult {
-        return when (val result = runtime.logout(session)) {
-            is AuthStepResult.Success -> AuthApiResult.Success(session)
-            is AuthStepResult.Failure -> result.toAuthFailure(action = "Logout")
+        require(session.userId.isNotBlank()) { "Logout session user ID must not be blank." }
+        require(session.accessToken.isNotBlank()) { "Logout session access token must not be blank." }
+
+        val result =
+            when (val logoutResult = runtime.logout(session)) {
+                is AuthStepResult.Success -> AuthApiResult.Success(session)
+                is AuthStepResult.Failure -> logoutResult.toAuthFailure(action = "Logout")
+            }
+
+        if (result is AuthApiResult.Success) {
+            check(result.session.userId == session.userId) {
+                "Logout success must preserve the original session user ID."
+            }
+            check(result.session.accessToken.isNotBlank()) {
+                "Logout success must preserve a non-blank access token."
+            }
         }
+        return result
     }
 
     /**
@@ -462,41 +490,56 @@ internal class SdkKaliumAuthRuntime(
      * @post On Success, scope can perform login operations without re-connecting
      */
     override fun resolveAuthScope(server: String?): AuthStepResult<KaliumAuthScope> {
+        require(server == null || server.trim().isNotEmpty()) {
+            "Server value must be null or a non-blank identifier."
+        }
         logger.info { "SdkKaliumAuthRuntime: Resolving auth scope for server: ${server ?: "default"}" }
-        return runBlocking {
-            logger.debug { "Resolving server configuration links" }
-            when (val links = resolveServerLinks(server)) {
-                is AuthStepResult.Failure -> {
-                    logger.warn { "Failed to resolve server links: ${links.category}" }
-                    links
-                }
-                is AuthStepResult.Success -> {
-                    logger.debug { "Server links resolved successfully - creating auth scope" }
-                    when (val authScope = coreLogic.versionedAuthenticationScope(links.value).invoke(null)) {
-                        is AutoVersionAuthScopeUseCase.Result.Success -> {
-                            logger.debug { "Auth scope created successfully" }
-                            AuthStepResult.Success(
-                                SdkKaliumAuthScope(authScope.authenticationScope),
-                            )
-                        }
-                        is AutoVersionAuthScopeUseCase.Result.Failure.UnknownServerVersion -> {
-                            logger.error { "Unknown server version - auth scope creation failed" }
-                            AuthStepResult.Failure(AuthFailureCategory.SERVER)
-                        }
+        val result =
+            runBlocking {
+                logger.debug { "Resolving server configuration links" }
+                when (val links = resolveServerLinks(server)) {
+                    is AuthStepResult.Failure -> {
+                        logger.warn { "Failed to resolve server links: ${links.category}" }
+                        links
+                    }
+                    is AuthStepResult.Success -> {
+                        logger.debug { "Server links resolved successfully - creating auth scope" }
+                        when (val authScope = coreLogic.versionedAuthenticationScope(links.value).invoke(null)) {
+                            is AutoVersionAuthScopeUseCase.Result.Success -> {
+                                logger.debug { "Auth scope created successfully" }
+                                AuthStepResult.Success(
+                                    SdkKaliumAuthScope(authScope.authenticationScope),
+                                )
+                            }
+                            is AutoVersionAuthScopeUseCase.Result.Failure.UnknownServerVersion -> {
+                                logger.error { "Unknown server version - auth scope creation failed" }
+                                AuthStepResult.Failure(AuthFailureCategory.SERVER)
+                            }
 
-                        is AutoVersionAuthScopeUseCase.Result.Failure.TooNewVersion -> {
-                            logger.error { "Server version too new - auth scope creation failed" }
-                            AuthStepResult.Failure(AuthFailureCategory.SERVER)
-                        }
+                            is AutoVersionAuthScopeUseCase.Result.Failure.TooNewVersion -> {
+                                logger.error { "Server version too new - auth scope creation failed" }
+                                AuthStepResult.Failure(AuthFailureCategory.SERVER)
+                            }
 
-                        is AutoVersionAuthScopeUseCase.Result.Failure.Generic -> {
-                            logger.error { "Generic error creating auth scope: ${authScope.genericFailure}" }
-                            AuthStepResult.Failure(coreFailureToCategory(authScope.genericFailure))
+                            is AutoVersionAuthScopeUseCase.Result.Failure.Generic -> {
+                                logger.error { "Generic error creating auth scope: ${authScope.genericFailure}" }
+                                AuthStepResult.Failure(coreFailureToCategory(authScope.genericFailure))
+                            }
                         }
                     }
                 }
             }
+
+        when (result) {
+            is AuthStepResult.Success -> Unit
+
+            is AuthStepResult.Failure -> {
+                check(result.category in AuthFailureCategory.entries) {
+                    "Auth scope resolution failure must map to a known AuthFailureCategory."
+                }
+            }
         }
+        return result
     }
 
     /**
@@ -513,61 +556,82 @@ internal class SdkKaliumAuthRuntime(
      * @post Subsequent addAuthenticatedAccount calls with same userId replace previous account
      */
     override fun addAuthenticatedAccount(account: PersistedAccount): AuthStepResult<Unit> {
+        require(account.userId.isNotBlank()) { "Persisted account user ID must not be blank." }
+        require(account.accessToken.isNotBlank()) { "Persisted account access token must not be blank." }
+        require(account.refreshToken.isNotBlank()) { "Persisted account refresh token must not be blank." }
+        require(account.serverConfigId.isNotBlank()) { "Persisted account server config ID must not be blank." }
+
         logger.info { "SdkKaliumAuthRuntime: Adding authenticated account for user: ${account.userId}" }
-        return runBlocking {
-            val userId =
-                account.userId.toQualifiedIdOrNull()
-                    ?: run {
-                        logger.warn { "Invalid user ID format for persisting account: ${account.userId}" }
-                        return@runBlocking AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
-                    }
-            logger.debug { "User ID qualified: $userId" }
+        val result =
+            runBlocking {
+                val userId =
+                    account.userId.toQualifiedIdOrNull()
+                        ?: run {
+                            logger.warn { "Invalid user ID format for persisting account: ${account.userId}" }
+                            return@runBlocking AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+                        }
+                logger.debug { "User ID qualified: $userId" }
 
-            val authTokens =
-                AccountTokens(
-                    userId = userId,
-                    accessToken = account.accessToken,
-                    refreshToken = account.refreshToken,
-                    tokenType = account.tokenType,
-                    cookieLabel = account.cookieLabel,
-                )
+                val authTokens =
+                    AccountTokens(
+                        userId = userId,
+                        accessToken = account.accessToken,
+                        refreshToken = account.refreshToken,
+                        tokenType = account.tokenType,
+                        cookieLabel = account.cookieLabel,
+                    )
 
-            logger.debug { "Persisting authenticated account to storage" }
-            when (
-                val result =
-                    coreLogic.globalScope {
-                        addAuthenticatedAccount(
-                            session =
-                                StoreSessionParam(
-                                    serverConfigId = account.serverConfigId,
-                                    ssoId = account.ssoId,
-                                    accountTokens = authTokens,
-                                    proxyCredentials = account.proxyCredentials,
-                                    isPersistentWebSocketEnabled = false,
-                                    managedBy = account.managedBy,
-                                ),
-                            replace = true,
-                        )
+                logger.debug { "Persisting authenticated account to storage" }
+                when (
+                    val result =
+                        coreLogic.globalScope {
+                            addAuthenticatedAccount(
+                                session =
+                                    StoreSessionParam(
+                                        serverConfigId = account.serverConfigId,
+                                        ssoId = account.ssoId,
+                                        accountTokens = authTokens,
+                                        proxyCredentials = account.proxyCredentials,
+                                        isPersistentWebSocketEnabled = false,
+                                        managedBy = account.managedBy,
+                                    ),
+                                replace = true,
+                            )
+                        }
+                ) {
+                    is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Success -> {
+                        logger.info { "Account persisted successfully for user: $userId" }
+                        AuthStepResult.Success(Unit)
                     }
-            ) {
-                is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Success -> {
-                    logger.info { "Account persisted successfully for user: $userId" }
-                    AuthStepResult.Success(Unit)
+                    com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.UserAlreadyExists -> {
+                        logger.debug { "Account already exists for user: $userId - replacing" }
+                        AuthStepResult.Success(Unit)
+                    }
+                    com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.NomadSingleUserViolation -> {
+                        logger.error { "Nomad single user violation for user $userId" }
+                        AuthStepResult.Failure(AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION)
+                    }
+                    is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.Generic -> {
+                        logger.error { "Failed to persist account for user $userId: ${result.genericFailure}" }
+                        AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
+                    }
                 }
-                com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.UserAlreadyExists -> {
-                    logger.debug { "Account already exists for user: $userId - replacing" }
-                    AuthStepResult.Success(Unit)
+            }
+
+        when (result) {
+            is AuthStepResult.Success -> {
+                check(account.userId.toQualifiedIdOrNull() != null) {
+                    "Persist account success requires a qualified user ID."
                 }
-                com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.NomadSingleUserViolation -> {
-                    logger.error { "Nomad single user violation for user $userId" }
-                    AuthStepResult.Failure(AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION)
-                }
-                is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.Generic -> {
-                    logger.error { "Failed to persist account for user $userId: ${result.genericFailure}" }
-                    AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
+            }
+
+            is AuthStepResult.Failure -> {
+                check(result.category in AuthFailureCategory.entries) {
+                    "Persist account failure must map to a known AuthFailureCategory."
                 }
             }
         }
+        return result
     }
 
     /**
@@ -584,11 +648,29 @@ internal class SdkKaliumAuthRuntime(
      * @post Result is either Success with functional session scope or Failure
      */
     override fun resolveSessionScope(userId: String): AuthStepResult<KaliumSessionScope> {
-        return if (userId.toQualifiedIdOrNull() == null) {
-            AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
-        } else {
-            AuthStepResult.Success(KaliumSessionScope(userId))
+        require(userId.isNotBlank()) { "Session scope user ID must not be blank." }
+
+        val result =
+            if (userId.toQualifiedIdOrNull() == null) {
+                AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+            } else {
+                AuthStepResult.Success(KaliumSessionScope(userId))
+            }
+
+        when (result) {
+            is AuthStepResult.Success -> {
+                check(result.value.userId == userId) {
+                    "Resolved session scope must preserve the provided user ID."
+                }
+            }
+
+            is AuthStepResult.Failure -> {
+                check(result.category == AuthFailureCategory.UNAUTHORIZED) {
+                    "Invalid session scope user IDs must map to UNAUTHORIZED."
+                }
+            }
         }
+        return result
     }
 
     /**
@@ -609,38 +691,52 @@ internal class SdkKaliumAuthRuntime(
         sessionScope: KaliumSessionScope,
         password: String,
     ): AuthStepResult<Unit> {
+        require(sessionScope.userId.isNotBlank()) { "Session scope user ID must not be blank." }
+        require(password.isNotBlank()) { "Client registration password must not be blank." }
+
         val userId =
             sessionScope.userId.toQualifiedIdOrNull()
                 ?: return AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
         activeSessionUserIds += userId
 
-        return runBlocking {
-            try {
-                when (
-                    val result =
-                        coreLogic.sessionScope(userId) {
-                            client.getOrRegister(RegisterClientParam(password, emptyList()))
+        val result =
+            runBlocking {
+                try {
+                    when (
+                        val result =
+                            coreLogic.sessionScope(userId) {
+                                client.getOrRegister(RegisterClientParam(password, emptyList()))
+                            }
+                    ) {
+                        is RegisterClientResult.Success,
+                        is RegisterClientResult.E2EICertificateRequired,
+                        -> AuthStepResult.Success(Unit)
+
+                        is RegisterClientResult.Failure.InvalidCredentials ->
+                            AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
+
+                        RegisterClientResult.Failure.PasswordAuthRequired ->
+                            AuthStepResult.Failure(AuthFailureCategory.PASSWORD_REQUIRED)
+
+                        RegisterClientResult.Failure.TooManyClients -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
+                        is RegisterClientResult.Failure.Generic -> {
+                            AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
                         }
-                ) {
-                    is RegisterClientResult.Success,
-                    is RegisterClientResult.E2EICertificateRequired,
-                    -> AuthStepResult.Success(Unit)
-
-                    is RegisterClientResult.Failure.InvalidCredentials ->
-                        AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
-
-                    RegisterClientResult.Failure.PasswordAuthRequired ->
-                        AuthStepResult.Failure(AuthFailureCategory.PASSWORD_REQUIRED)
-
-                    RegisterClientResult.Failure.TooManyClients -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
-                    is RegisterClientResult.Failure.Generic -> {
-                        AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
                     }
+                } catch (error: Throwable) {
+                    AuthStepResult.Failure(categoryFromThrowable(error))
                 }
-            } catch (error: Throwable) {
-                AuthStepResult.Failure(categoryFromThrowable(error))
+            }
+
+        check(activeSessionUserIds.contains(userId)) {
+            "Ensuring a client must register the session user for runtime cleanup."
+        }
+        if (result is AuthStepResult.Failure) {
+            check(result.category in AuthFailureCategory.entries) {
+                "Client registration failure must map to a known AuthFailureCategory."
             }
         }
+        return result
     }
 
     /**
@@ -655,6 +751,9 @@ internal class SdkKaliumAuthRuntime(
      * @post activeSessionUserIds is updated to track this session for cleanup
      */
     override fun logout(session: AuthSession): AuthStepResult<Unit> {
+        require(session.userId.isNotBlank()) { "Logout user ID must not be blank." }
+        require(session.accessToken.isNotBlank()) { "Logout access token must not be blank." }
+
         logger.info { "SdkKaliumAuthRuntime: Logging out user: ${session.userId}" }
         val userId =
             session.userId.toQualifiedIdOrNull()
@@ -665,19 +764,30 @@ internal class SdkKaliumAuthRuntime(
         activeSessionUserIds += userId
         logger.debug { "User ID qualified: $userId" }
 
-        return runBlocking {
-            try {
-                logger.debug { "Initiating logout for user: $userId" }
-                coreLogic.sessionScope(userId) {
-                    logout(LogoutReason.SELF_HARD_LOGOUT, waitUntilCompletes = true)
+        val result =
+            runBlocking {
+                try {
+                    logger.debug { "Initiating logout for user: $userId" }
+                    coreLogic.sessionScope(userId) {
+                        logout(LogoutReason.SELF_HARD_LOGOUT, waitUntilCompletes = true)
+                    }
+                    logger.info { "Logout completed successfully for user: $userId" }
+                    AuthStepResult.Success(Unit)
+                } catch (error: Throwable) {
+                    logger.error(error) { "Failed to logout user: $userId" }
+                    AuthStepResult.Failure(categoryFromThrowable(error))
                 }
-                logger.info { "Logout completed successfully for user: $userId" }
-                AuthStepResult.Success(Unit)
-            } catch (error: Throwable) {
-                logger.error(error) { "Failed to logout user: $userId" }
-                AuthStepResult.Failure(categoryFromThrowable(error))
+            }
+
+        check(activeSessionUserIds.contains(userId)) {
+            "Logout must track the user session for runtime cleanup."
+        }
+        if (result is AuthStepResult.Failure) {
+            check(result.category in AuthFailureCategory.entries) {
+                "Logout failure must map to a known AuthFailureCategory."
             }
         }
+        return result
     }
 
     /**
@@ -706,8 +816,15 @@ internal class SdkKaliumAuthRuntime(
                 coreLogic.sessionScope(userId) { cancel() }
             }
         }
+        activeSessionUserIds.clear()
+        check(activeSessionUserIds.isEmpty()) {
+            "Auth runtime shutdown must clear tracked active sessions."
+        }
         logger.debug { "Cancelling global scope" }
         coreLogic.getGlobalScope().cancel()
+        check(coreLogicLazy.isInitialized()) {
+            "Auth runtime shutdown expects CoreLogic to be initialized when cancelling scopes."
+        }
         logger.info { "Auth runtime shutdown complete" }
     }
 
@@ -813,54 +930,68 @@ internal class SdkKaliumAuthRuntime(
             email: String,
             password: String,
         ): AuthStepResult<AuthenticatedPrincipal> {
-            return runBlocking {
-                when (val login = authScope.login(email, password, shouldPersistClient = false)) {
-                    is AuthenticationResult.Success -> {
-                        AuthStepResult.Success(
-                            AuthenticatedPrincipal(
-                                userId = login.authData.userId.serialize(),
-                                accessToken = login.authData.accessToken.value,
-                                refreshToken = login.authData.refreshToken.value,
-                                tokenType = login.authData.tokenType,
-                                cookieLabel = login.authData.cookieLabel,
-                                serverConfigId = login.serverConfigId,
-                                ssoId = login.ssoID,
-                                managedBy = login.managedBy,
-                                proxyCredentials = login.proxyCredentials,
-                            ),
-                        )
-                    }
+            require(email.isNotBlank()) { "Authentication email must not be blank." }
+            require(password.isNotBlank()) { "Authentication password must not be blank." }
 
-                    AuthenticationResult.Failure.SocketError -> AuthStepResult.Failure(AuthFailureCategory.NETWORK)
-                    is AuthenticationResult.Failure.InvalidCredentials,
-                    AuthenticationResult.Failure.InvalidUserIdentifier,
-                    -> {
-                        AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
-                    }
+            val result =
+                runBlocking {
+                    when (val login = authScope.login(email, password, shouldPersistClient = false)) {
+                        is AuthenticationResult.Success -> {
+                            AuthStepResult.Success(
+                                AuthenticatedPrincipal(
+                                    userId = login.authData.userId.serialize(),
+                                    accessToken = login.authData.accessToken.value,
+                                    refreshToken = login.authData.refreshToken.value,
+                                    tokenType = login.authData.tokenType,
+                                    cookieLabel = login.authData.cookieLabel,
+                                    serverConfigId = login.serverConfigId,
+                                    ssoId = login.ssoID,
+                                    managedBy = login.managedBy,
+                                    proxyCredentials = login.proxyCredentials,
+                                ),
+                            )
+                        }
 
-                    AuthenticationResult.Failure.AccountPendingActivation,
-                    AuthenticationResult.Failure.AccountSuspended,
-                    -> {
-                        AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
-                    }
+                        AuthenticationResult.Failure.SocketError -> AuthStepResult.Failure(AuthFailureCategory.NETWORK)
+                        is AuthenticationResult.Failure.InvalidCredentials,
+                        AuthenticationResult.Failure.InvalidUserIdentifier,
+                        -> {
+                            AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)
+                        }
 
-                    is AuthenticationResult.Failure.Generic -> {
-                        when (login.genericFailure) {
-                            is NetworkFailure.NoNetworkConnection,
-                            is NetworkFailure.ProxyError,
-                            -> AuthStepResult.Failure(AuthFailureCategory.NETWORK)
+                        AuthenticationResult.Failure.AccountPendingActivation,
+                        AuthenticationResult.Failure.AccountSuspended,
+                        -> {
+                            AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+                        }
 
-                            is NetworkFailure.ServerMiscommunication,
-                            is NetworkFailure.FederatedBackendFailure,
-                            NetworkFailure.FeatureNotSupported,
-                            is NetworkFailure.MlsMessageRejectedFailure,
-                            -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
+                        is AuthenticationResult.Failure.Generic -> {
+                            when (login.genericFailure) {
+                                is NetworkFailure.NoNetworkConnection,
+                                is NetworkFailure.ProxyError,
+                                -> AuthStepResult.Failure(AuthFailureCategory.NETWORK)
 
-                            else -> AuthStepResult.Failure(AuthFailureCategory.UNKNOWN)
+                                is NetworkFailure.ServerMiscommunication,
+                                is NetworkFailure.FederatedBackendFailure,
+                                NetworkFailure.FeatureNotSupported,
+                                is NetworkFailure.MlsMessageRejectedFailure,
+                                -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
+
+                                else -> AuthStepResult.Failure(AuthFailureCategory.UNKNOWN)
+                            }
                         }
                     }
                 }
+
+            if (result is AuthStepResult.Success) {
+                check(result.value.userId.isNotBlank()) {
+                    "Authentication success must include a non-blank user ID."
+                }
+                check(result.value.accessToken.isNotBlank()) {
+                    "Authentication success must include a non-blank access token."
+                }
             }
+            return result
         }
     }
 

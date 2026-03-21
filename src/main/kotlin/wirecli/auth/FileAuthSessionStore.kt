@@ -36,12 +36,19 @@ class FileAuthSessionStore(
      * @post Session contains non-null userId and accessToken if returned
      */
     override fun readActiveSession(): AuthSession? {
+        check(sessionFile.path.isNotBlank()) { "Session file path must not be blank." }
         logger.debug { "Reading active session from store" }
         val session = readSessionInventory().activeSession
         if (session != null) {
             logger.debug { "Active session found for userId: ${session.userId}" }
         } else {
             logger.debug { "No active session found in store" }
+        }
+        check(session == null || session.userId.isNotBlank()) {
+            "Stored active session must include a non-blank user ID."
+        }
+        check(session == null || session.accessToken.isNotBlank()) {
+            "Stored active session must include a non-blank access token."
         }
         return session
     }
@@ -60,6 +67,7 @@ class FileAuthSessionStore(
      * @post diagnosticMessage is set if migration failed
      */
     override fun readSessionInventory(): SessionInventory {
+        check(sessionFile.path.isNotBlank()) { "Session inventory file path must not be blank." }
         logger.debug { "Reading session inventory from: ${sessionFile.absolutePath}" }
 
         if (!sessionFile.exists()) {
@@ -103,6 +111,15 @@ class FileAuthSessionStore(
         logger.debug {
             "Session inventory loaded: active=${parsedData.inventory.activeSession != null}, valid=${parsedData.inventory.validSessions}, invalid=${parsedData.inventory.invalidSessions}"
         }
+        check(parsedData.inventory.validSessions >= 0) {
+            "Session inventory valid session count must be non-negative."
+        }
+        check(parsedData.inventory.invalidSessions >= 0) {
+            "Session inventory invalid session count must be non-negative."
+        }
+        check(parsedData.inventory.activeSession == null || parsedData.inventory.activeSession.userId.isNotBlank()) {
+            "Session inventory active session must include a non-blank user ID."
+        }
         return parsedData.inventory
     }
 
@@ -118,10 +135,16 @@ class FileAuthSessionStore(
      * @post Write is atomic - file is either fully written or not created
      */
     override fun writeActiveSession(session: AuthSession) {
+        require(session.userId.isNotBlank()) { "Session user ID must not be blank when persisting." }
+        require(session.accessToken.isNotBlank()) { "Session access token must not be blank when persisting." }
+
         logger.debug { "Persisting session to file: ${sessionFile.absolutePath}" }
         logger.debug { "Session userId: ${session.userId}, server: ${session.server}" }
         try {
             writeAtomically(serializeSingleSession(session))
+            check(sessionFile.exists()) {
+                "Session file must exist after successful session persistence."
+            }
             logger.info { "Session persisted successfully to ${sessionFile.absolutePath}" }
         } catch (e: Exception) {
             logger.error(e) { "Failed to persist session to ${sessionFile.absolutePath}" }
@@ -138,6 +161,7 @@ class FileAuthSessionStore(
      * @post Safe to call when no session exists (silently succeeds)
      */
     override fun clearActiveSession() {
+        check(sessionFile.path.isNotBlank()) { "Session file path must not be blank when clearing." }
         logger.debug { "Clearing active session from: ${sessionFile.absolutePath}" }
         if (sessionFile.exists()) {
             if (!sessionFile.delete()) {
@@ -147,6 +171,9 @@ class FileAuthSessionStore(
             logger.info { "Session file deleted successfully" }
         } else {
             logger.debug { "No session file to delete" }
+        }
+        check(!sessionFile.exists()) {
+            "Session file must not exist after clearActiveSession completes."
         }
     }
 

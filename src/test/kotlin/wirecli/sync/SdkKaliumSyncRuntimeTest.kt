@@ -3,6 +3,7 @@ package wirecli.sync
 import wirecli.auth.AuthSession
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 /**
@@ -135,5 +136,55 @@ class SdkKaliumSyncRuntimeTest {
 
         // Second shutdown should not fail
         runtime.shutdown()
+    }
+
+    @Test
+    fun `RealKaliumSyncApiClient throws for blank session user id`() {
+        val runtime =
+            object : RealKaliumSyncRuntime {
+                override fun forceSyncAndWait(session: AuthSession): SyncStatusResult =
+                    SyncStatusResult.Failure("failure", SyncExitCodes.DEGRADED)
+
+                override fun getSyncStatus(session: AuthSession): SyncStatusResult =
+                    SyncStatusResult.Failure("failure", SyncExitCodes.DEGRADED)
+
+                override fun getDiagnostics(session: AuthSession): DiagnosticsResult =
+                    DiagnosticsResult.Failure("failure", SyncExitCodes.DEGRADED)
+
+                override fun getConversationSyncStatus(
+                    session: AuthSession,
+                    conversationId: String,
+                ): ConversationSyncStatusResult {
+                    return ConversationSyncStatusResult.Failure("failure", SyncExitCodes.DEGRADED)
+                }
+
+                override fun getPerConversationDiagnostics(
+                    session: AuthSession,
+                    conversationId: String,
+                ): PerConversationDiagnosticsResult {
+                    return PerConversationDiagnosticsResult.Failure("failure", SyncExitCodes.DEGRADED)
+                }
+
+                override fun resetSync(
+                    session: AuthSession,
+                    force: Boolean,
+                ): ResetResult {
+                    return ResetResult.Failure("failure", SyncExitCodes.DEGRADED)
+                }
+
+                override fun shutdown() {}
+            }
+
+        val client = RealKaliumSyncApiClient(runtime)
+
+        assertFailsWith<IllegalArgumentException> {
+            client.getSyncStatus(
+                AuthSession(
+                    userId = " ",
+                    accessToken = "token",
+                    server = null,
+                ),
+            )
+        }
     }
 }

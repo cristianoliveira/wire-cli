@@ -4,7 +4,9 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
 import io.github.oshai.kotlinlogging.KotlinLogging
+import wirecli.device.DeviceExitCodes
 import wirecli.device.DeviceService
+import wirecli.validation.InputValidator
 
 private val logger = KotlinLogging.logger {}
 
@@ -35,5 +37,14 @@ class DeviceCommand(
         }
 
         logger.debug { "Device subcommand routing to: ${currentContext.invokedSubcommand}" }
+    }
+}
+
+internal fun CliktCommand.validateDeviceIdOrExit(deviceId: String): String {
+    return try {
+        InputValidator.validateDeviceId(deviceId)
+    } catch (error: IllegalArgumentException) {
+        echo(error.message ?: "Invalid device ID.", err = true)
+        throw ProgramResult(DeviceExitCodes.INVALID_INPUT)
     }
 }

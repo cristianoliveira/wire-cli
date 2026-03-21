@@ -2,17 +2,27 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.optional
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthRedactor
+import wirecli.auth.ExitCodes
 import wirecli.profile.ProfileResult
 import wirecli.profile.ProfileService
+import wirecli.validation.InputValidator
 
 private val logger = KotlinLogging.logger {}
 
 class ProfileCommand(
     private val profileServiceProvider: () -> ProfileService,
 ) : CliktCommand(name = "profile", help = "Show current user profile.") {
+    private val userId by argument(name = "user-id", help = "Optional user ID (value@domain)").optional()
+
     override fun run() {
+        if (userId != null) {
+            validateOrExit { InputValidator.validateUserId(userId!!) }
+        }
+
         logger.info { "Profile command started" }
         val profileService = profileServiceProvider()
         when (val result = profileService.getCurrentProfile()) {
@@ -29,6 +39,15 @@ class ProfileCommand(
                 echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }
+        }
+    }
+
+    private fun <T> validateOrExit(block: () -> T): T {
+        return try {
+            block()
+        } catch (error: IllegalArgumentException) {
+            echo(error.message ?: "Invalid input.", err = true)
+            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
         }
     }
 }

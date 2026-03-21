@@ -18,7 +18,7 @@ import kotlin.time.Duration.Companion.seconds
  * - Diagnostics accuracy and completeness
  */
 class SyncDiagnosticsTest {
-    private val generator = TestDiagnosticsGenerator()
+    private val generator = ProductionDiagnosticsGenerator()
 
     // ==================== CHECK GENERATION TESTS ====================
 
@@ -94,7 +94,7 @@ class SyncDiagnosticsTest {
     }
 
     @Test
-    fun `key packages check is always Pass`() {
+    fun `diagnostics checks include expected production check names`() {
         val syncStates =
             listOf(
                 SyncState.Live,
@@ -106,15 +106,17 @@ class SyncDiagnosticsTest {
 
         syncStates.forEach { state ->
             val checks = generator.generateChecks(state)
-            val keyPackagesCheck = checks.find { it.name == "Key Packages" }!!
-            assertEquals("Pass", keyPackagesCheck.status, "Key Packages should always pass for $state")
+            assertTrue(checks.any { it.name == "Authentication" }, "Authentication check should be present for $state")
+            assertTrue(checks.any { it.name == "Sync Engine" }, "Sync Engine check should be present for $state")
+            assertTrue(checks.any { it.name == "Event Queue" }, "Event Queue check should be present for $state")
+            assertTrue(checks.any { it.name == "Network Connectivity" }, "Network Connectivity check should be present for $state")
         }
     }
 
     @Test
     fun `network connectivity check reflects sync state`() {
         val liveChecks = generator.generateChecks(SyncState.Live)
-        val liveNetworkCheck = liveChecks.find { it.name == "Network" }!!
+        val liveNetworkCheck = liveChecks.find { it.name == "Network Connectivity" }!!
         assertEquals("Pass", liveNetworkCheck.status, "Network should pass in Live state")
 
         val failedChecks =
@@ -124,7 +126,7 @@ class SyncDiagnosticsTest {
                     retryDelay = 1.seconds,
                 ),
             )
-        val failedNetworkCheck = failedChecks.find { it.name == "Network" }!!
+        val failedNetworkCheck = failedChecks.find { it.name == "Network Connectivity" }!!
         assertEquals("Fail", failedNetworkCheck.status, "Network should fail in Failed state")
     }
 
@@ -136,7 +138,7 @@ class SyncDiagnosticsTest {
             listOf(
                 Check("Auth", "Pass", "OK"),
                 Check("Sync", "Pass", "OK"),
-                Check("Network", "Pass", "OK"),
+                Check("Network Connectivity", "Pass", "OK"),
             )
 
         val summary = generator.generateSummary(checks)
@@ -150,7 +152,7 @@ class SyncDiagnosticsTest {
             listOf(
                 Check("Auth", "Pass", "OK"),
                 Check("Sync", "Fail", "Error"),
-                Check("Network", "Pass", "OK"),
+                Check("Network Connectivity", "Pass", "OK"),
             )
 
         val summary = generator.generateSummary(checks)
@@ -164,7 +166,7 @@ class SyncDiagnosticsTest {
             listOf(
                 Check("Auth", "Pass", "OK"),
                 Check("Sync", "Warn", "Initializing"),
-                Check("Network", "Pass", "OK"),
+                Check("Network Connectivity", "Pass", "OK"),
             )
 
         val summary = generator.generateSummary(checks)
@@ -191,12 +193,12 @@ class SyncDiagnosticsTest {
     fun `network failure generates recovery hint`() {
         val checks =
             listOf(
-                Check("Network", "Fail", "Connection lost"),
+                Check("Network Connectivity", "Fail", "Connection lost"),
             )
 
         val hints = generator.generateRecoveryHints(checks)
 
-        val networkHint = hints.find { it.description.contains("Network") }
+        val networkHint = hints.find { it.description.contains("Network", ignoreCase = true) }
         assertFalse(networkHint == null, "Should generate network recovery hint")
     }
 
@@ -206,7 +208,7 @@ class SyncDiagnosticsTest {
             listOf(
                 Check("Auth", "Pass", "OK"),
                 Check("Sync Engine", "Pass", "OK"),
-                Check("Network", "Pass", "OK"),
+                Check("Network Connectivity", "Pass", "OK"),
             )
 
         val hints = generator.generateRecoveryHints(checks)
@@ -219,7 +221,7 @@ class SyncDiagnosticsTest {
         val checks =
             listOf(
                 Check("Sync Engine", "Fail", "Error"),
-                Check("Network", "Fail", "Error"),
+                Check("Network Connectivity", "Fail", "Error"),
             )
 
         val hints = generator.generateRecoveryHints(checks)
@@ -313,7 +315,7 @@ class SyncDiagnosticsTest {
 
         val report = DiagnosticsReport(checks, summary, hints)
 
-        assertEquals(5, report.checks.size)
+        assertEquals(4, report.checks.size)
         assertEquals("All checks passed. Sync is healthy.", report.summary)
         assertEquals(0, report.recoveryHints.size)
     }
@@ -331,7 +333,7 @@ class SyncDiagnosticsTest {
 
         val report = DiagnosticsReport(checks, summary, hints)
 
-        assertEquals(5, report.checks.size)
+        assertEquals(4, report.checks.size)
         assertEquals("Some checks failed. Sync is degraded.", report.summary)
         assertTrue(report.recoveryHints.isNotEmpty(), "Should generate recovery hints for failed state")
     }
@@ -342,107 +344,79 @@ class SyncDiagnosticsTest {
      * Helper class that provides diagnostics generation methods.
      * This mirrors the actual implementation in RealKaliumSyncApiClient.
      */
-    private class TestDiagnosticsGenerator {
+    private class ProductionDiagnosticsGenerator {
         fun generateChecks(syncState: SyncState): List<Check> {
-            val checks = mutableListOf<Check>()
-
-            // Auth Check
-            checks.add(
-                Check(
-                    name = "Authentication",
-                    status = "Pass",
-                    details = "Session authenticated and valid",
-                ),
-            )
-
-            // Sync Engine Check
-            val syncStatus =
-                when (syncState) {
-                    is SyncState.Live -> "Pass"
-                    is SyncState.SlowSync -> "Warn"
-                    is SyncState.GatheringPendingEvents -> "Warn"
-                    is SyncState.Waiting -> "Warn"
-                    is SyncState.Failed -> "Fail"
-                }
-            val syncDetails = "Current sync state: ${syncState::class.simpleName}"
-            checks.add(
-                Check(
-                    name = "Sync Engine",
-                    status = syncStatus,
-                    details = syncDetails,
-                ),
-            )
-
-            // Event Queue Check
-            checks.add(
-                Check(
-                    name = "Event Queue",
-                    status =
-                        if (syncState is SyncState.Live || syncState is SyncState.GatheringPendingEvents) {
-                            "Pass"
-                        } else {
-                            "Warn"
-                        },
-                    details = "Event processing status: OK",
-                ),
-            )
-
-            // Key Packages Check
-            checks.add(
-                Check(
-                    name = "Key Packages",
-                    status = "Pass",
-                    details = "MLS key package generation enabled",
-                ),
-            )
-
-            // Network Connectivity Check
-            checks.add(
-                Check(
-                    name = "Network",
-                    status = if (syncState !is SyncState.Failed) "Pass" else "Fail",
-                    details =
-                        if (syncState !is SyncState.Failed) {
-                            "Network connectivity is stable"
-                        } else {
-                            "Network connectivity issues detected"
-                        },
-                ),
-            )
-
-            return checks
+            return withRuntime { runtime ->
+                listOf(
+                    invokeBuildAuthenticationCheck(runtime),
+                    invokeBuildSyncEngineCheck(runtime, syncState),
+                    invokeBuildEventQueueCheck(runtime, syncState),
+                    invokeBuildNetworkConnectivityCheck(runtime, syncState),
+                )
+            }
         }
 
         fun generateSummary(checks: List<Check>): String {
-            return when {
-                checks.all { it.status == "Pass" } -> "All checks passed. Sync is healthy."
-                checks.any { it.status == "Fail" } -> "Some checks failed. Sync is degraded."
-                else -> "Some checks have warnings. Sync may be initializing."
+            return withRuntime { runtime ->
+                val method = runtime.javaClass.getDeclaredMethod("buildDiagnosticsSummary", List::class.java)
+                method.isAccessible = true
+                method.invoke(runtime, checks) as String
             }
         }
 
         fun generateRecoveryHints(checks: List<Check>): List<RecoveryHint> {
-            val hints = mutableListOf<RecoveryHint>()
-
-            if (checks.any { it.name == "Sync Engine" && it.status == "Fail" }) {
-                hints.add(
-                    RecoveryHint(
-                        description = "Sync engine is not responding",
-                        command = "wire-cli sync status --retry",
-                    ),
-                )
+            return withRuntime { runtime ->
+                val method = runtime.javaClass.getDeclaredMethod("generateRecoveryHints", List::class.java)
+                method.isAccessible = true
+                @Suppress("UNCHECKED_CAST")
+                method.invoke(runtime, checks) as List<RecoveryHint>
             }
+        }
 
-            if (checks.any { it.name == "Network" && it.status == "Fail" }) {
-                hints.add(
-                    RecoveryHint(
-                        description = "Network connectivity issue detected",
-                        command = "Check your internet connection and retry",
-                    ),
+        private fun invokeBuildAuthenticationCheck(runtime: SdkKaliumSyncRuntime): Check {
+            val method = runtime.javaClass.getDeclaredMethod("buildAuthenticationCheck")
+            method.isAccessible = true
+            return method.invoke(runtime) as Check
+        }
+
+        private fun invokeBuildSyncEngineCheck(
+            runtime: SdkKaliumSyncRuntime,
+            syncState: SyncState,
+        ): Check {
+            val method = runtime.javaClass.getDeclaredMethod("buildSyncEngineCheck", SyncState::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, syncState) as Check
+        }
+
+        private fun invokeBuildEventQueueCheck(
+            runtime: SdkKaliumSyncRuntime,
+            syncState: SyncState,
+        ): Check {
+            val method = runtime.javaClass.getDeclaredMethod("buildEventQueueCheck", SyncState::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, syncState) as Check
+        }
+
+        private fun invokeBuildNetworkConnectivityCheck(
+            runtime: SdkKaliumSyncRuntime,
+            syncState: SyncState,
+        ): Check {
+            val method = runtime.javaClass.getDeclaredMethod("buildNetworkConnectivityCheck", SyncState::class.java)
+            method.isAccessible = true
+            return method.invoke(runtime, syncState) as Check
+        }
+
+        private fun <T> withRuntime(block: (SdkKaliumSyncRuntime) -> T): T {
+            val runtime =
+                SdkKaliumSyncRuntime(
+                    environment = emptyMap(),
+                    networkConnectivityChecker = StubNetworkConnectivityChecker(),
                 )
+            return try {
+                block(runtime)
+            } finally {
+                runtime.shutdown()
             }
-
-            return hints
         }
     }
 }

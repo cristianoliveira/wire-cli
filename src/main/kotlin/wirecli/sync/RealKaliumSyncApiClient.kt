@@ -138,6 +138,7 @@ internal class SdkKaliumSyncRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
     private val networkConnectivityChecker: NetworkConnectivityChecker = RealNetworkConnectivityChecker(),
+    private val syncMetricsCalculator: SyncMetricsCalculator = RealSyncMetricsCalculator(),
 ) : RealKaliumSyncRuntime {
     private companion object {
         const val FORCE_SYNC_WAIT_TIMEOUT_MS = 120_000L
@@ -576,52 +577,19 @@ internal class SdkKaliumSyncRuntime(
     }
 
     private fun mapSyncStateToStatus(syncState: SyncState): SyncStatus {
-        return when (syncState) {
-            is SyncState.Live -> SyncStatus.READY
-            is SyncState.SlowSync -> SyncStatus.INITIALIZING
-            is SyncState.GatheringPendingEvents -> SyncStatus.INITIALIZING
-            is SyncState.Waiting -> SyncStatus.INITIALIZING
-            is SyncState.Failed -> SyncStatus.DEGRADED
-        }
+        return syncMetricsCalculator.mapSyncStateToStatus(syncState)
     }
 
     private fun calculateLagMs(syncState: SyncState): Long {
-        // Calculate lag_ms using real Kalium sync state data
-        return when (syncState) {
-            is SyncState.Live -> 0L // Sync is live, processing events in real-time
-            is SyncState.SlowSync -> 5000L // Initial full sync, expect ~5s lag
-            is SyncState.GatheringPendingEvents -> 2000L // Gathering missed events, ~2s lag
-            is SyncState.Waiting -> 1000L // Waiting to start sync, ~1s lag
-            is SyncState.Failed -> {
-                // Use actual retry delay from failed state as lag indicator
-                val retryDelayMs = syncState.retryDelay.inWholeMilliseconds
-                maxOf(retryDelayMs, 10000L) // Minimum 10s lag when failed
-            }
-        }
+        return syncMetricsCalculator.calculateLagMs(syncState)
     }
 
     private fun calculatePendingMessages(syncState: SyncState): Int {
-        // Calculate pending_messages based on real Kalium sync state
-        // Estimated values based on sync state indicating queue depth
-        return when (syncState) {
-            is SyncState.Live -> 0 // Live sync: messages delivered immediately
-            is SyncState.SlowSync -> 100 // Initial sync: many messages queued
-            is SyncState.GatheringPendingEvents -> 50 // Gathering events: moderate queue
-            is SyncState.Waiting -> 10 // Waiting: minimal queue before sync starts
-            is SyncState.Failed -> 0 // Failed: not processing messages
-        }
+        return syncMetricsCalculator.calculatePendingMessages(syncState)
     }
 
     private fun calculateMlsPercentage(syncState: SyncState): Int {
-        // Calculate mls_pct based on real Kalium sync state
-        // Estimated MLS enrollment progress based on sync state
-        return when (syncState) {
-            is SyncState.Live -> 100 // Live sync: MLS fully available and enrolled
-            is SyncState.SlowSync -> 0 // Initial sync: no MLS during initial fetch
-            is SyncState.GatheringPendingEvents -> 50 // Gathering: partial MLS enrollment
-            is SyncState.Waiting -> 0 // Waiting: no MLS before sync starts
-            is SyncState.Failed -> 0 // Failed: no MLS when sync failed
-        }
+        return syncMetricsCalculator.calculateMlsPercentage(syncState)
     }
 
     private fun buildMlsMetrics(

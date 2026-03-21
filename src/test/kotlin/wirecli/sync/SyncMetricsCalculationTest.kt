@@ -17,7 +17,7 @@ import kotlin.time.Duration.Companion.seconds
  * - consistency across all sync states
  */
 class SyncMetricsCalculationTest {
-    private val calculator = TestMetricsCalculator()
+    private val calculator = RealSyncMetricsCalculator()
 
     // ==================== LAG_MS CALCULATION TESTS ====================
 
@@ -54,6 +54,19 @@ class SyncMetricsCalculationTest {
             )
         val lagMs = calculator.calculateLagMs(failedState)
         assertEquals(10000L, lagMs, "Failed state should have 10000ms lag")
+    }
+
+    @Test
+    fun `lag_ms uses retry delay when failed delay is higher than baseline`() {
+        val failedState =
+            SyncState.Failed(
+                cause = Unknown(null),
+                retryDelay = 30.seconds,
+            )
+
+        val lagMs = calculator.calculateLagMs(failedState)
+
+        assertEquals(30000L, lagMs, "Failed state should use retry delay when it exceeds baseline")
     }
 
     @Test
@@ -343,51 +356,69 @@ class SyncMetricsCalculationTest {
         assert(totalTimeMs < 1000) { "Performance issue: calculations took ${totalTimeMs}ms for 15000 iterations" }
     }
 
-    // ==================== HELPER CLASSES ====================
+    // ==================== INTEGRATION POINT TESTS ====================
 
-    /**
-     * Helper class that provides metric calculation methods.
-     * This mirrors the actual implementation in RealKaliumSyncApiClient.
-     */
-    private class TestMetricsCalculator {
-        fun calculateLagMs(syncState: SyncState): Long {
-            return when (syncState) {
-                is SyncState.Live -> 0L
-                is SyncState.SlowSync -> 5000L
-                is SyncState.GatheringPendingEvents -> 2000L
-                is SyncState.Waiting -> 1000L
-                is SyncState.Failed -> 10000L
-            }
+    @Test
+    fun `SdkKaliumSyncRuntime delegates lag calculation to SyncMetricsCalculator`() {
+        val calculator = RecordingSyncMetricsCalculator(lagToReturn = 4321L)
+        val runtime = SdkKaliumSyncRuntime(environment = emptyMap(), syncMetricsCalculator = calculator)
+
+        val lagMs = invokeRuntimeLagCalculation(runtime, SyncState.Live)
+
+        assertEquals(4321L, lagMs)
+        assertEquals(1, calculator.lagCalls)
+        runtime.shutdown()
+    }
+
+    @Test
+    fun `SdkKaliumSyncRuntime delegates status mapping to SyncMetricsCalculator`() {
+        val calculator = RecordingSyncMetricsCalculator(statusToReturn = SyncStatus.ERROR)
+        val runtime = SdkKaliumSyncRuntime(environment = emptyMap(), syncMetricsCalculator = calculator)
+
+        val status = invokeRuntimeStatusMapping(runtime, SyncState.Live)
+
+        assertEquals(SyncStatus.ERROR, status)
+        assertEquals(1, calculator.statusCalls)
+        runtime.shutdown()
+    }
+
+    private fun invokeRuntimeLagCalculation(
+        runtime: SdkKaliumSyncRuntime,
+        syncState: SyncState,
+    ): Long {
+        val method = runtime.javaClass.getDeclaredMethod("calculateLagMs", SyncState::class.java)
+        method.isAccessible = true
+        return method.invoke(runtime, syncState) as Long
+    }
+
+    private fun invokeRuntimeStatusMapping(
+        runtime: SdkKaliumSyncRuntime,
+        syncState: SyncState,
+    ): SyncStatus {
+        val method = runtime.javaClass.getDeclaredMethod("mapSyncStateToStatus", SyncState::class.java)
+        method.isAccessible = true
+        return method.invoke(runtime, syncState) as SyncStatus
+    }
+
+    private class RecordingSyncMetricsCalculator(
+        private val statusToReturn: SyncStatus = SyncStatus.READY,
+        private val lagToReturn: Long = 0L,
+    ) : SyncMetricsCalculator {
+        var statusCalls: Int = 0
+        var lagCalls: Int = 0
+
+        override fun mapSyncStateToStatus(syncState: SyncState): SyncStatus {
+            statusCalls += 1
+            return statusToReturn
         }
 
-        fun calculatePendingMessages(syncState: SyncState): Int {
-            return when (syncState) {
-                is SyncState.Live -> 0
-                is SyncState.SlowSync -> 100
-                is SyncState.GatheringPendingEvents -> 50
-                is SyncState.Waiting -> 10
-                is SyncState.Failed -> 0
-            }
+        override fun calculateLagMs(syncState: SyncState): Long {
+            lagCalls += 1
+            return lagToReturn
         }
 
-        fun calculateMlsPercentage(syncState: SyncState): Int {
-            return when (syncState) {
-                is SyncState.Live -> 100
-                is SyncState.SlowSync -> 0
-                is SyncState.GatheringPendingEvents -> 50
-                is SyncState.Waiting -> 0
-                is SyncState.Failed -> 0
-            }
-        }
+        override fun calculatePendingMessages(syncState: SyncState): Int = 0
 
-        fun mapSyncStateToStatus(syncState: SyncState): SyncStatus {
-            return when (syncState) {
-                is SyncState.Live -> SyncStatus.READY
-                is SyncState.SlowSync -> SyncStatus.INITIALIZING
-                is SyncState.GatheringPendingEvents -> SyncStatus.INITIALIZING
-                is SyncState.Waiting -> SyncStatus.INITIALIZING
-                is SyncState.Failed -> SyncStatus.DEGRADED
-            }
-        }
+        override fun calculateMlsPercentage(syncState: SyncState): Int = 0
     }
 }

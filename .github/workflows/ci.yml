@@ -1,4 +1,4 @@
-name: CI checks
+name: CI checks (quick)
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   lint:
-    name: Lint and Format
+    name: Quick checks
     runs-on: [self-hosted, Linux, X64]
     steps:
       - name: Checkout
@@ -82,44 +82,4 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: unit-test-results
-          path: build/reports/tests/
-
-  test-integration:
-    name: Integration Tests (Bats)
-    runs-on: [self-hosted, Linux, X64]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v16
-        with:
-          name: cristian-main
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          skipPush: true
-
-      - name: Enter Nix dev shell and run integration tests
-        run: |
-          nix develop --command bash -c "mkdir -p \$HOME/.android \"\$GRADLE_USER_HOME\" && chmod -R +x \"\$GRADLE_USER_HOME\"/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon batsTest"
-        env:
-          ANDROID_USER_HOME: "${{ github.workspace }}/.android"
-          GRADLE_USER_HOME: "${{ github.workspace }}/.gradle"
-          XDG_CACHE_HOME: "${{ github.workspace }}/.cache"
-          XDG_CONFIG_HOME: "${{ github.workspace }}"
-          GRADLE_OPTS: "-Dnix.build=true -Duser.home=${{ github.workspace }} -Dgradle.user.home=${{ github.workspace }}/.gradle"
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: integration-test-results
           path: build/reports/tests/

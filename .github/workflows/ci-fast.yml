@@ -1,4 +1,4 @@
-name: CI Build
+name: CI Build and Integration Tests
 
 on:
   push:
@@ -40,6 +40,17 @@ jobs:
       - name: Test the built binary
         run: |
           ./result/bin/wire-cli --help
+
+      - name: Enter Nix dev shell and run integration tests
+        run: |
+          nix develop
+          export WIRE_BIN=./result/bin/wire-cli
+          ./gradlew --no-daemon batsTest
+        env:
+          ANDROID_USER_HOME: "${{ github.workspace }}/.android"
+          GRADLE_USER_HOME: "${{ github.workspace }}/.gradle"
+          XDG_CACHE_HOME: "${{ github.workspace }}/.cache"
+          XDG_CONFIG_HOME: "${{ github.workspace }}"
 
       - name: Upload test results
         if: always()

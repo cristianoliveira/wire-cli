@@ -1,6 +1,7 @@
 package wirecli.auth
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import wirecli.shared.AuthError
 
 private val logger = KotlinLogging.logger {}
 
@@ -15,22 +16,24 @@ class AuthSessionServiceImpl(
             is AuthApiResult.Success -> {
                 logger.debug { "Authentication API call succeeded - attempting to persist session" }
                 try {
-                    logger.debug { "Writing active session to store for userId: ${loginResult.session.userId}" }
-                    sessionStore.writeActiveSession(loginResult.session)
+                    logger.debug { "Writing active session to store for userId: ${loginResult.value.userId}" }
+                    sessionStore.writeActiveSession(loginResult.value)
                     logger.info { "Session persisted successfully for email: ${input.email}" }
                     AuthResult.Success("Login successful.")
                 } catch (e: RuntimeException) {
                     logger.error(e) { "Session write failed during login - session data not persisted" }
                     AuthResult.Failure(
-                        message = "Login succeeded, but local session could not be saved. Try again.",
-                        exitCode = ExitCodes.SERVER_ERROR,
+                        error = AuthError(
+                            message = "Login succeeded, but local session could not be saved. Try again.",
+                            exitCode = ExitCodes.SERVER_ERROR,
+                        ),
                     )
                 }
             }
 
             is AuthApiResult.Failure -> {
-                logger.warn { "Authentication API failed: ${AuthRedactor.redact(loginResult.message)}" }
-                AuthResult.Failure(loginResult.message, loginResult.exitCode)
+                logger.warn { "Authentication API failed: ${AuthRedactor.redact(loginResult.error.message)}" }
+                AuthResult.Failure(loginResult.error)
             }
         }
     }
@@ -64,15 +67,17 @@ class AuthSessionServiceImpl(
                 } catch (e: RuntimeException) {
                     logger.error(e) { "Session cleanup failed during logout - remote session cleared but local session remains" }
                     AuthResult.Failure(
-                        message = "Logout completed remotely, but local session cleanup failed.",
-                        exitCode = ExitCodes.SERVER_ERROR,
+                        error = AuthError(
+                            message = "Logout completed remotely, but local session cleanup failed.",
+                            exitCode = ExitCodes.SERVER_ERROR,
+                        ),
                     )
                 }
             }
 
             is AuthApiResult.Failure -> {
-                logger.warn { "Logout API failed: ${AuthRedactor.redact(logoutResult.message)}" }
-                AuthResult.Failure(logoutResult.message, logoutResult.exitCode)
+                logger.warn { "Logout API failed: ${AuthRedactor.redact(logoutResult.error.message)}" }
+                AuthResult.Failure(logoutResult.error)
             }
         }
     }
@@ -88,8 +93,10 @@ class AuthSessionServiceImpl(
         return if (inventory.activeSession == null) {
             logger.warn { "Active session requirement failed - no valid session found" }
             AuthResult.Failure(
-                message = missingSessionMessage(inventory),
-                exitCode = ExitCodes.UNAUTHORIZED,
+                error = AuthError(
+                    message = missingSessionMessage(inventory),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ),
             )
         } else {
             logger.debug { "Active session available - requirement satisfied" }
@@ -116,7 +123,7 @@ class StubAuthApiClient(
         return when (mode) {
             "login_ok" ->
                 AuthApiResult.Success(
-                    session =
+                    value =
                         AuthSession(
                             userId = "user-jane",
                             accessToken = "stub-token",
@@ -126,31 +133,39 @@ class StubAuthApiClient(
 
             "login_invalid" ->
                 AuthApiResult.Failure(
-                    message = AuthMessages.invalidCredentials(),
-                    exitCode = ExitCodes.AUTH_FAILED,
+                    error = AuthError(
+                        message = AuthMessages.invalidCredentials(),
+                        exitCode = ExitCodes.AUTH_FAILED,
+                    ),
                 )
 
             "login_network_error" ->
                 AuthApiResult.Failure(
-                    message = AuthMessages.networkFailure("Authentication"),
-                    exitCode = ExitCodes.NETWORK_ERROR,
+                    error = AuthError(
+                        message = AuthMessages.networkFailure("Authentication"),
+                        exitCode = ExitCodes.NETWORK_ERROR,
+                    ),
                 )
 
             "login_secret_failure" ->
                 AuthApiResult.Failure(
-                    message = "Authentication failed: token=abc123 password=super-secret",
-                    exitCode = ExitCodes.AUTH_FAILED,
+                    error = AuthError(
+                        message = "Authentication failed: token=abc123 password=super-secret",
+                        exitCode = ExitCodes.AUTH_FAILED,
+                    ),
                 )
 
             else ->
                 AuthApiResult.Failure(
-                    message = AuthMessages.authServiceUnavailable(),
-                    exitCode = ExitCodes.SERVER_ERROR,
+                    error = AuthError(
+                        message = AuthMessages.authServiceUnavailable(),
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    ),
                 )
         }
     }
 
-    override fun logout(session: AuthSession): AuthApiResult {
-        return AuthApiResult.Success(session)
+    override fun logout(session: AuthSession): AuthApiResult<String> {
+        return AuthApiResult.Success(value = session.userId)
     }
 }

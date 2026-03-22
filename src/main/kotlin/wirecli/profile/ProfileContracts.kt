@@ -2,6 +2,11 @@ package wirecli.profile
 
 import wirecli.auth.AuthSession
 import wirecli.presence.PresenceState
+import wirecli.shared.Result
+import wirecli.shared.ProfileError
+
+// Type aliases for module-specific Result types
+typealias ProfileResult<T> = Result<T, ProfileError>
 
 data class ProfileView(
     val name: String?,
@@ -10,16 +15,10 @@ data class ProfileView(
     val presence: PresenceState = PresenceState.UNKNOWN,
 )
 
-sealed interface ProfileResult {
-    data class Success(val profile: ProfileView) : ProfileResult
-
-    data class Failure(val message: String, val exitCode: Int) : ProfileResult
-}
-
 interface ProfileApiClient {
-    fun fetchProfile(session: AuthSession): ProfileResult
+    fun fetchProfile(session: AuthSession): ProfileResult<ProfileView>
 }
 
 interface ProfileService {
-    fun getCurrentProfile(): ProfileResult
+    fun getCurrentProfile(): ProfileResult<ProfileView>
 }

@@ -19,12 +19,12 @@ class LogoutCommand(
         when (val result = authSessionService.logout()) {
             is AuthResult.Success -> {
                 logger.info { "Logout successful - session cleared" }
-                echo(result.message)
+                echo(result.value)
             }
             is AuthResult.Failure -> {
-                logger.warn { "Logout failed - ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                logger.warn { "Logout failed - ${AuthRedactor.redact(result.error.message)}" }
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }

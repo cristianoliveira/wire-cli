@@ -2,29 +2,34 @@ package wirecli.conversation
 
 import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
+import wirecli.shared.ConversationError
 
 class AuthGuardedConversationService(
     private val authSessionService: AuthSessionService,
     private val delegate: ConversationService,
 ) : ConversationService {
-    override fun listConversations(): ListConversationsResult {
+    override fun listConversations(): ConversationResult<ConversationListView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.listConversations()
             is AuthResult.Failure ->
-                ListConversationsResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                ConversationResult.Failure(
+                    error = ConversationError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
         }
     }
 
-    override fun getConversation(conversationId: String): GetConversationResult {
+    override fun getConversation(conversationId: String): ConversationResult<ConversationDetailView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.getConversation(conversationId)
             is AuthResult.Failure ->
-                GetConversationResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                ConversationResult.Failure(
+                    error = ConversationError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
         }
     }
@@ -32,35 +37,41 @@ class AuthGuardedConversationService(
     override fun createConversation(
         name: String,
         type: ConversationType,
-    ): CreateConversationResult {
+    ): ConversationResult<ConversationDetailView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.createConversation(name, type)
             is AuthResult.Failure ->
-                CreateConversationResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                ConversationResult.Failure(
+                    error = ConversationError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
         }
     }
 
-    override fun deleteConversation(conversationId: String): DeleteConversationResult {
+    override fun deleteConversation(conversationId: String): ConversationResult<String> {
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.deleteConversation(conversationId)
             is AuthResult.Failure ->
-                DeleteConversationResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                ConversationResult.Failure(
+                    error = ConversationError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
         }
     }
 
-    override fun getMemberCount(conversationId: String): GetConversationResult {
+    override fun getMemberCount(conversationId: String): ConversationResult<ConversationDetailView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.getMemberCount(conversationId)
             is AuthResult.Failure ->
-                GetConversationResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                ConversationResult.Failure(
+                    error = ConversationError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
         }
     }

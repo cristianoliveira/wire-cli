@@ -1,6 +1,11 @@
 package wirecli.presence
 
 import wirecli.auth.AuthSession
+import wirecli.shared.Result
+import wirecli.shared.PresenceError
+
+// Type aliases for module-specific Result types
+typealias PresenceResult<T> = Result<T, PresenceError>
 
 enum class PresenceState(val value: String) {
     ONLINE("online"),
@@ -62,25 +67,19 @@ object PresenceNormalizer {
 
 data class PresenceView(val state: PresenceState)
 
-sealed interface PresenceResult {
-    data class Success(val presence: PresenceView) : PresenceResult
-
-    data class Failure(val message: String, val exitCode: Int) : PresenceResult
-}
-
 interface PresenceApiClient {
-    fun fetchPresence(session: AuthSession): PresenceResult
+    fun fetchPresence(session: AuthSession): PresenceResult<PresenceView>
 
     fun updatePresence(
         session: AuthSession,
         state: WritablePresenceState,
-    ): PresenceResult
+    ): PresenceResult<PresenceView>
 }
 
 interface PresenceService {
-    fun getCurrentPresence(): PresenceResult
+    fun getCurrentPresence(): PresenceResult<PresenceView>
 
-    fun setCurrentPresence(state: WritablePresenceState): PresenceResult
+    fun setCurrentPresence(state: WritablePresenceState): PresenceResult<PresenceView>
 }
 
 internal object PresenceMessages {

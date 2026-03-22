@@ -1,6 +1,11 @@
 package wirecli.sync
 
 import wirecli.auth.AuthSession
+import wirecli.shared.Result
+import wirecli.shared.SyncError
+
+// Type aliases for module-specific Result types
+typealias SyncResult<T> = Result<T, SyncError>
 
 // ==================== NETWORK METRICS ====================
 
@@ -123,26 +128,8 @@ data class SyncStatusView(
     val diagnosticsReport: DiagnosticsReport? = null,
 )
 
-sealed interface SyncStatusResult {
-    data class Success(val view: SyncStatusView) : SyncStatusResult
-
-    data class Failure(val message: String, val exitCode: Int) : SyncStatusResult
-}
-
-sealed interface DiagnosticsResult {
-    data class Success(val report: DiagnosticsReport) : DiagnosticsResult
-
-    data class Failure(val message: String, val exitCode: Int) : DiagnosticsResult
-}
-
-sealed interface ResetResult {
-    data class Success(val message: String) : ResetResult
-
-    data class Failure(val message: String, val exitCode: Int) : ResetResult
-}
-
 interface SyncStatusApiClient {
-    fun getSyncStatus(session: AuthSession): SyncStatusResult
+    fun getSyncStatus(session: AuthSession): SyncResult<SyncStatusView>
 
     /**
      * Retrieves sync status for a specific conversation.
@@ -154,11 +141,11 @@ interface SyncStatusApiClient {
     fun getConversationSyncStatus(
         session: AuthSession,
         conversationId: String,
-    ): ConversationSyncStatusResult
+    ): SyncResult<ConversationSyncStatus>
 }
 
 interface SyncDiagnosticsApiClient {
-    fun getDiagnostics(session: AuthSession): DiagnosticsResult
+    fun getDiagnostics(session: AuthSession): SyncResult<DiagnosticsReport>
 
     /**
      * Retrieves detailed diagnostics for a conversation's sync status.
@@ -170,16 +157,16 @@ interface SyncDiagnosticsApiClient {
     fun getPerConversationDiagnostics(
         session: AuthSession,
         conversationId: String,
-    ): PerConversationDiagnosticsResult
+    ): SyncResult<PerConversationDiagnosticsReport>
 }
 
 interface SyncControlApiClient {
-    fun forceSyncAndWait(session: AuthSession): SyncStatusResult
+    fun forceSyncAndWait(session: AuthSession): SyncResult<SyncStatusView>
 
     fun resetSync(
         session: AuthSession,
         force: Boolean = false,
-    ): ResetResult
+    ): SyncResult<String>
 }
 
 interface SyncApiClient : SyncStatusApiClient, SyncDiagnosticsApiClient, SyncControlApiClient
@@ -210,26 +197,14 @@ data class PerConversationDiagnosticsReport(
     val recoveryHints: List<RecoveryHint> = emptyList(),
 )
 
-sealed interface ConversationSyncStatusResult {
-    data class Success(val status: ConversationSyncStatus) : ConversationSyncStatusResult
-
-    data class Failure(val message: String, val exitCode: Int) : ConversationSyncStatusResult
-}
-
-sealed interface PerConversationDiagnosticsResult {
-    data class Success(val report: PerConversationDiagnosticsReport) : PerConversationDiagnosticsResult
-
-    data class Failure(val message: String, val exitCode: Int) : PerConversationDiagnosticsResult
-}
-
 interface SyncService {
-    fun getCurrentSyncStatus(): SyncStatusResult
+    fun getCurrentSyncStatus(): SyncResult<SyncStatusView>
 
-    fun getDiagnosticsReport(): DiagnosticsResult
+    fun getDiagnosticsReport(): SyncResult<DiagnosticsReport>
 
-    fun resetSync(force: Boolean = false): ResetResult
+    fun resetSync(force: Boolean = false): SyncResult<String>
 
-    fun forceSyncAndWait(): SyncStatusResult
+    fun forceSyncAndWait(): SyncResult<SyncStatusView>
 
     /**
      * Retrieves sync status for a specific conversation.
@@ -237,7 +212,7 @@ interface SyncService {
      * @param conversationId The ID of the conversation to query
      * @return Sync status and metrics for the conversation, or failure if not found
      */
-    fun getConversationSyncStatus(conversationId: String): ConversationSyncStatusResult
+    fun getConversationSyncStatus(conversationId: String): SyncResult<ConversationSyncStatus>
 
     /**
      * Retrieves detailed diagnostics for a specific conversation's sync status.
@@ -245,7 +220,7 @@ interface SyncService {
      * @param conversationId The ID of the conversation to diagnose
      * @return Detailed diagnostics report with checks and recovery hints
      */
-    fun getPerConversationDiagnostics(conversationId: String): PerConversationDiagnosticsResult
+    fun getPerConversationDiagnostics(conversationId: String): SyncResult<PerConversationDiagnosticsReport>
 }
 
 object SyncExitCodes {

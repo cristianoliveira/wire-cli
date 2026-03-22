@@ -7,11 +7,11 @@ import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
-import wirecli.device.DeviceListResult
+import wirecli.device.DeviceResult
 import wirecli.device.DeviceService
 
 /**
- * CLI command to list devices registered to the current user or another user.
+ * CLI command to list devices registered to current user or another user.
  *
  * Supports multiple output formats:
  * - Table format (default, human-readable)
@@ -32,9 +32,9 @@ class DeviceListCommand(
     private val jsonLines by option("--json-lines", help = "Output as JSON lines").flag(default = false)
 
     /**
-     * Executes the device list command.
+     * Executes device list command.
      *
-     * Fetches devices from the service and outputs in the requested format.
+     * Fetches devices from service and outputs in the requested format.
      * On success, outputs formatted device list. On failure, prints error and exits.
      *
      * @throws ProgramResult on API failure with appropriate exit code
@@ -53,7 +53,7 @@ class DeviceListCommand(
             }
 
         when (result) {
-            is DeviceListResult.Success -> {
+            is DeviceResult.Success -> {
                 when {
                     jsonLines -> outputAsJsonLines(result)
                     json -> outputAsJson(result)
@@ -61,9 +61,9 @@ class DeviceListCommand(
                 }
             }
 
-            is DeviceListResult.Failure -> {
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+            is DeviceResult.Failure -> {
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }
@@ -76,8 +76,8 @@ class DeviceListCommand(
      * @post Output includes header row and device rows with columns:
      *       ID | Type | Fingerprint | Last Active
      */
-    private fun outputAsTable(result: DeviceListResult.Success) {
-        val devices = result.view.devices
+    private fun outputAsTable(result: DeviceResult.Success<DeviceListView>) {
+        val devices = result.value.devices
         if (devices.isEmpty()) {
             echo("No devices found.")
             return
@@ -111,8 +111,8 @@ class DeviceListCommand(
      * @post Output is valid JSON with root object containing "devices" array
      * @post All string values are properly escaped for JSON
      */
-    private fun outputAsJson(result: DeviceListResult.Success) {
-        val devices = result.view.devices
+    private fun outputAsJson(result: DeviceResult.Success<DeviceListView>) {
+        val devices = result.value.devices
         val jsonDevices =
             devices
                 .map { device ->
@@ -133,8 +133,8 @@ class DeviceListCommand(
      * @post Each output line is valid JSON representing one device
      * @post All string values are properly escaped for JSON
      */
-    private fun outputAsJsonLines(result: DeviceListResult.Success) {
-        val devices = result.view.devices
+    private fun outputAsJsonLines(result: DeviceResult.Success<DeviceListView>) {
+        val devices = result.value.devices
         for (device in devices) {
             echo(buildDeviceJsonObject(device))
         }

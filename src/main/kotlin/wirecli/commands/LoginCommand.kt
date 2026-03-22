@@ -108,12 +108,12 @@ class LoginCommand(
         ) {
             is AuthResult.Success -> {
                 logger.info { "Login successful for email: $validatedEmail" }
-                echo(result.message)
+                echo(result.value)
             }
             is AuthResult.Failure -> {
-                logger.warn { "Login failed for email: $validatedEmail - ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                logger.warn { "Login failed for email: $validatedEmail - ${AuthRedactor.redact(result.error.message)}" }
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }

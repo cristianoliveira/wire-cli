@@ -6,7 +6,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
-import wirecli.device.DeviceDetailResult
+import wirecli.device.DeviceResult
 import wirecli.device.DeviceService
 
 class DeviceInfoCommand(
@@ -19,18 +19,18 @@ class DeviceInfoCommand(
         val validatedDeviceId = validateDeviceIdOrExit(deviceId)
         val deviceService = deviceServiceProvider()
         when (val result = deviceService.getDetail(validatedDeviceId)) {
-            is DeviceDetailResult.Success -> {
-                val device = result.view.device
+            is DeviceResult.Success -> {
+                val device = result.value.device
                 if (json) {
-                    outputAsJson(device, result.view.keyPackageStatus.toString())
+                    outputAsJson(device, result.value.keyPackageStatus.toString())
                 } else {
-                    outputAsText(device, result.view.keyPackageStatus.toString())
+                    outputAsText(device, result.value.keyPackageStatus.toString())
                 }
             }
 
-            is DeviceDetailResult.Failure -> {
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+            is DeviceResult.Failure -> {
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }

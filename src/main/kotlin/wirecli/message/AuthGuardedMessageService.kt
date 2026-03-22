@@ -2,6 +2,7 @@ package wirecli.message
 
 import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
+import wirecli.shared.MessageError
 
 class AuthGuardedMessageService(
     private val authSessionService: AuthSessionService,
@@ -10,24 +11,28 @@ class AuthGuardedMessageService(
     override fun sendMessage(
         conversationId: String,
         text: String,
-    ): SendMessageResult {
+    ): MessageResult<Unit> {
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.sendMessage(conversationId, text)
             is AuthResult.Failure ->
-                SendMessageResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                MessageResult.Failure(
+                    error = MessageError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
         }
     }
 
-    override fun fetchMessages(conversationId: String): FetchMessagesResult {
+    override fun fetchMessages(conversationId: String): MessageResult<FetchMessagesView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.fetchMessages(conversationId)
             is AuthResult.Failure ->
-                FetchMessagesResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                MessageResult.Failure(
+                    error = MessageError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
         }
     }
@@ -35,13 +40,15 @@ class AuthGuardedMessageService(
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,
-    ): SendTypingResult {
+    ): MessageResult<Unit> {
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.sendTypingStatus(conversationId, status)
             is AuthResult.Failure ->
-                SendTypingResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                MessageResult.Failure(
+                    error = MessageError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
         }
     }

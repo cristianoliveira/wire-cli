@@ -1,8 +1,11 @@
 package wirecli.device
 
 import wirecli.auth.AuthSession
+import wirecli.shared.Result
+import wirecli.shared.DeviceError
 
-// TODO: Consider unifying DeviceListResult, DeviceDetailResult, DeviceDeleteResult into a generic DeviceResult<T> to reduce duplication
+// Type aliases for module-specific Result types
+typealias DeviceResult<T> = Result<T, DeviceError>
 enum class DeviceType(val value: String) {
     DESKTOP("desktop"),
     MOBILE("mobile"),
@@ -46,68 +49,44 @@ data class DeviceDetailView(
     val keyPackageStatus: KeyPackageStatus,
 )
 
-sealed interface DeviceListResult {
-    data class Success(val view: DeviceListView) : DeviceListResult
-
-    data class Failure(val message: String, val exitCode: Int) : DeviceListResult
-}
-
-sealed interface DeviceDetailResult {
-    data class Success(val view: DeviceDetailView) : DeviceDetailResult
-
-    data class Failure(val message: String, val exitCode: Int) : DeviceDetailResult
-}
-
-sealed interface DeviceDeleteResult {
-    data class Success(val message: String) : DeviceDeleteResult
-
-    data class Failure(val message: String, val exitCode: Int) : DeviceDeleteResult
-}
-
-sealed interface DeviceVerifyResult {
-    data class Success(val message: String, val fingerprint: String) : DeviceVerifyResult
-
-    data class Failure(val message: String, val exitCode: Int) : DeviceVerifyResult
-}
-
 interface DeviceApiClient {
-    fun listDevices(session: AuthSession): DeviceListResult
+    fun listDevices(session: AuthSession): DeviceResult<DeviceListView>
 
     fun listDevicesForUser(
         session: AuthSession,
         userId: String,
-    ): DeviceListResult
+    ): DeviceResult<DeviceListView>
 
     fun getDeviceDetail(
         session: AuthSession,
         deviceId: String,
-    ): DeviceDetailResult
+    ): DeviceResult<DeviceDetailView>
 
     fun deleteDevice(
         session: AuthSession,
         deviceId: String,
         password: String? = null,
-    ): DeviceDeleteResult
+    ): DeviceResult<String>
 
     fun verifyDevice(
         session: AuthSession,
         deviceId: String,
-    ): DeviceVerifyResult
+    ): DeviceResult<String>
 }
 
 interface DeviceService {
-    fun listCurrentDevices(): DeviceListResult
+    fun listCurrentDevices(): DeviceResult<DeviceListView>
 
-    fun listDevicesForUser(userId: String): DeviceListResult
+    fun listDevicesForUser(userId: String): DeviceResult<DeviceListView>
 
-    fun getDetail(deviceId: String): DeviceDetailResult
+    fun getDetail(deviceId: String): DeviceResult<DeviceDetailView>
 
     fun remove(
         deviceId: String,
         password: String? = null,
-    ): DeviceDeleteResult
+    ): DeviceResult<String>
 
-    fun verify(deviceId: String): DeviceVerifyResult
+    fun verify(deviceId: String): DeviceResult<String>
 }
 
 // Exit codes for device operations following standard CLI conventions

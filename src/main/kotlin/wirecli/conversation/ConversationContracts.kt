@@ -1,6 +1,11 @@
 package wirecli.conversation
 
 import wirecli.auth.AuthSession
+import wirecli.shared.Result
+import wirecli.shared.ConversationError
+
+// Type aliases for module-specific Result types
+typealias ConversationResult<T> = Result<T, ConversationError>
 
 // Enum for conversation types
 enum class ConversationType(val value: String) {
@@ -43,74 +48,46 @@ data class ConversationDetailView(
     val conversation: Conversation,
 )
 
-// Sealed interface for list conversations result
-sealed interface ListConversationsResult {
-    data class Success(val view: ConversationListView) : ListConversationsResult
-
-    data class Failure(val message: String, val exitCode: Int) : ListConversationsResult
-}
-
-// Sealed interface for get conversation result
-sealed interface GetConversationResult {
-    data class Success(val view: ConversationDetailView) : GetConversationResult
-
-    data class Failure(val message: String, val exitCode: Int) : GetConversationResult
-}
-
-// Sealed interface for create conversation result
-sealed interface CreateConversationResult {
-    data class Success(val view: ConversationDetailView) : CreateConversationResult
-
-    data class Failure(val message: String, val exitCode: Int) : CreateConversationResult
-}
-
-// Sealed interface for delete conversation result
-sealed interface DeleteConversationResult {
-    data class Success(val message: String) : DeleteConversationResult
-
-    data class Failure(val message: String, val exitCode: Int) : DeleteConversationResult
-}
-
 // API Client interface defining contract for conversation operations
 interface ConversationApiClient {
-    fun listConversations(session: AuthSession): ListConversationsResult
+    fun listConversations(session: AuthSession): ConversationResult<ConversationListView>
 
     fun getConversation(
         session: AuthSession,
         conversationId: String,
-    ): GetConversationResult
+    ): ConversationResult<ConversationDetailView>
 
     fun createConversation(
         session: AuthSession,
         name: String,
         type: ConversationType,
-    ): CreateConversationResult
+    ): ConversationResult<ConversationDetailView>
 
     fun deleteConversation(
         session: AuthSession,
         conversationId: String,
-    ): DeleteConversationResult
+    ): ConversationResult<String>
 
     fun getMemberCount(
         session: AuthSession,
         conversationId: String,
-    ): GetConversationResult
+    ): ConversationResult<ConversationDetailView>
 }
 
 // Service interface for conversation operations
 interface ConversationService {
-    fun listConversations(): ListConversationsResult
+    fun listConversations(): ConversationResult<ConversationListView>
 
-    fun getConversation(conversationId: String): GetConversationResult
+    fun getConversation(conversationId: String): ConversationResult<ConversationDetailView>
 
     fun createConversation(
         name: String,
         type: ConversationType,
-    ): CreateConversationResult
+    ): ConversationResult<ConversationDetailView>
 
-    fun deleteConversation(conversationId: String): DeleteConversationResult
+    fun deleteConversation(conversationId: String): ConversationResult<String>
 
-    fun getMemberCount(conversationId: String): GetConversationResult
+    fun getMemberCount(conversationId: String): ConversationResult<ConversationDetailView>
 }
 
 // Exit codes for conversation operations

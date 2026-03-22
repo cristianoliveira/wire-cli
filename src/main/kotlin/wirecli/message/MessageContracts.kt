@@ -1,23 +1,15 @@
 package wirecli.message
 
 import wirecli.auth.AuthSession
+import wirecli.shared.Result
+import wirecli.shared.MessageError
 
-// Result type for message sending operation
-sealed interface SendMessageResult {
-    data object Success : SendMessageResult
-
-    data class Failure(val message: String, val exitCode: Int) : SendMessageResult
-}
+// Type aliases for module-specific Result types
+typealias MessageResult<T> = Result<T, MessageError>
 
 enum class TypingStatus {
     STARTED,
     STOPPED,
-}
-
-sealed interface SendTypingResult {
-    data object Success : SendTypingResult
-
-    data class Failure(val message: String, val exitCode: Int) : SendTypingResult
 }
 
 data class ConversationMessage(
@@ -33,24 +25,18 @@ data class FetchMessagesView(
     val messages: List<ConversationMessage>,
 )
 
-sealed interface FetchMessagesResult {
-    data class Success(val view: FetchMessagesView) : FetchMessagesResult
-
-    data class Failure(val message: String, val exitCode: Int) : FetchMessagesResult
-}
-
 // Low-level API client interface - works with AuthSession directly
 interface MessageApiClient {
     fun sendMessage(
         session: AuthSession,
         conversationId: String,
         text: String,
-    ): SendMessageResult
+    ): MessageResult<Unit>
 
     fun fetchMessages(
         session: AuthSession,
         conversationId: String,
-    ): FetchMessagesResult
+    ): MessageResult<FetchMessagesView>
 }
 
 interface MessageTypingApiClient {
@@ -58,7 +44,7 @@ interface MessageTypingApiClient {
         session: AuthSession,
         conversationId: String,
         status: TypingStatus,
-    ): SendTypingResult
+    ): MessageResult<Unit>
 }
 
 // High-level service interface - abstracts away session management
@@ -66,17 +52,19 @@ interface MessageService {
     fun sendMessage(
         conversationId: String,
         text: String,
-    ): SendMessageResult
+    ): MessageResult<Unit>
 
-    fun fetchMessages(conversationId: String): FetchMessagesResult
+    fun fetchMessages(conversationId: String): MessageResult<FetchMessagesView>
 
     fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,
-    ): SendTypingResult =
-        SendTypingResult.Failure(
-            message = MessageUserMessages.TYPING_UNSUPPORTED,
-            exitCode = MessageExitCodes.SERVER_ERROR,
+    ): MessageResult<Unit> =
+        MessageResult.Failure(
+            error = MessageError(
+                message = MessageUserMessages.TYPING_UNSUPPORTED,
+                exitCode = MessageExitCodes.SERVER_ERROR,
+            ),
         )
 }
 

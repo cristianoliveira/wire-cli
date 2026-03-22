@@ -3,6 +3,7 @@ package wirecli.sync
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
+import wirecli.shared.SyncError
 
 private val logger = KotlinLogging.logger {}
 
@@ -10,7 +11,7 @@ class AuthGuardedSyncService(
     private val authSessionService: AuthSessionService,
     private val delegate: SyncService,
 ) : SyncService {
-    override fun forceSyncAndWait(): SyncStatusResult {
+    override fun forceSyncAndWait(): SyncResult<SyncStatusView> {
         logger.debug { "AuthGuardedSyncService: Checking authentication for forceSyncAndWait" }
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> {
@@ -18,16 +19,18 @@ class AuthGuardedSyncService(
                 delegate.forceSyncAndWait()
             }
             is AuthResult.Failure -> {
-                logger.warn { "Authentication check failed: ${authResult.message} (exit code: ${authResult.exitCode})" }
-                SyncStatusResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                logger.warn { "Authentication check failed: ${authResult.error.message} (exit code: ${authResult.error.exitCode})" }
+                SyncResult.Failure(
+                    error = SyncError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
             }
         }
     }
 
-    override fun getCurrentSyncStatus(): SyncStatusResult {
+    override fun getCurrentSyncStatus(): SyncResult<SyncStatusView> {
         logger.debug { "AuthGuardedSyncService: Checking authentication for getCurrentSyncStatus" }
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> {
@@ -35,16 +38,18 @@ class AuthGuardedSyncService(
                 delegate.getCurrentSyncStatus()
             }
             is AuthResult.Failure -> {
-                logger.warn { "Authentication check failed: ${authResult.message} (exit code: ${authResult.exitCode})" }
-                SyncStatusResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                logger.warn { "Authentication check failed: ${authResult.error.message} (exit code: ${authResult.error.exitCode})" }
+                SyncResult.Failure(
+                    error = SyncError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
             }
         }
     }
 
-    override fun getDiagnosticsReport(): DiagnosticsResult {
+    override fun getDiagnosticsReport(): SyncResult<DiagnosticsReport> {
         logger.debug { "AuthGuardedSyncService: Checking authentication for getDiagnosticsReport" }
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> {
@@ -52,16 +57,18 @@ class AuthGuardedSyncService(
                 delegate.getDiagnosticsReport()
             }
             is AuthResult.Failure -> {
-                logger.warn { "Authentication check failed: ${authResult.message} (exit code: ${authResult.exitCode})" }
-                DiagnosticsResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                logger.warn { "Authentication check failed: ${authResult.error.message} (exit code: ${authResult.error.exitCode})" }
+                SyncResult.Failure(
+                    error = SyncError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
             }
         }
     }
 
-    override fun getConversationSyncStatus(conversationId: String): ConversationSyncStatusResult {
+    override fun getConversationSyncStatus(conversationId: String): SyncResult<ConversationSyncStatus> {
         logger.debug { "AuthGuardedSyncService: Checking authentication for getConversationSyncStatus (conversationId: $conversationId)" }
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> {
@@ -69,16 +76,18 @@ class AuthGuardedSyncService(
                 delegate.getConversationSyncStatus(conversationId)
             }
             is AuthResult.Failure -> {
-                logger.warn { "Authentication check failed: ${authResult.message} (exit code: ${authResult.exitCode})" }
-                ConversationSyncStatusResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                logger.warn { "Authentication check failed: ${authResult.error.message} (exit code: ${authResult.error.exitCode})" }
+                SyncResult.Failure(
+                    error = SyncError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
             }
         }
     }
 
-    override fun getPerConversationDiagnostics(conversationId: String): PerConversationDiagnosticsResult {
+    override fun getPerConversationDiagnostics(conversationId: String): SyncResult<PerConversationDiagnosticsReport> {
         logger.debug {
             "AuthGuardedSyncService: Checking authentication for " +
                 "getPerConversationDiagnostics (conversationId: $conversationId)"
@@ -89,16 +98,18 @@ class AuthGuardedSyncService(
                 delegate.getPerConversationDiagnostics(conversationId)
             }
             is AuthResult.Failure -> {
-                logger.warn { "Authentication check failed: ${authResult.message} (exit code: ${authResult.exitCode})" }
-                PerConversationDiagnosticsResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                logger.warn { "Authentication check failed: ${authResult.error.message} (exit code: ${authResult.error.exitCode})" }
+                SyncResult.Failure(
+                    error = SyncError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
             }
         }
     }
 
-    override fun resetSync(force: Boolean): ResetResult {
+    override fun resetSync(force: Boolean): SyncResult<String> {
         logger.debug { "AuthGuardedSyncService: Checking authentication for resetSync (force=$force)" }
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> {
@@ -106,10 +117,12 @@ class AuthGuardedSyncService(
                 delegate.resetSync(force)
             }
             is AuthResult.Failure -> {
-                logger.warn { "Authentication check failed: ${authResult.message} (exit code: ${authResult.exitCode})" }
-                ResetResult.Failure(
-                    message = authResult.message,
-                    exitCode = authResult.exitCode,
+                logger.warn { "Authentication check failed: ${authResult.error.message} (exit code: ${authResult.error.exitCode})" }
+                SyncResult.Failure(
+                    error = SyncError(
+                        message = authResult.error.message,
+                        exitCode = authResult.error.exitCode,
+                    ),
                 )
             }
         }

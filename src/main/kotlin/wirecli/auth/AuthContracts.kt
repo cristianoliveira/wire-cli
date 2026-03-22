@@ -1,5 +1,11 @@
 package wirecli.auth
-// FIXME: Consider unifying AuthResult and AuthApiResult into a generic Result<T> to reduce duplication.
+
+import wirecli.shared.Result
+import wirecli.shared.AuthError
+
+// Type aliases for module-specific Result types
+typealias AuthResult<T> = Result<T, AuthError>
+typealias AuthApiResult<T> = Result<T, AuthError>
 
 data class LoginInput(
     val email: String,
@@ -20,22 +26,10 @@ data class SessionInventory(
     val diagnosticMessage: String? = null,
 )
 
-sealed interface AuthResult {
-    data class Success(val message: String) : AuthResult
-
-    data class Failure(val message: String, val exitCode: Int) : AuthResult
-}
-
 interface AuthApiClient {
-    fun login(input: LoginInput): AuthApiResult
+    fun login(input: LoginInput): AuthApiResult<AuthSession>
 
-    fun logout(session: AuthSession): AuthApiResult
-}
-
-sealed interface AuthApiResult {
-    data class Success(val session: AuthSession) : AuthApiResult
-
-    data class Failure(val message: String, val exitCode: Int) : AuthApiResult
+    fun logout(session: AuthSession): AuthApiResult<String>
 }
 
 interface SessionProvider {
@@ -51,11 +45,11 @@ interface AuthSessionStore : SessionProvider {
 }
 
 interface AuthSessionService {
-    fun login(input: LoginInput): AuthResult
+    fun login(input: LoginInput): AuthResult<String>
 
-    fun logout(): AuthResult
+    fun logout(): AuthResult<String>
 
-    fun requireActiveSession(): AuthResult
+    fun requireActiveSession(): AuthResult<String>
 }
 
 // TODO: Consider converting ExitCodes to enum class for better type safety.

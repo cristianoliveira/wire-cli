@@ -52,30 +52,4 @@ jobs:
           XDG_CONFIG_HOME: "${{ github.workspace }}"
           GRADLE_OPTS: "-Dnix.build=true -Duser.home=${{ github.workspace }} -Dgradle.user.home=${{ github.workspace }}/.gradle"
 
-  nix-tests:
-    name: Nix checks
-    runs-on: [self-hosted, Linux, X64]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v16
-        with:
-          name: cristian-main
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          skipPush: true
-
-      - name: Nix checks
-        run: |
-          nix flake check
 

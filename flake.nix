@@ -40,6 +40,8 @@
 
       # JDK version based on kotlin { jvmToolchain(17) }
       jdkVersion = 17;
+
+      appVersion = "0.1.0";
     in
     {
       packages = forAllSystems (
@@ -168,7 +170,7 @@
         {
           default = pkgs.buildGradleApplication {
             pname = "wire-cli";
-            version = "0.1.0";
+            version = appVersion;
 
             src = srcWithKalium;
 
@@ -204,7 +206,7 @@
               XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
               XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
               XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
-              GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle";
+              GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false";
             };
 
 
@@ -228,12 +230,20 @@
             overlays = [ build-gradle-application.overlays.default ];
           };
 
+          buildGradleApplicationSrc = build-gradle-application;
+
           jdk = pkgs."jdk${toString jdkVersion}";
 
           gradle = pkgs.gradleFromWrapper {
             wrapperPropertiesPath = ./gradle/wrapper/gradle-wrapper.properties;
             defaultJava = jdk;
           };
+
+          repositories = [
+            "https://repo1.maven.org/maven2/"
+            "https://dl.google.com/android/maven2/"
+            "https://plugins.gradle.org/m2/"
+          ];
 
           srcWithKalium = pkgs.runCommand "wire-cli-source" { buildInputs = [ pkgs.protobuf ]; } ''
             cp -r ${./.} $out
@@ -304,40 +314,58 @@
             sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
             sed -i '/<component group="com.wire" name="detekt-rules"/,/<\/component>/d' $out/gradle/verification-metadata.xml
           '';
+
+          m2Repository = pkgs.mkM2Repository {
+            pname = "wire-cli-tests";
+            version = appVersion;
+            src = srcWithKalium;
+            dependencyFilter = depSpec: true;
+            repositories = repositories;
+            verificationFile = "gradle/verification-metadata.xml";
+          };
+
+          gradleEnv = {
+            JAVA_HOME = "${jdk}";
+            GITHUB_SHA = "nixbuild";
+            HOME = "/tmp/wire-cli-home";
+            GRADLE_USER_HOME = "/tmp/wire-cli-gradle";
+            ANDROID_USER_HOME = "/tmp/wire-cli-android";
+            XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
+            XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
+            XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
+            GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false";
+          };
         in
         {
-          tests = pkgs.buildGradleApplication {
+          tests = pkgs.stdenvNoCC.mkDerivation {
             pname = "wire-cli-tests";
-            version = "0.1.0";
+            version = appVersion;
             src = srcWithKalium;
-            inherit gradle;
-            repositories = [
-              "https://repo1.maven.org/maven2/"
-              "https://dl.google.com/android/maven2/"
-              "https://plugins.gradle.org/m2/"
-            ];
+
             nativeBuildInputs = [
+              gradle
               jdk
               pkgs.git
               pkgs.protobuf
             ];
-            env = {
-              JAVA_HOME = "${jdk}";
-              GITHUB_SHA = "nixbuild";
-              HOME = "/tmp/wire-cli-home";
-              GRADLE_USER_HOME = "/tmp/wire-cli-gradle";
-              ANDROID_USER_HOME = "/tmp/wire-cli-android";
-              XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
-              XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
-              XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
-              GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle";
-            };
+
+            env = gradleEnv;
+
             buildPhase = ''
-              ./gradlew test
+              runHook preBuild
+              export MAVEN_SOURCE_REPOSITORY=${m2Repository.m2Repository}
+              echo "Using maven repository at: $MAVEN_SOURCE_REPOSITORY"
+              export GRADLE_USER_HOME=$(mktemp -d)
+              export APP_VERSION=${appVersion}
+              gradle --offline --no-daemon --no-watch-fs -Dorg.gradle.unsafe.isolated-projects=false --no-configuration-cache --no-build-cache -Dorg.gradle.console=plain --no-scan -Porg.gradle.java.installations.auto-download=false --init-script ${buildGradleApplicationSrc}/buildGradleApplication/init.gradle.kts test
+              runHook postBuild
             '';
+
             installPhase = ''
+              runHook preInstall
               mkdir -p $out
               touch $out/tests-ran
+              runHook postInstall
             '';
           };
         }

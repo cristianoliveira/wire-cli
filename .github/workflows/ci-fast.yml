@@ -1,4 +1,4 @@
-name: CI Build
+name: CI Build and Integration Tests
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
       - name: Setup Cachix
         uses: cachix/cachix-action@v16
         with:
-          name: wire-cli
+          name: cristian-main
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           skipPush: true
 
@@ -37,9 +37,17 @@ jobs:
         run: |
           nix build
 
+      - name: Nix flake checks
+        run: |
+          nix flake check
+
       - name: Test the built binary
         run: |
           ./result/bin/wire-cli --help
+
+      - name: Enter Nix dev shell and run integration tests
+        run: |
+          nix develop --command bash -c "WIRE_BIN=./result/bin/wire-cli bats --print-output-on-failure test/bats"
 
       - name: Upload test results
         if: always()

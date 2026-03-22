@@ -40,6 +40,8 @@
 
       # JDK version based on kotlin { jvmToolchain(17) }
       jdkVersion = 17;
+
+      appVersion = "0.1.0";
     in
     {
       packages = forAllSystems (
@@ -168,7 +170,7 @@
         {
           default = pkgs.buildGradleApplication {
             pname = "wire-cli";
-            version = "0.1.0";
+            version = appVersion;
 
             src = srcWithKalium;
 
@@ -204,8 +206,9 @@
               XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
               XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
               XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
-              GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle";
+              GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false";
             };
+
 
             meta = with pkgs.lib; {
               description = "A command-line interface for Wire messaging";
@@ -215,6 +218,155 @@
               mainProgram = "wire-cli";
               platforms = supportedSystems;
             };
+          };
+        }
+      );
+
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ build-gradle-application.overlays.default ];
+          };
+
+          buildGradleApplicationSrc = build-gradle-application;
+
+          jdk = pkgs."jdk${toString jdkVersion}";
+
+          gradle = pkgs.gradleFromWrapper {
+            wrapperPropertiesPath = ./gradle/wrapper/gradle-wrapper.properties;
+            defaultJava = jdk;
+          };
+
+          repositories = [
+            "https://repo1.maven.org/maven2/"
+            "https://dl.google.com/android/maven2/"
+            "https://plugins.gradle.org/m2/"
+          ];
+
+          srcWithKalium = pkgs.runCommand "wire-cli-source" { buildInputs = [ pkgs.protobuf ]; } ''
+            cp -r ${./.} $out
+            chmod -R u+w $out
+            mkdir -p $out/vendor
+            cp -r ${kalium} $out/vendor/kalium
+            chmod -R u+w $out/vendor/kalium
+
+            cat > $out/vendor/kalium/buildSrc/settings.gradle.kts << 'EOF'
+            pluginManagement {
+                repositories {
+                    gradlePluginPortal()
+                    google()
+                    mavenCentral()
+                }
+            }
+            dependencyResolutionManagement {
+                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+                repositories {
+                    google()
+                    mavenCentral()
+                    maven(url = "https://oss.sonatype.org/content/repositories/snapshots")
+                }
+                versionCatalogs {
+                    create("libs") {
+                        from(files("../gradle/libs.versions.toml"))
+                    }
+                }
+            }
+            EOF
+
+            sed -i '/^repositories {/,/^}/d' $out/vendor/kalium/buildSrc/build.gradle.kts
+            sed -i '/detektPlugins("com.wire:detekt-rules:/,/}/d' $out/vendor/kalium/buildSrc/src/main/kotlin/scripts/detekt.gradle.kts
+            sed -i '/^dependencyResolutionManagement {/,/^}/c\
+            dependencyResolutionManagement {\
+                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)\
+                repositories {\
+                    mavenCentral()\
+                }\
+                versionCatalogs {\
+                    create("awssdk") {\
+                        from("aws.sdk.kotlin:version-catalog:1.5.89")\
+                    }\
+                }\
+            }' $out/vendor/kalium/settings.gradle.kts
+
+            sed -i '/^buildscript {/,/^}/s/repositories {[^}]*}//' $out/vendor/kalium/build.gradle.kts || true
+            sed -i '/^repositories {/,/^}/d' $out/vendor/kalium/build.gradle.kts
+            sed -i '/allprojects {/,/}/s/repositories {[^}]*}//' $out/vendor/kalium/build.gradle.kts || true
+            sed -i '/allprojects {/,/^}/{
+                /^[[:space:]]*repositories {/,/^[[:space:]]*}/d
+            }' $out/vendor/kalium/build.gradle.kts
+
+            sed -i '1a\
+            dependencyResolutionManagement {\
+                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)\
+                repositories {\
+                    mavenCentral()\
+                    google()\
+                }\
+            }' $out/settings.gradle.kts
+            sed -i '/^repositories {/,/^}/d' $out/build.gradle.kts
+
+            sed -i 's|artifact = "com.google.protobuf:protoc:3.24.0"|path = "${pkgs.protobuf}/bin/protoc"|' \
+              $out/vendor/kalium/tools/protobuf-codegen/build.gradle.kts
+
+            echo "android.disableAnalytics=true" >> $out/gradle.properties
+            sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
+            sed -i '/<component group="com.wire" name="detekt-rules"/,/<\/component>/d' $out/gradle/verification-metadata.xml
+          '';
+
+          m2Repository = pkgs.mkM2Repository {
+            pname = "wire-cli-tests";
+            version = appVersion;
+            src = srcWithKalium;
+            dependencyFilter = depSpec: true;
+            repositories = repositories;
+            verificationFile = "gradle/verification-metadata.xml";
+          };
+
+          gradleEnv = {
+            JAVA_HOME = "${jdk}";
+            GITHUB_SHA = "nixbuild";
+            HOME = "/tmp/wire-cli-home";
+            GRADLE_USER_HOME = "/tmp/wire-cli-gradle";
+            ANDROID_USER_HOME = "/tmp/wire-cli-android";
+            XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
+            XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
+            XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
+            GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false";
+          };
+        in
+        {
+          tests = pkgs.stdenvNoCC.mkDerivation {
+            pname = "wire-cli-tests";
+            version = appVersion;
+            src = srcWithKalium;
+
+            nativeBuildInputs = [
+              gradle
+              jdk
+              pkgs.git
+              pkgs.protobuf
+            ];
+
+            env = gradleEnv;
+
+            buildPhase = ''
+              runHook preBuild
+              export MAVEN_SOURCE_REPOSITORY=${m2Repository.m2Repository}
+              echo "Using maven repository at: $MAVEN_SOURCE_REPOSITORY"
+              export GRADLE_USER_HOME=$(mktemp -d)
+              export APP_VERSION=${appVersion}
+              gradle --offline --no-daemon --no-watch-fs -Dorg.gradle.unsafe.isolated-projects=false --no-configuration-cache --no-build-cache -Dorg.gradle.console=plain --no-scan -Porg.gradle.java.installations.auto-download=false --init-script ${buildGradleApplicationSrc}/buildGradleApplication/init.gradle.kts test
+              runHook postBuild
+            '';
+
+            installPhase = ''
+              runHook preInstall
+              mkdir -p $out
+              touch $out/tests-ran
+              runHook postInstall
+            '';
           };
         }
       );
@@ -230,6 +382,9 @@
             buildInputs = with pkgs; [
               jdk
               gradle
+
+              # Nix build tools
+              devenv
 
               # Testing
               bats

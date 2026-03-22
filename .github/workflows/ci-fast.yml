@@ -47,9 +47,8 @@ jobs:
 
       - name: Enter Nix dev shell and run integration tests
         run: |
-          nix develop
           export WIRE_BIN=./result/bin/wire-cli
-          ./gradlew --no-daemon batsTest
+          nix develop --command ./gradlew --no-daemon batsTest
         env:
           ANDROID_USER_HOME: "${{ github.workspace }}/.android"
           GRADLE_USER_HOME: "${{ github.workspace }}/.gradle"

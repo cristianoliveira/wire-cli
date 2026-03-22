@@ -8,6 +8,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthRedactor
 import wirecli.profile.ProfileResult
 import wirecli.profile.ProfileService
+import wirecli.validation.InputValidator
 
 private val logger = KotlinLogging.logger {}
 
@@ -17,6 +18,10 @@ class ProfileCommand(
     private val userId by argument(name = "user-id", help = "Optional user ID (value@domain)").optional()
 
     override fun run() {
+        if (userId != null) {
+            validateOrExit { InputValidator.validateUserId(userId!!) }
+        }
+
         logger.info { "Profile command started" }
         val profileService = profileServiceProvider()
         when (val result = profileService.getCurrentProfile()) {

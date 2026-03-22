@@ -119,3 +119,5 @@ private class PresenceSetCommand(
         }
     }
 }
+
+// Uses validateConversationIdOrExit from DeviceCommand.kt (same package)

@@ -6,12 +6,14 @@ import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
+import wirecli.auth.ExitCodes
 import wirecli.sync.DiagnosticsReport
 import wirecli.sync.DiagnosticsResult
 import wirecli.sync.SyncExitCodes
 import wirecli.sync.SyncOutputFormatter
 import wirecli.sync.SyncService
 import wirecli.sync.SyncStatusResult
+import wirecli.validation.InputValidator
 
 class SyncCommand(
     private val syncServiceProvider: () -> SyncService,
@@ -322,10 +324,15 @@ private fun CliktCommand.validateSyncContextOrExit(
     deviceId: String?,
     conversationId: String?,
 ) {
-    if (deviceId != null) {
-        validateDeviceIdOrExit(deviceId)
-    }
-    if (conversationId != null) {
-        validateConversationIdOrExit(conversationId)
+    try {
+        if (deviceId != null) {
+            InputValidator.validateDeviceId(deviceId)
+        }
+        if (conversationId != null) {
+            InputValidator.validateConversationId(conversationId)
+        }
+    } catch (error: IllegalArgumentException) {
+        echo(error.message ?: "Invalid input.", err = true)
+        throw ProgramResult(ExitCodes.VALIDATION_ERROR)
     }
 }

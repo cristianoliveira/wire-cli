@@ -1,4 +1,4 @@
-name: CI Fast
+name: CI Build
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   ci:
-    name: All Checks
+    name: Build with Nix
     runs-on: [self-hosted, Linux, X64]
     steps:
       - name: Checkout
@@ -32,10 +32,6 @@ jobs:
           name: wire-cli
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           skipPush: true
-
-      - name: Run all quality checks
-        run: |
-          nix develop --command bash -c "make all"
 
       - name: Build with Nix
         run: |

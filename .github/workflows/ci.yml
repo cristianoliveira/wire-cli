@@ -1,4 +1,4 @@
-name: CI
+name: CI checks
 
 on:
   push:
@@ -10,8 +10,8 @@ on:
       - develop
 
 jobs:
-  format-check:
-    name: Format Check (ktlint)
+  lint:
+    name: Lint and Format
     runs-on: [self-hosted, Linux, X64]
     steps:
       - name: Checkout
@@ -35,36 +35,8 @@ jobs:
 
       - name: Enter Nix dev shell and check format
         run: |
-          nix develop --command bash -c "mkdir -p \$HOME/.android && ./gradlew --no-daemon ktlintCheck"
-        env:
-          ANDROID_USER_HOME: ${{ github.workspace }}/.android
-
-  lint:
-    name: Lint (detekt)
-    runs-on: [self-hosted, Linux, X64]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v16
-        with:
-          name: wire-cli
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          skipPush: true
-
-      - name: Enter Nix dev shell and run detekt
-        run: |
-          nix develop --command bash -c "mkdir -p \$HOME/.android && ./gradlew --no-daemon detekt"
+          nix develop --command bash -c "./gradlew --no-daemon ktlintCheck"
+          nix develop --command bash -c "./gradlew --no-daemon detekt"
         env:
           ANDROID_USER_HOME: ${{ github.workspace }}/.android
 
@@ -139,34 +111,3 @@ jobs:
         with:
           name: integration-test-results
           path: build/reports/tests/
-
-  build:
-    name: Build Verification
-    runs-on: [self-hosted, Linux, X64]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v16
-        with:
-          name: wire-cli
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          skipPush: true
-
-      - name: Build with Nix
-        run: |
-          nix build
-
-      - name: Test the built binary
-        run: |
-          ./result/bin/wire-cli --help

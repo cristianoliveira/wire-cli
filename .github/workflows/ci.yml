@@ -33,6 +33,14 @@ jobs:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           skipPush: true
 
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/settings.gradle*', '**/gradle.lockfile', '**/libs.versions.toml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
       - name: Enter Nix dev shell and check format
         run: |
           nix develop --command bash -c "mkdir -p \$HOME/.android \"\$GRADLE_USER_HOME\" && chmod -R +x \"\$GRADLE_USER_HOME\"/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon ktlintCheck"
@@ -66,6 +74,14 @@ jobs:
           name: cristian-main
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           skipPush: true
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/settings.gradle*', '**/gradle.lockfile', '**/libs.versions.toml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Enter Nix dev shell and run unit tests
         run: |

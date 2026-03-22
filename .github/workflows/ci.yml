@@ -35,10 +35,11 @@ jobs:
 
       - name: Enter Nix dev shell and check format
         run: |
-          nix develop --command bash -c "mkdir -p \$HOME/.android && chmod -R +x \$HOME/.gradle/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon ktlintCheck"
-          nix develop --command bash -c "mkdir -p \$HOME/.android && chmod -R +x \$HOME/.gradle/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon detekt"
+          nix develop --command bash -c "mkdir -p \$HOME/.android \"\$GRADLE_USER_HOME\" && chmod -R +x \"\$GRADLE_USER_HOME\"/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon ktlintCheck"
+          nix develop --command bash -c "mkdir -p \$HOME/.android \"\$GRADLE_USER_HOME\" && chmod -R +x \"\$GRADLE_USER_HOME\"/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon detekt"
         env:
           ANDROID_USER_HOME: ${{ github.workspace }}/.android
+          GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
 
   test-unit:
     name: Unit Tests
@@ -65,9 +66,10 @@ jobs:
 
       - name: Enter Nix dev shell and run unit tests
         run: |
-          nix develop --command bash -c "mkdir -p \$HOME/.android && chmod -R +x \$HOME/.gradle/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon test"
+          nix develop --command bash -c "mkdir -p \$HOME/.android \"\$GRADLE_USER_HOME\" && chmod -R +x \"\$GRADLE_USER_HOME\"/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon test"
         env:
           ANDROID_USER_HOME: ${{ github.workspace }}/.android
+          GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
 
       - name: Upload test results
         if: always()
@@ -101,9 +103,10 @@ jobs:
 
       - name: Enter Nix dev shell and run integration tests
         run: |
-          nix develop --command bash -c "mkdir -p \$HOME/.android && chmod -R +x \$HOME/.gradle/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon batsTest"
+          nix develop --command bash -c "mkdir -p \$HOME/.android \"\$GRADLE_USER_HOME\" && chmod -R +x \"\$GRADLE_USER_HOME\"/caches/modules-2/files-2.1/com.google.protobuf/protoc/*/protoc-*-linux-x86_64.exe 2>/dev/null || true && ./gradlew --no-daemon batsTest"
         env:
           ANDROID_USER_HOME: ${{ github.workspace }}/.android
+          GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
 
       - name: Upload test results
         if: always()

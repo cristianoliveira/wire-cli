@@ -47,13 +47,7 @@ jobs:
 
       - name: Enter Nix dev shell and run integration tests
         run: |
-          export WIRE_BIN=./result/bin/wire-cli
-          nix develop --command ./gradlew --no-daemon batsTest
-        env:
-          ANDROID_USER_HOME: "${{ github.workspace }}/.android"
-          GRADLE_USER_HOME: "${{ github.workspace }}/.gradle"
-          XDG_CACHE_HOME: "${{ github.workspace }}/.cache"
-          XDG_CONFIG_HOME: "${{ github.workspace }}"
+          nix develop --command bash -c "WIRE_BIN=./result/bin/wire-cli bats --print-output-on-failure test/bats"
 
       - name: Upload test results
         if: always()

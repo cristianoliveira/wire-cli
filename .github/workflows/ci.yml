@@ -35,7 +35,9 @@ jobs:
 
       - name: Enter Nix dev shell and check format
         run: |
-          nix develop --command bash -c "./gradlew --no-daemon ktlintCheck"
+          nix develop --command bash -c "mkdir -p \$HOME/.android && ./gradlew --no-daemon ktlintCheck"
+        env:
+          ANDROID_USER_HOME: ${{ github.workspace }}/.android
 
   lint:
     name: Lint (detekt)
@@ -62,7 +64,9 @@ jobs:
 
       - name: Enter Nix dev shell and run detekt
         run: |
-          nix develop --command bash -c "./gradlew --no-daemon detekt"
+          nix develop --command bash -c "mkdir -p \$HOME/.android && ./gradlew --no-daemon detekt"
+        env:
+          ANDROID_USER_HOME: ${{ github.workspace }}/.android
 
   test-unit:
     name: Unit Tests
@@ -89,7 +93,9 @@ jobs:
 
       - name: Enter Nix dev shell and run unit tests
         run: |
-          nix develop --command bash -c "./gradlew --no-daemon test"
+          nix develop --command bash -c "mkdir -p \$HOME/.android && ./gradlew --no-daemon test"
+        env:
+          ANDROID_USER_HOME: ${{ github.workspace }}/.android
 
       - name: Upload test results
         if: always()
@@ -123,7 +129,9 @@ jobs:
 
       - name: Enter Nix dev shell and run integration tests
         run: |
-          nix develop --command bash -c "./gradlew --no-daemon batsTest"
+          nix develop --command bash -c "mkdir -p \$HOME/.android && ./gradlew --no-daemon batsTest"
+        env:
+          ANDROID_USER_HOME: ${{ github.workspace }}/.android
 
       - name: Upload test results
         if: always()

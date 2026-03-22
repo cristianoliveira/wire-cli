@@ -53,7 +53,7 @@ jobs:
           GRADLE_OPTS: "-Dnix.build=true -Duser.home=${{ github.workspace }} -Dgradle.user.home=${{ github.workspace }}/.gradle"
 
   nix-tests:
-    name: Nix build and checks
+    name: Nix checks
     runs-on: [self-hosted, Linux, X64]
     steps:
       - name: Checkout
@@ -74,10 +74,6 @@ jobs:
           name: cristian-main
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           skipPush: true
-
-      - name: Nix build
-        run: |
-          nix build .#
 
       - name: Nix checks
         run: |

@@ -231,6 +231,9 @@
               jdk
               gradle
 
+              # Nix build tools
+              devenv
+
               # Testing
               bats
               # Additional development tools

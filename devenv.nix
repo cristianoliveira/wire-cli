@@ -1,0 +1,3 @@
+{
+  cachix.pull = [ "wire-cli" ];
+}

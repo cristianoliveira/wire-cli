@@ -5,6 +5,7 @@ import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 class RealKaliumDeviceApiClientTest {
@@ -458,6 +459,21 @@ class RealKaliumDeviceApiClientTest {
         client.deleteDevice(session, "device-001")
 
         assertEquals(true, runtime.lastIsWriteOperation, "deleteDevice should pass isWriteOperation=true")
+    }
+
+    @Test
+    fun `throws when listing devices with blank session user id`() {
+        val runtime =
+            FakeRuntime(
+                sessionScopeResult = DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED),
+            )
+        val client = RealKaliumDeviceApiClient(runtime)
+
+        assertFailsWith<IllegalArgumentException> {
+            client.listDevices(
+                session.copy(userId = " "),
+            )
+        }
     }
 
     private class WriteOperationTrackingRuntime(

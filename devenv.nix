@@ -1,4 +1,4 @@
 {
-  cachix.pull = [ "wire-cli" ];
+  cachix.pull = [ "cristian-main" ];
   cachix.push = "cristian-main";
 }

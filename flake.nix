@@ -207,6 +207,11 @@
               GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle";
             };
 
+            doCheck = true;
+            checkPhase = ''
+              ./gradlew test
+            '';
+
             meta = with pkgs.lib; {
               description = "A command-line interface for Wire messaging";
               homepage = "https://github.com/wireapp/wire-cli";

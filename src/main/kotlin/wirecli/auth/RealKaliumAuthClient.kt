@@ -27,17 +27,31 @@ private val logger = KotlinLogging.logger {}
 /**
  * Real Kalium-backed implementation of the authentication client.
  *
- * This class delegates authentication operations to the Kalium SDK through the [RealKaliumAuthRuntime]
- * interface, handling login and logout flows with proper error mapping.
+ * This class serves as a facade that delegates to [StandardAuthenticationOrchestrator]
+ * for authentication operations, maintaining backward compatibility with the
+ * [AuthApiClient] interface while separating concerns:
+ * - [StandardAuthenticationOrchestrator] handles flow orchestration
+ * - [StandardAuthResponseParser] handles response transformation
+ * - [SdkKaliumAuthRuntime] handles low-level API communication
+ *
+ * @param runtime The Kalium authentication runtime for API operations
  *
  * @invariant runtime is never null and properly initialized
  * @invariant All public methods return non-null AuthApiResult
  */
 internal class RealKaliumAuthClient(
-    private val runtime: RealKaliumAuthRuntime,
+    runtime: RealKaliumAuthRuntime,
 ) : AuthApiClient {
+    private val orchestrator: AuthenticationOrchestrator =
+        StandardAuthenticationOrchestrator(
+            runtime = runtime,
+            parser = StandardAuthResponseParser(),
+        )
+
     /**
      * Authenticates a user with email and password against a Wire backend.
+     *
+     * Delegates to the authentication orchestrator for the full login flow.
      *
      * @param input Login credentials and server configuration
      * @return AuthApiResult.Success with authenticated session if successful; AuthApiResult.Failure with error details otherwise
@@ -51,29 +65,12 @@ internal class RealKaliumAuthClient(
      * @see AuthApiResult.Success
      * @see AuthApiResult.Failure
      */
-    override fun login(input: LoginInput): AuthApiResult {
-        require(input.email.isNotBlank()) { "Login email must not be blank." }
-        require(input.password.isNotBlank()) { "Login password must not be blank." }
-
-        val result =
-            when (val authScope = runtime.resolveAuthScope(input.server)) {
-                is AuthStepResult.Success -> continueLogin(input, authScope.value)
-                is AuthStepResult.Failure -> authScope.toAuthFailure(action = "Authentication")
-            }
-
-        if (result is AuthApiResult.Success) {
-            check(result.session.userId.isNotBlank()) {
-                "Authentication success must include a non-blank user ID."
-            }
-            check(result.session.accessToken.isNotBlank()) {
-                "Authentication success must include a non-blank access token."
-            }
-        }
-        return result
-    }
+    override fun login(input: LoginInput): AuthApiResult = orchestrator.login(input)
 
     /**
      * Logs out the currently authenticated user, invalidating their session.
+     *
+     * Delegates to the authentication orchestrator for the logout flow.
      *
      * @param session The authenticated session to logout (must be valid and active)
      * @return AuthApiResult.Success if logout completed successfully; AuthApiResult.Failure with error details otherwise
@@ -87,141 +84,7 @@ internal class RealKaliumAuthClient(
      * @see AuthApiResult.Success
      * @see AuthApiResult.Failure
      */
-    override fun logout(session: AuthSession): AuthApiResult {
-        require(session.userId.isNotBlank()) { "Logout session user ID must not be blank." }
-        require(session.accessToken.isNotBlank()) { "Logout session access token must not be blank." }
-
-        val result =
-            when (val logoutResult = runtime.logout(session)) {
-                is AuthStepResult.Success -> AuthApiResult.Success(session)
-                is AuthStepResult.Failure -> logoutResult.toAuthFailure(action = "Logout")
-            }
-
-        if (result is AuthApiResult.Success) {
-            check(result.session.userId == session.userId) {
-                "Logout success must preserve the original session user ID."
-            }
-            check(result.session.accessToken.isNotBlank()) {
-                "Logout success must preserve a non-blank access token."
-            }
-        }
-        return result
-    }
-
-    /**
-     * Continues login flow after authentication scope is established.
-     *
-     * @param input The login credentials and server configuration
-     * @param authScope The resolved authentication scope from Kalium
-     * @return AuthApiResult with success or failure details
-     *
-     * @pre input must have non-null email and password
-     * @pre authScope must be properly initialized and functional
-     * @post Returns either AuthApiResult.Success or AuthApiResult.Failure
-     */
-    private fun continueLogin(
-        input: LoginInput,
-        authScope: KaliumAuthScope,
-    ): AuthApiResult {
-        return when (val login = authScope.login(input.email, input.password)) {
-            is AuthStepResult.Success -> persistAuthenticatedAccount(input, login.value)
-            is AuthStepResult.Failure -> login.toAuthFailure(action = "Authentication")
-        }
-    }
-
-    /**
-     * Persists the authenticated principal to local storage for future session resumption.
-     *
-     * @param input The original login input with server configuration
-     * @param success The authenticated principal from the server
-     * @return AuthApiResult with success or failure details
-     * @throws Nothing - All errors wrapped in AuthApiResult
-     *
-     * @pre success must have valid userId, tokens, and server config
-     * @post If successful, account is persisted and session bootstrap begins
-     * @post Account can be recovered from local storage on subsequent CLI invocations
-     */
-    private fun persistAuthenticatedAccount(
-        input: LoginInput,
-        success: AuthenticatedPrincipal,
-    ): AuthApiResult {
-        return when (
-            val persistence =
-                runtime.addAuthenticatedAccount(
-                    PersistedAccount(
-                        userId = success.userId,
-                        server = input.server,
-                        accessToken = success.accessToken,
-                        refreshToken = success.refreshToken,
-                        tokenType = success.tokenType,
-                        cookieLabel = success.cookieLabel,
-                        serverConfigId = success.serverConfigId,
-                        ssoId = success.ssoId,
-                        managedBy = success.managedBy,
-                        proxyCredentials = success.proxyCredentials,
-                    ),
-                )
-        ) {
-            is AuthStepResult.Success -> bootstrapSession(input, success)
-            is AuthStepResult.Failure ->
-                persistence.toAuthFailure(
-                    action = "Authentication",
-                    defaultMessage = AuthMessages.localSessionPersistenceFailed(),
-                )
-        }
-    }
-
-    /**
-     * Bootstraps a session by registering a client device and initializing session state.
-     *
-     * @param input The original login input containing password for client registration
-     * @param success The authenticated principal with tokens
-     * @return AuthApiResult with complete authenticated session or failure details
-     * @throws Nothing - All errors wrapped in AuthApiResult
-     *
-     * @pre success must have valid userId and accessToken
-     * @pre input.password must be non-null and match user's credentials
-     * @post If successful, client device is registered and AuthSession is returned
-     * @post Returned AuthSession contains non-null userId, accessToken, and server
-     */
-    private fun bootstrapSession(
-        input: LoginInput,
-        success: AuthenticatedPrincipal,
-    ): AuthApiResult {
-        val sessionScope =
-            when (val sessionResult = runtime.resolveSessionScope(success.userId)) {
-                is AuthStepResult.Success -> sessionResult.value
-                is AuthStepResult.Failure -> {
-                    return sessionResult.toAuthFailure(
-                        action = "Authentication",
-                        defaultMessage = AuthMessages.sessionBootstrapFailed(),
-                    )
-                }
-            }
-
-        return when (val clientResult = runtime.ensureClient(sessionScope, input.password)) {
-            is AuthStepResult.Success ->
-                AuthApiResult.Success(
-                    session =
-                        AuthSession(
-                            userId = success.userId,
-                            accessToken = success.accessToken,
-                            server = input.server,
-                        ),
-                )
-
-            is AuthStepResult.Failure ->
-                clientResult.toAuthFailure(
-                    action = "Authentication",
-                    defaultMessage =
-                        if (clientResult.category == AuthFailureCategory.PASSWORD_REQUIRED) {
-                            null // Let PASSWORD_REQUIRED use its own message
-                        } else {
-                            AuthMessages.clientRegistrationFailed()
-                        },
-                )
-        }
-    }
+    override fun logout(session: AuthSession): AuthApiResult = orchestrator.logout(session)
 }
 
 /**
@@ -1040,48 +903,3 @@ private fun String.toQualifiedIdOrNull(): UserId? {
  * @post Returns non-null non-empty string in "value@domain" format
  */
 private fun UserId.serialize(): String = "$value@$domain"
-
-/**
- * Converts an AuthStepResult.Failure to an AuthApiResult.Failure with appropriate messaging.
- *
- * Maps failure categories to user-facing messages and exit codes.
- *
- * @receiver The failure result to convert
- * @param action The action being performed (used in error messages)
- * @param defaultMessage Optional message override for specific failure categories
- * @return AuthApiResult.Failure with message and exit code
- *
- * @pre action must be non-null and non-empty
- * @post Result contains appropriate user-facing message and exit code
- */
-private fun AuthStepResult.Failure.toAuthFailure(
-    action: String,
-    defaultMessage: String? = null,
-): AuthApiResult.Failure {
-    val resolvedMessage =
-        message ?: defaultMessage ?: when (category) {
-            AuthFailureCategory.INVALID_CREDENTIALS -> AuthMessages.invalidCredentials()
-            AuthFailureCategory.PASSWORD_REQUIRED -> AuthMessages.passwordRequired()
-            AuthFailureCategory.NETWORK -> AuthMessages.networkFailure(action)
-            AuthFailureCategory.SERVER -> AuthMessages.authServiceUnavailable()
-            AuthFailureCategory.UNAUTHORIZED -> AuthMessages.unauthorizedAction(action)
-            AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION -> "Nomad single user mode violation: cannot add additional users."
-            AuthFailureCategory.UNKNOWN -> "Unexpected authentication error. Please retry."
-        }
-
-    val exitCode =
-        when (category) {
-            AuthFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-            AuthFailureCategory.PASSWORD_REQUIRED -> ExitCodes.PASSWORD_REQUIRED
-            AuthFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            AuthFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-            AuthFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION -> ExitCodes.NOMAD_SINGLE_USER_VIOLATION
-            AuthFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-        }
-
-    return AuthApiResult.Failure(
-        message = AuthRedactor.redact(resolvedMessage),
-        exitCode = exitCode,
-    )
-}

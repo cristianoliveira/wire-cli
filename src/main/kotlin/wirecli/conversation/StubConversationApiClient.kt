@@ -3,6 +3,8 @@ package wirecli.conversation
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import wirecli.shared.ConversationError
+import wirecli.shared.Result
 
 class StubConversationApiClient(
     private val environment: Map<String, String>,
@@ -103,51 +105,57 @@ class StubConversationApiClient(
 
         return when (mode) {
             "list_empty" ->
-                ListConversationsResult.Success(
-                    view = ConversationListView(conversations = emptyList()),
+                Result.Success(
+                    value = ConversationListView(conversations = emptyList()),
                 )
 
             "list_ok" ->
-                ListConversationsResult.Success(
-                    view = ConversationListView(conversations = allConversations),
+                Result.Success(
+                    value = ConversationListView(conversations = allConversations),
                 )
 
             "list_dm_only" ->
-                ListConversationsResult.Success(
-                    view = ConversationListView(conversations = dmConversations),
+                Result.Success(
+                    value = ConversationListView(conversations = dmConversations),
                 )
 
             "list_groups_only" ->
-                ListConversationsResult.Success(
-                    view = ConversationListView(conversations = groupConversations),
+                Result.Success(
+                    value = ConversationListView(conversations = groupConversations),
                 )
 
             "list_channels_only" ->
-                ListConversationsResult.Success(
-                    view = ConversationListView(conversations = channelConversations),
+                Result.Success(
+                    value = ConversationListView(conversations = channelConversations),
                 )
 
             "not_found" ->
-                ListConversationsResult.Failure(
-                    message = ConversationMessages.CONVERSATION_NOT_FOUND,
-                    exitCode = ConversationExitCodes.NOT_FOUND,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.CONVERSATION_NOT_FOUND,
+                        exitCode = ConversationExitCodes.NOT_FOUND,
+                    ),
                 )
 
             "server_error" ->
-                ListConversationsResult.Failure(
-                    message = ConversationMessages.SERVER_FAILURE,
-                    exitCode = ExitCodes.SERVER_ERROR,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.SERVER_FAILURE,
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    ),
                 )
 
             "unauthorized" ->
-                ListConversationsResult.Failure(
-                    message = AuthMessages.invalidOrExpiredSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                Result.Failure(
+                    error = ConversationError(
+                        message = AuthMessages.invalidOrExpiredSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 )
 
             else ->
-                ListConversationsResult.Success(
-                    view = ConversationListView(conversations = allConversations),
+                Result.Success(
+                    value = ConversationListView(conversations = allConversations),
                 )
         }
     }
@@ -160,32 +168,40 @@ class StubConversationApiClient(
 
         return when (mode) {
             "not_found" ->
-                GetConversationResult.Failure(
-                    message = ConversationMessages.CONVERSATION_NOT_FOUND,
-                    exitCode = ConversationExitCodes.NOT_FOUND,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.CONVERSATION_NOT_FOUND,
+                        exitCode = ConversationExitCodes.NOT_FOUND,
+                    ),
                 )
 
             "server_error" ->
-                GetConversationResult.Failure(
-                    message = ConversationMessages.SERVER_FAILURE,
-                    exitCode = ExitCodes.SERVER_ERROR,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.SERVER_FAILURE,
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    ),
                 )
 
             "unauthorized" ->
-                GetConversationResult.Failure(
-                    message = AuthMessages.invalidOrExpiredSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                Result.Failure(
+                    error = ConversationError(
+                        message = AuthMessages.invalidOrExpiredSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 )
 
             else -> {
                 val conversation =
                     allConversations.find { it.id == conversationId }
-                        ?: return GetConversationResult.Failure(
-                            message = ConversationMessages.CONVERSATION_NOT_FOUND,
-                            exitCode = ConversationExitCodes.NOT_FOUND,
+                        ?: return Result.Failure(
+                            error = ConversationError(
+                                message = ConversationMessages.CONVERSATION_NOT_FOUND,
+                                exitCode = ConversationExitCodes.NOT_FOUND,
+                            ),
                         )
 
-                GetConversationResult.Success(
+                Result.Success(
                     view = ConversationDetailView(conversation = conversation),
                 )
             }
@@ -201,21 +217,27 @@ class StubConversationApiClient(
 
         return when (mode) {
             "invalid_input" ->
-                CreateConversationResult.Failure(
-                    message = ConversationMessages.INVALID_INPUT,
-                    exitCode = ConversationExitCodes.INVALID_INPUT,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.INVALID_INPUT,
+                        exitCode = ConversationExitCodes.INVALID_INPUT,
+                    ),
                 )
 
             "server_error" ->
-                CreateConversationResult.Failure(
-                    message = ConversationMessages.CREATE_SERVER_FAILURE,
-                    exitCode = ExitCodes.SERVER_ERROR,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.CREATE_SERVER_FAILURE,
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    ),
                 )
 
             "unauthorized" ->
-                CreateConversationResult.Failure(
-                    message = AuthMessages.invalidOrExpiredSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                Result.Failure(
+                    error = ConversationError(
+                        message = AuthMessages.invalidOrExpiredSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 )
 
             else -> {
@@ -230,7 +252,7 @@ class StubConversationApiClient(
                         updatedAt = "2025-03-14T16:00:00Z",
                     )
 
-                CreateConversationResult.Success(
+                Result.Success(
                     view = ConversationDetailView(conversation = newConversation),
                 )
             }
@@ -245,25 +267,31 @@ class StubConversationApiClient(
 
         return when (mode) {
             "not_found" ->
-                DeleteConversationResult.Failure(
-                    message = ConversationMessages.CONVERSATION_NOT_FOUND,
-                    exitCode = ConversationExitCodes.NOT_FOUND,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.CONVERSATION_NOT_FOUND,
+                        exitCode = ConversationExitCodes.NOT_FOUND,
+                    ),
                 )
 
             "server_error" ->
-                DeleteConversationResult.Failure(
-                    message = ConversationMessages.DELETE_SERVER_FAILURE,
-                    exitCode = ExitCodes.SERVER_ERROR,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.DELETE_SERVER_FAILURE,
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    ),
                 )
 
             "unauthorized" ->
-                DeleteConversationResult.Failure(
-                    message = AuthMessages.invalidOrExpiredSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                Result.Failure(
+                    error = ConversationError(
+                        message = AuthMessages.invalidOrExpiredSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 )
 
             else ->
-                DeleteConversationResult.Success(
+                Result.Success(
                     message = "Conversation deleted successfully.",
                 )
         }
@@ -277,32 +305,40 @@ class StubConversationApiClient(
 
         return when (mode) {
             "not_found" ->
-                GetConversationResult.Failure(
-                    message = ConversationMessages.CONVERSATION_NOT_FOUND,
-                    exitCode = ConversationExitCodes.NOT_FOUND,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.CONVERSATION_NOT_FOUND,
+                        exitCode = ConversationExitCodes.NOT_FOUND,
+                    ),
                 )
 
             "server_error" ->
-                GetConversationResult.Failure(
-                    message = ConversationMessages.SERVER_FAILURE,
-                    exitCode = ExitCodes.SERVER_ERROR,
+                Result.Failure(
+                    error = ConversationError(
+                        message = ConversationMessages.SERVER_FAILURE,
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    ),
                 )
 
             "unauthorized" ->
-                GetConversationResult.Failure(
-                    message = AuthMessages.invalidOrExpiredSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                Result.Failure(
+                    error = ConversationError(
+                        message = AuthMessages.invalidOrExpiredSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 )
 
             else -> {
                 val conversation =
                     allConversations.find { it.id == conversationId }
-                        ?: return GetConversationResult.Failure(
-                            message = ConversationMessages.CONVERSATION_NOT_FOUND,
-                            exitCode = ConversationExitCodes.NOT_FOUND,
+                        ?: return Result.Failure(
+                            error = ConversationError(
+                                message = ConversationMessages.CONVERSATION_NOT_FOUND,
+                                exitCode = ConversationExitCodes.NOT_FOUND,
+                            ),
                         )
 
-                GetConversationResult.Success(
+                Result.Success(
                     view = ConversationDetailView(conversation = conversation),
                 )
             }

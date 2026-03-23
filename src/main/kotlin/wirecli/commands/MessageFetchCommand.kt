@@ -3,8 +3,8 @@ package wirecli.commands
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
-import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageFetchFormatter
+import wirecli.message.MessageResult
 import wirecli.message.MessageService
 
 class MessageFetchCommand(
@@ -25,15 +25,15 @@ class MessageFetchCommand(
 
         val messageService = messageServiceProvider()
         when (val result = messageService.fetchMessages(validatedConversationId)) {
-            is FetchMessagesResult.Success -> {
+            is MessageResult.Success -> {
                 val formatter = MessageFetchFormatter()
-                val output = formatter.toHumanReadable(result.view.messages)
+                val output = formatter.toHumanReadable(result.value.messages)
                 echo(output)
             }
 
-            is FetchMessagesResult.Failure -> {
-                echo(result.message, err = true)
-                throw ProgramResult(result.exitCode)
+            is MessageResult.Failure -> {
+                echo(result.error.message, err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }

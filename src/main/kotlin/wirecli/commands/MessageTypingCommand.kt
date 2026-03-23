@@ -7,8 +7,8 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.long
 import wirecli.auth.ExitCodes
+import wirecli.message.MessageResult
 import wirecli.message.MessageService
-import wirecli.message.SendTypingResult
 import wirecli.message.TypingStatus
 
 class MessageTypingCommand(
@@ -62,10 +62,10 @@ class MessageTypingCommand(
         echo("Typing stopped.")
     }
 
-    private fun sendOrExit(result: SendTypingResult) {
-        if (result is SendTypingResult.Failure) {
-            echo(result.message, err = true)
-            throw ProgramResult(result.exitCode)
+    private fun sendOrExit(result: MessageResult<Unit>) {
+        if (result is MessageResult.Failure) {
+            echo(result.error.message, err = true)
+            throw ProgramResult(result.error.exitCode)
         }
     }
 

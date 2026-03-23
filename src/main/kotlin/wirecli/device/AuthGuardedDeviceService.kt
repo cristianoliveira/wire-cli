@@ -1,8 +1,8 @@
 package wirecli.device
 
-import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
 import wirecli.shared.DeviceError
+import wirecli.shared.Result
 
 class AuthGuardedDeviceService(
     private val authSessionService: AuthSessionService,
@@ -10,9 +10,9 @@ class AuthGuardedDeviceService(
 ) : DeviceService {
     override fun listCurrentDevices(): DeviceResult<DeviceListView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.listCurrentDevices()
-            is AuthResult.Failure ->
-                DeviceResult.Failure(
+            is Result.Success -> delegate.listCurrentDevices()
+            is Result.Failure ->
+                Result.Failure(
                     error = DeviceError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -23,9 +23,9 @@ class AuthGuardedDeviceService(
 
     override fun listDevicesForUser(userId: String): DeviceResult<DeviceListView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.listDevicesForUser(userId)
-            is AuthResult.Failure ->
-                DeviceResult.Failure(
+            is Result.Success -> delegate.listDevicesForUser(userId)
+            is Result.Failure ->
+                Result.Failure(
                     error = DeviceError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -36,9 +36,9 @@ class AuthGuardedDeviceService(
 
     override fun getDetail(deviceId: String): DeviceResult<DeviceDetailView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.getDetail(deviceId)
-            is AuthResult.Failure ->
-                DeviceResult.Failure(
+            is Result.Success -> delegate.getDetail(deviceId)
+            is Result.Failure ->
+                Result.Failure(
                     error = DeviceError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -52,9 +52,9 @@ class AuthGuardedDeviceService(
         password: String?,
     ): DeviceResult<String> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.remove(deviceId, password)
-            is AuthResult.Failure ->
-                DeviceResult.Failure(
+            is Result.Success -> delegate.remove(deviceId, password)
+            is Result.Failure ->
+                Result.Failure(
                     error = DeviceError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -65,9 +65,9 @@ class AuthGuardedDeviceService(
 
     override fun verify(deviceId: String): DeviceResult<String> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.verify(deviceId)
-            is AuthResult.Failure ->
-                DeviceResult.Failure(
+            is Result.Success -> delegate.verify(deviceId)
+            is Result.Failure ->
+                Result.Failure(
                     error = DeviceError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,

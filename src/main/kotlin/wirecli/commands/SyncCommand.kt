@@ -7,12 +7,13 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
 import wirecli.auth.ExitCodes
+import wirecli.shared.Result
+import wirecli.shared.SyncError
 import wirecli.sync.DiagnosticsReport
-import wirecli.sync.DiagnosticsResult
 import wirecli.sync.SyncExitCodes
 import wirecli.sync.SyncOutputFormatter
 import wirecli.sync.SyncService
-import wirecli.sync.SyncStatusResult
+import wirecli.sync.SyncStatusView
 import wirecli.validation.InputValidator
 
 class SyncCommand(
@@ -62,15 +63,15 @@ class SyncCommand(
         }
     }
 
-    private fun outputSyncStatusResult(result: SyncStatusResult) {
+    private fun outputSyncStatusResult(result: Result<SyncStatusView, SyncError>) {
         when (result) {
-            is SyncStatusResult.Success -> {
+            is Result.Success -> {
                 echo(SyncOutputFormatter.formatStatusHuman(result))
-                throw ProgramResult(getExitCodeForStatus(result.view.status.value))
+                throw ProgramResult(getExitCodeForStatus(result.value.status.value))
             }
-            is SyncStatusResult.Failure -> {
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+            is Result.Failure -> {
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }
@@ -103,13 +104,13 @@ private class DoctorSyncCommand(
             }
 
         when (result) {
-            is SyncStatusResult.Success -> {
+            is Result.Success -> {
                 echo(SyncOutputFormatter.formatStatusHuman(result))
-                throw ProgramResult(getExitCodeForStatus(result.view.status.value))
+                throw ProgramResult(getExitCodeForStatus(result.value.status.value))
             }
-            is SyncStatusResult.Failure -> {
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+            is Result.Failure -> {
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }
@@ -185,13 +186,13 @@ private class SyncStatusCommand(
             }
 
         when (result) {
-            is SyncStatusResult.Success -> {
+            is Result.Success -> {
                 echo(output)
-                throw ProgramResult(getExitCodeForStatus(result.view.status.value))
+                throw ProgramResult(getExitCodeForStatus(result.value.status.value))
             }
-            is SyncStatusResult.Failure -> {
+            is Result.Failure -> {
                 echo(AuthRedactor.redact(output), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }
@@ -210,13 +211,13 @@ private class SyncStatusCommand(
             }
 
         when (result) {
-            is DiagnosticsResult.Success -> {
+            is Result.Success -> {
                 echo(output)
-                throw ProgramResult(getExitCodeForDiagnosticsReport(result.report))
+                throw ProgramResult(getExitCodeForDiagnosticsReport(result.value))
             }
-            is DiagnosticsResult.Failure -> {
+            is Result.Failure -> {
                 echo(AuthRedactor.redact(output), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }
@@ -286,13 +287,13 @@ private class DoctorDiagnoseCommand(
             }
 
         when (result) {
-            is DiagnosticsResult.Success -> {
+            is Result.Success -> {
                 echo(output)
-                throw ProgramResult(getExitCodeForDiagnosticsReport(result.report))
+                throw ProgramResult(getExitCodeForDiagnosticsReport(result.value))
             }
-            is DiagnosticsResult.Failure -> {
+            is Result.Failure -> {
                 echo(AuthRedactor.redact(output), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }

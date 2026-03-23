@@ -6,8 +6,8 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
+import wirecli.device.DeviceResult
 import wirecli.device.DeviceService
-import wirecli.device.DeviceVerifyResult
 
 class DeviceVerifyCommand(
     private val deviceServiceProvider: () -> DeviceService,
@@ -19,30 +19,29 @@ class DeviceVerifyCommand(
         val validatedDeviceId = validateDeviceIdOrExit(deviceId)
         val deviceService = deviceServiceProvider()
         when (val result = deviceService.verify(validatedDeviceId)) {
-            is DeviceVerifyResult.Success -> {
+            is DeviceResult.Success -> {
                 if (json) {
-                    outputAsJson(result)
+                    outputAsJson(result.value)
                 } else {
-                    outputAsText(result)
+                    outputAsText(result.value)
                 }
             }
 
-            is DeviceVerifyResult.Failure -> {
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+            is DeviceResult.Failure -> {
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }
 
-    private fun outputAsText(result: DeviceVerifyResult.Success) {
-        echo(result.message)
-        echo("Fingerprint: ${result.fingerprint}")
+    private fun outputAsText(fingerprint: String) {
+        echo("Device verified successfully.")
+        echo("Fingerprint: $fingerprint")
     }
 
-    private fun outputAsJson(result: DeviceVerifyResult.Success) {
-        val fingerprint = escapeJson(result.fingerprint)
-        val message = escapeJson(result.message)
-        val json = "{\"message\":\"$message\",\"fingerprint\":\"$fingerprint\"}"
+    private fun outputAsJson(fingerprint: String) {
+        val escapedFingerprint = escapeJson(fingerprint)
+        val json = "{\"message\":\"Device verified successfully.\",\"fingerprint\":\"$escapedFingerprint\"}"
         echo(json)
     }
 

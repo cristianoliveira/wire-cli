@@ -5,8 +5,8 @@ import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
 import io.github.oshai.kotlinlogging.KotlinLogging
+import wirecli.message.MessageResult
 import wirecli.message.MessageService
-import wirecli.message.SendMessageResult
 
 private val logger = KotlinLogging.logger {}
 
@@ -79,17 +79,17 @@ class MessageSendCommand(
         val messageService = messageServiceProvider()
         val result = messageService.sendMessage(validatedConversation, validatedMessage)
         when (result) {
-            is SendMessageResult.Success -> {
+            is MessageResult.Success -> {
                 logger.info { "message-send outcome=success conversationId=$validatedConversation" }
                 echo("Message sent.")
             }
 
-            is SendMessageResult.Failure -> {
+            is MessageResult.Failure -> {
                 logger.warn {
-                    "message-send outcome=failure conversationId=$validatedConversation exitCode=${result.exitCode} message=${result.message}"
+                    "message-send outcome=failure conversationId=$validatedConversation exitCode=${result.error.exitCode} message=${result.error.message}"
                 }
-                echo(result.message, err = true)
-                throw ProgramResult(result.exitCode)
+                echo(result.error.message, err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }

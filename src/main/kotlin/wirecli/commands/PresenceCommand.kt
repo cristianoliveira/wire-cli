@@ -49,72 +49,9 @@ class PresenceCommand(
                 echo(result.presence.state.value)
             }
             is PresenceResult.Failure -> {
-                logger.warn { "Failed to retrieve presence: ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
-            }
-        }
-    }
-}
-
-private class PresenceGetCommand(
-    private val presenceServiceProvider: () -> PresenceService,
-) : CliktCommand(name = "get", help = "Get current user presence.") {
-    private val conversationId by option("--conversation-id", help = "Optional conversation ID (UUID)")
-
-    override fun run() {
-        if (conversationId != null) {
-            validateConversationIdOrExit(conversationId!!)
-        }
-
-        logger.info { "Presence get command started" }
-        val presenceService = presenceServiceProvider()
-        when (val result = presenceService.getCurrentPresence()) {
-            is PresenceResult.Success -> {
-                logger.info { "Presence retrieved successfully: ${result.presence.state}" }
-                echo(result.presence.state.value)
-            }
-            is PresenceResult.Failure -> {
-                logger.warn { "Failed to retrieve presence: ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
-            }
-        }
-    }
-}
-
-private class PresenceSetCommand(
-    private val presenceServiceProvider: () -> PresenceService,
-) : CliktCommand(name = "set", help = "Set current user presence.") {
-    private val conversationId by option("--conversation-id", help = "Optional conversation ID (UUID)")
-    private val status by argument(name = "status", help = "online|busy|away|offline")
-
-    override fun run() {
-        if (conversationId != null) {
-            validateConversationIdOrExit(conversationId!!)
-        }
-
-        logger.info { "Presence set command started: status=$status" }
-        val presenceService = presenceServiceProvider()
-        val writableState = PresenceStatusContract.parseWritable(status)
-        if (writableState == null) {
-            logger.warn { "Invalid presence status requested: $status" }
-            echo(
-                "Invalid status '$status'. Allowed values: online, busy, away, offline.",
-                err = true,
-            )
-            throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-        }
-
-        when (val result = presenceService.setCurrentPresence(writableState)) {
-            is PresenceResult.Success -> {
-                logger.info { "Presence set successfully: ${result.presence.state}" }
-                echo(result.presence.state.value)
-            }
-            is PresenceResult.Failure -> {
-                logger.warn { "Failed to set presence: ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                logger.warn { "Failed to set presence: ${AuthRedactor.redact(result.error.message)}" }
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }

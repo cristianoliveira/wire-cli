@@ -14,6 +14,8 @@ import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
+import wirecli.shared.DeviceError
+import wirecli.shared.Result
 
 private val logger = KotlinLogging.logger {}
 
@@ -33,14 +35,14 @@ internal class RealKaliumDeviceApiClient(
      * Lists all devices registered to the current user.
      *
      * @param session The authenticated session for the current user
-     * @return DeviceListResult with list of devices or error details
-     * @throws Nothing - All errors wrapped in DeviceListResult
+     * @return DeviceResult with list of devices or error details
+     * @throws Nothing - All errors wrapped in DeviceResult
      *
      * @pre session must be valid and authenticated
      * @post Result is either Success with Device list or Failure with error code
      * @post Success result contains zero or more Device objects
      */
-    override fun listDevices(session: AuthSession): DeviceListResult {
+    override fun listDevices(session: AuthSession): DeviceResult<DeviceListView> {
         require(session.userId.isNotBlank()) { "List devices requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "List devices requires a non-blank session access token." }
 
@@ -64,8 +66,8 @@ internal class RealKaliumDeviceApiClient(
                 is DeviceStepResult.Success -> {
                     logger.info { "Successfully retrieved ${devices.value.size} device(s)" }
                     logger.debug { "Device list result: ${devices.value.map { it.id }}" }
-                    DeviceListResult.Success(
-                        view = DeviceListView(devices = devices.value),
+                    Result.Success(
+                        value = DeviceListView(devices = devices.value),
                     )
                 }
 
@@ -75,11 +77,11 @@ internal class RealKaliumDeviceApiClient(
                 }
             }
 
-        if (result is DeviceListResult.Success) {
-            check(result.view.devices.all { it.id.isNotBlank() }) {
+        if (result is Result.Success) {
+            check(result.value.devices.all { it.id.isNotBlank() }) {
                 "Device list success must only include devices with non-blank IDs."
             }
-            check(result.view.devices.all { it.fingerprint.isNotBlank() }) {
+            check(result.value.devices.all { it.fingerprint.isNotBlank() }) {
                 "Device list success must only include devices with non-blank fingerprints."
             }
         }
@@ -91,8 +93,8 @@ internal class RealKaliumDeviceApiClient(
      *
      * @param session The authenticated session (must have permission to view target user)
      * @param userId The qualified user ID to fetch devices for (format: value@domain)
-     * @return DeviceListResult with list of user's devices or error details
-     * @throws Nothing - All errors wrapped in DeviceListResult
+     * @return DeviceResult with list of user's devices or error details
+     * @throws Nothing - All errors wrapped in DeviceResult
      *
      * @pre session must be valid and authenticated
      * @pre userId must be in qualified format (value@domain)
@@ -101,7 +103,7 @@ internal class RealKaliumDeviceApiClient(
     override fun listDevicesForUser(
         session: AuthSession,
         userId: String,
-    ): DeviceListResult {
+    ): DeviceResult<DeviceListView> {
         require(session.userId.isNotBlank()) { "List devices for user requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "List devices for user requires a non-blank session access token." }
         require(userId.isNotBlank()) { "List devices for user requires a non-blank target user ID." }
@@ -126,8 +128,8 @@ internal class RealKaliumDeviceApiClient(
                 is DeviceStepResult.Success -> {
                     logger.info { "Successfully retrieved ${devices.value.size} device(s) for user $userId" }
                     logger.debug { "Device list for user $userId: ${devices.value.map { it.id }}" }
-                    DeviceListResult.Success(
-                        view = DeviceListView(devices = devices.value),
+                    Result.Success(
+                        value = DeviceListView(devices = devices.value),
                     )
                 }
 
@@ -137,11 +139,11 @@ internal class RealKaliumDeviceApiClient(
                 }
             }
 
-        if (result is DeviceListResult.Success) {
-            check(result.view.devices.all { it.id.isNotBlank() }) {
+        if (result is Result.Success) {
+            check(result.value.devices.all { it.id.isNotBlank() }) {
                 "User device list success must only include devices with non-blank IDs."
             }
-            check(result.view.devices.all { it.lastActive.isNotBlank() }) {
+            check(result.value.devices.all { it.lastActive.isNotBlank() }) {
                 "User device list success must only include devices with non-blank lastActive values."
             }
         }
@@ -153,8 +155,8 @@ internal class RealKaliumDeviceApiClient(
      *
      * @param session The authenticated session
      * @param deviceId The ID of the device to fetch details for
-     * @return DeviceDetailResult with device details and key package status or error
-     * @throws Nothing - All errors wrapped in DeviceDetailResult
+     * @return DeviceResult with device details and key package status or error
+     * @throws Nothing - All errors wrapped in DeviceResult
      *
      * @pre session must be valid and authenticated
      * @pre deviceId must reference a device owned by session user or publicly queryable
@@ -164,7 +166,7 @@ internal class RealKaliumDeviceApiClient(
     override fun getDeviceDetail(
         session: AuthSession,
         deviceId: String,
-    ): DeviceDetailResult {
+    ): DeviceResult<DeviceDetailView> {
         require(session.userId.isNotBlank()) { "Get device detail requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "Get device detail requires a non-blank session access token." }
         require(deviceId.isNotBlank()) { "Get device detail requires a non-blank device ID." }
@@ -189,8 +191,8 @@ internal class RealKaliumDeviceApiClient(
                 is DeviceStepResult.Success -> {
                     logger.info { "Successfully retrieved device detail: ${device.value.id}" }
                     logger.debug { "Device type: ${device.value.type}, Last active: ${device.value.lastActive}" }
-                    DeviceDetailResult.Success(
-                        view =
+                    Result.Success(
+                        value =
                             DeviceDetailView(
                                 device = device.value,
                                 keyPackageStatus = KeyPackageStatus.VALID,
@@ -204,11 +206,11 @@ internal class RealKaliumDeviceApiClient(
                 }
             }
 
-        if (result is DeviceDetailResult.Success) {
-            check(result.view.device.id == deviceId) {
+        if (result is Result.Success) {
+            check(result.value.device.id == deviceId) {
                 "Device detail success must return the requested device ID."
             }
-            check(result.view.device.fingerprint.isNotBlank()) {
+            check(result.value.device.fingerprint.isNotBlank()) {
                 "Device detail success must include a non-blank fingerprint."
             }
         }
@@ -221,8 +223,8 @@ internal class RealKaliumDeviceApiClient(
      * @param session The authenticated session
      * @param deviceId The ID of the device to delete
      * @param password Optional password for re-authentication (may be required by server)
-     * @return DeviceDeleteResult with success message or error details
-     * @throws Nothing - All errors wrapped in DeviceDeleteResult
+     * @return DeviceResult with success message or error details
+     * @throws Nothing - All errors wrapped in DeviceResult
      *
      * @pre session must be valid and authenticated
      * @pre deviceId must reference a device owned by session user
@@ -234,7 +236,7 @@ internal class RealKaliumDeviceApiClient(
         session: AuthSession,
         deviceId: String,
         password: String?,
-    ): DeviceDeleteResult {
+    ): DeviceResult<String> {
         require(session.userId.isNotBlank()) { "Delete device requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "Delete device requires a non-blank session access token." }
         require(deviceId.isNotBlank()) { "Delete device requires a non-blank device ID." }
@@ -262,8 +264,8 @@ internal class RealKaliumDeviceApiClient(
             when (val deleteResult = runtime.deleteDevice(sessionScope, deviceId, password)) {
                 is DeviceStepResult.Success -> {
                     logger.info { "Device deleted successfully: $deviceId" }
-                    DeviceDeleteResult.Success(
-                        message = "Device deleted successfully.",
+                    Result.Success(
+                        value = "Device deleted successfully.",
                     )
                 }
 
@@ -274,14 +276,14 @@ internal class RealKaliumDeviceApiClient(
             }
 
         when (result) {
-            is DeviceDeleteResult.Success -> {
-                check(result.message.isNotBlank()) {
+            is Result.Success -> {
+                check(result.value.isNotBlank()) {
                     "Delete device success must provide a non-blank confirmation message."
                 }
             }
 
-            is DeviceDeleteResult.Failure -> {
-                check(result.exitCode > 0) {
+            is Result.Failure -> {
+                check(result.error.exitCode > 0) {
                     "Delete device failure must include a positive exit code."
                 }
             }
@@ -294,8 +296,8 @@ internal class RealKaliumDeviceApiClient(
      *
      * @param session The authenticated session
      * @param deviceId The ID of the device to verify
-     * @return DeviceVerifyResult with success message and fingerprint or error details
-     * @throws Nothing - All errors wrapped in DeviceVerifyResult
+     * @return DeviceResult with success message and fingerprint or error details
+     * @throws Nothing - All errors wrapped in DeviceResult
      *
      * @pre session must be valid and authenticated
      * @pre deviceId must reference a device owned by session user or publicly queryable
@@ -304,7 +306,7 @@ internal class RealKaliumDeviceApiClient(
     override fun verifyDevice(
         session: AuthSession,
         deviceId: String,
-    ): DeviceVerifyResult {
+    ): DeviceResult<String> {
         require(session.userId.isNotBlank()) { "Verify device requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "Verify device requires a non-blank session access token." }
         require(deviceId.isNotBlank()) { "Verify device requires a non-blank device ID." }
@@ -329,9 +331,8 @@ internal class RealKaliumDeviceApiClient(
                 is DeviceStepResult.Success -> {
                     logger.info { "Device verified successfully: ${device.value.id}" }
                     logger.debug { "Fingerprint verified for device: ${device.value.id}" }
-                    DeviceVerifyResult.Success(
-                        message = "Device verified successfully.",
-                        fingerprint = device.value.fingerprint,
+                    Result.Success(
+                        value = device.value.fingerprint,
                     )
                 }
 
@@ -342,14 +343,14 @@ internal class RealKaliumDeviceApiClient(
             }
 
         when (result) {
-            is DeviceVerifyResult.Success -> {
-                check(result.fingerprint.isNotBlank()) {
+            is Result.Success -> {
+                check(result.value.isNotBlank()) {
                     "Verify device success must include a non-blank fingerprint."
                 }
             }
 
-            is DeviceVerifyResult.Failure -> {
-                check(result.exitCode > 0) {
+            is Result.Failure -> {
+                check(result.error.exitCode > 0) {
                     "Verify device failure must include a positive exit code."
                 }
             }
@@ -891,7 +892,7 @@ private fun String.toQualifiedIdOrNull(): UserId? {
     return UserId(value = value, domain = domain)
 }
 
-private fun DeviceStepResult.Failure.toDeviceFailure(): DeviceListResult.Failure {
+private fun DeviceStepResult.Failure.toDeviceFailure(): Result.Failure<DeviceError> {
     val message =
         when (category) {
             DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
@@ -914,10 +915,12 @@ private fun DeviceStepResult.Failure.toDeviceFailure(): DeviceListResult.Failure
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
-    return DeviceListResult.Failure(message = message, exitCode = exitCode)
+    return Result.Failure(
+        error = DeviceError(message = message, exitCode = exitCode),
+    )
 }
 
-private fun DeviceStepResult.Failure.toDeviceDetailFailure(): DeviceDetailResult.Failure {
+private fun DeviceStepResult.Failure.toDeviceDetailFailure(): Result.Failure<DeviceError> {
     val message =
         when (category) {
             DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
@@ -940,10 +943,12 @@ private fun DeviceStepResult.Failure.toDeviceDetailFailure(): DeviceDetailResult
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
-    return DeviceDetailResult.Failure(message = message, exitCode = exitCode)
+    return Result.Failure(
+        error = DeviceError(message = message, exitCode = exitCode),
+    )
 }
 
-private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult.Failure {
+private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): Result.Failure<DeviceError> {
     val message =
         when (category) {
             DeviceFailureCategory.NETWORK -> DeviceMessages.DELETE_NETWORK_FAILURE
@@ -966,10 +971,12 @@ private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
-    return DeviceDeleteResult.Failure(message = message, exitCode = exitCode)
+    return Result.Failure(
+        error = DeviceError(message = message, exitCode = exitCode),
+    )
 }
 
-private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): DeviceVerifyResult.Failure {
+private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): Result.Failure<DeviceError> {
     val message =
         when (category) {
             DeviceFailureCategory.NETWORK -> DeviceMessages.VERIFY_NETWORK_FAILURE
@@ -992,5 +999,7 @@ private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): DeviceVerifyResult
             DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
-    return DeviceVerifyResult.Failure(message = message, exitCode = exitCode)
+    return Result.Failure(
+        error = DeviceError(message = message, exitCode = exitCode),
+    )
 }

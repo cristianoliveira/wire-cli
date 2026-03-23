@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
+import wirecli.device.DeviceDetailView
 import wirecli.device.DeviceResult
 import wirecli.device.DeviceService
 
@@ -20,11 +21,11 @@ class DeviceInfoCommand(
         val deviceService = deviceServiceProvider()
         when (val result = deviceService.getDetail(validatedDeviceId)) {
             is DeviceResult.Success -> {
-                val device = result.value.device
+                val view = result.value
                 if (json) {
-                    outputAsJson(device, result.value.keyPackageStatus.toString())
+                    outputAsJson(view)
                 } else {
-                    outputAsText(device, result.value.keyPackageStatus.toString())
+                    outputAsText(view)
                 }
             }
 
@@ -35,15 +36,13 @@ class DeviceInfoCommand(
         }
     }
 
-    private fun outputAsText(
-        device: wirecli.device.Device,
-        keyPackageStatus: String,
-    ) {
+    private fun outputAsText(view: DeviceDetailView) {
+        val device = view.device
         echo("ID: ${device.id}")
         echo("Type: ${device.type}")
         echo("Fingerprint: ${device.fingerprint}")
         echo("Last Active: ${device.lastActive}")
-        echo("Key Package Status: $keyPackageStatus")
+        echo("Key Package Status: ${view.keyPackageStatus}")
         if (device.label != null) {
             echo("Label: ${device.label}")
         }
@@ -62,10 +61,8 @@ class DeviceInfoCommand(
         }
     }
 
-    private fun outputAsJson(
-        device: wirecli.device.Device,
-        keyPackageStatus: String,
-    ) {
+    private fun outputAsJson(view: DeviceDetailView) {
+        val device = view.device
         val id = escapeJson(device.id)
         val type = escapeJson(device.type.toString())
         val fingerprint = escapeJson(device.fingerprint)
@@ -87,7 +84,7 @@ class DeviceInfoCommand(
   "type": "$type",
   "fingerprint": "$fingerprint",
   "lastActive": "$lastActive",
-  "keyPackageStatus": "$keyPackageStatus",
+  "keyPackageStatus": "${view.keyPackageStatus}",
   "label": $labelJson,
   "model": $modelJson,
   "registrationTime": $registrationTimeJson,

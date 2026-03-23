@@ -34,9 +34,9 @@ class ProfileCommand(
             }
 
             is ProfileResult.Failure -> {
-                logger.warn { "Failed to retrieve profile: ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                logger.warn { "Failed to retrieve profile: ${AuthRedactor.redact(result.error.message)}" }
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }

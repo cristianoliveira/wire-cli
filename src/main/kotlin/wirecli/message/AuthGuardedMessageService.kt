@@ -1,8 +1,8 @@
 package wirecli.message
 
-import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
 import wirecli.shared.MessageError
+import wirecli.shared.Result
 
 class AuthGuardedMessageService(
     private val authSessionService: AuthSessionService,
@@ -13,9 +13,9 @@ class AuthGuardedMessageService(
         text: String,
     ): MessageResult<Unit> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.sendMessage(conversationId, text)
-            is AuthResult.Failure ->
-                MessageResult.Failure(
+            is Result.Success -> delegate.sendMessage(conversationId, text)
+            is Result.Failure ->
+                Result.Failure(
                     error = MessageError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -26,9 +26,9 @@ class AuthGuardedMessageService(
 
     override fun fetchMessages(conversationId: String): MessageResult<FetchMessagesView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.fetchMessages(conversationId)
-            is AuthResult.Failure ->
-                MessageResult.Failure(
+            is Result.Success -> delegate.fetchMessages(conversationId)
+            is Result.Failure ->
+                Result.Failure(
                     error = MessageError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -42,9 +42,9 @@ class AuthGuardedMessageService(
         status: TypingStatus,
     ): MessageResult<Unit> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.sendTypingStatus(conversationId, status)
-            is AuthResult.Failure ->
-                MessageResult.Failure(
+            is Result.Success -> delegate.sendTypingStatus(conversationId, status)
+            is Result.Failure ->
+                Result.Failure(
                     error = MessageError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,

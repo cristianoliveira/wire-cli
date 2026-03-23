@@ -19,8 +19,10 @@ import com.wire.kalium.logic.feature.server.GetServerConfigResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
-import wirecli.runtime.KaliumCliMode
-import wirecli.runtime.kaliumCliConfigs
+import wirecli.auth.AuthResult
+import wirecli.auth.AuthSession
+import wirecli.shared.AuthError
+import wirecli.shared.Result
 
 private val logger = KotlinLogging.logger {}
 
@@ -40,7 +42,7 @@ internal class RealKaliumAuthClient(
      * Authenticates a user with email and password against a Wire backend.
      *
      * @param input Login credentials and server configuration
-     * @return AuthApiResult.Success with authenticated session if successful; AuthApiResult.Failure with error details otherwise
+     * @return Result.Success with authenticated session if successful; Result.Failure with error details otherwise
      * @throws Nothing - All errors are wrapped in AuthApiResult
      *
      * @pre input.email must be non-null and non-empty
@@ -48,10 +50,10 @@ internal class RealKaliumAuthClient(
      * @post result is either Success with valid AuthSession or Failure with appropriate error code
      * @post If Success, returned session has non-null userId and accessToken
      *
-     * @see AuthApiResult.Success
-     * @see AuthApiResult.Failure
+     * @see Result.Success
+     * @see Result.Failure
      */
-    override fun login(input: LoginInput): AuthApiResult {
+    override fun login(input: LoginInput): AuthApiResult<AuthSession> {
         require(input.email.isNotBlank()) { "Login email must not be blank." }
         require(input.password.isNotBlank()) { "Login password must not be blank." }
 
@@ -61,11 +63,11 @@ internal class RealKaliumAuthClient(
                 is AuthStepResult.Failure -> authScope.toAuthFailure(action = "Authentication")
             }
 
-        if (result is AuthApiResult.Success) {
-            check(result.session.userId.isNotBlank()) {
+        if (result is Result.Success) {
+            check(result.value.userId.isNotBlank()) {
                 "Authentication success must include a non-blank user ID."
             }
-            check(result.session.accessToken.isNotBlank()) {
+            check(result.value.accessToken.isNotBlank()) {
                 "Authentication success must include a non-blank access token."
             }
         }
@@ -76,7 +78,7 @@ internal class RealKaliumAuthClient(
      * Logs out the currently authenticated user, invalidating their session.
      *
      * @param session The authenticated session to logout (must be valid and active)
-     * @return AuthApiResult.Success if logout completed successfully; AuthApiResult.Failure with error details otherwise
+     * @return Result.Success if logout completed successfully; Result.Failure with error details otherwise
      * @throws Nothing - All errors are wrapped in AuthApiResult
      *
      * @pre session must be non-null with valid userId and accessToken
@@ -84,28 +86,17 @@ internal class RealKaliumAuthClient(
      * @post result is either Success (even if logout already happened) or Failure with error details
      * @post If Success, the session tokens are invalidated on the server
      *
-     * @see AuthApiResult.Success
-     * @see AuthApiResult.Failure
+     * @see Result.Success
+     * @see Result.Failure
      */
-    override fun logout(session: AuthSession): AuthApiResult {
+    override fun logout(session: AuthSession): AuthApiResult<String> {
         require(session.userId.isNotBlank()) { "Logout session user ID must not be blank." }
         require(session.accessToken.isNotBlank()) { "Logout session access token must not be blank." }
 
-        val result =
-            when (val logoutResult = runtime.logout(session)) {
-                is AuthStepResult.Success -> AuthApiResult.Success(session)
-                is AuthStepResult.Failure -> logoutResult.toAuthFailure(action = "Logout")
-            }
-
-        if (result is AuthApiResult.Success) {
-            check(result.session.userId == session.userId) {
-                "Logout success must preserve the original session user ID."
-            }
-            check(result.session.accessToken.isNotBlank()) {
-                "Logout success must preserve a non-blank access token."
-            }
+        return when (val logoutResult = runtime.logout(session)) {
+            is AuthStepResult.Success -> Result.Success(value = session.userId)
+            is AuthStepResult.Failure -> logoutResult.toAuthFailure(action = "Logout")
         }
-        return result
     }
 
     /**
@@ -117,12 +108,12 @@ internal class RealKaliumAuthClient(
      *
      * @pre input must have non-null email and password
      * @pre authScope must be properly initialized and functional
-     * @post Returns either AuthApiResult.Success or AuthApiResult.Failure
+     * @post Returns either Result.Success or Result.Failure
      */
     private fun continueLogin(
         input: LoginInput,
         authScope: KaliumAuthScope,
-    ): AuthApiResult {
+    ): AuthApiResult<AuthSession> {
         return when (val login = authScope.login(input.email, input.password)) {
             is AuthStepResult.Success -> persistAuthenticatedAccount(input, login.value)
             is AuthStepResult.Failure -> login.toAuthFailure(action = "Authentication")
@@ -144,7 +135,7 @@ internal class RealKaliumAuthClient(
     private fun persistAuthenticatedAccount(
         input: LoginInput,
         success: AuthenticatedPrincipal,
-    ): AuthApiResult {
+    ): AuthApiResult<AuthSession> {
         return when (
             val persistence =
                 runtime.addAuthenticatedAccount(
@@ -187,7 +178,7 @@ internal class RealKaliumAuthClient(
     private fun bootstrapSession(
         input: LoginInput,
         success: AuthenticatedPrincipal,
-    ): AuthApiResult {
+    ): AuthApiResult<AuthSession> {
         val sessionScope =
             when (val sessionResult = runtime.resolveSessionScope(success.userId)) {
                 is AuthStepResult.Success -> sessionResult.value
@@ -201,7 +192,7 @@ internal class RealKaliumAuthClient(
 
         return when (val clientResult = runtime.ensureClient(sessionScope, input.password)) {
             is AuthStepResult.Success ->
-                AuthApiResult.Success(
+                Result.Success(
                     session =
                         AuthSession(
                             userId = success.userId,
@@ -1042,14 +1033,14 @@ private fun String.toQualifiedIdOrNull(): UserId? {
 private fun UserId.serialize(): String = "$value@$domain"
 
 /**
- * Converts an AuthStepResult.Failure to an AuthApiResult.Failure with appropriate messaging.
+ * Converts an AuthStepResult.Failure to an Result.Failure with appropriate messaging.
  *
  * Maps failure categories to user-facing messages and exit codes.
  *
  * @receiver The failure result to convert
  * @param action The action being performed (used in error messages)
  * @param defaultMessage Optional message override for specific failure categories
- * @return AuthApiResult.Failure with message and exit code
+ * @return Result.Failure with message and exit code
  *
  * @pre action must be non-null and non-empty
  * @post Result contains appropriate user-facing message and exit code
@@ -1057,7 +1048,7 @@ private fun UserId.serialize(): String = "$value@$domain"
 private fun AuthStepResult.Failure.toAuthFailure(
     action: String,
     defaultMessage: String? = null,
-): AuthApiResult.Failure {
+): Result.Failure {
     val resolvedMessage =
         message ?: defaultMessage ?: when (category) {
             AuthFailureCategory.INVALID_CREDENTIALS -> AuthMessages.invalidCredentials()
@@ -1080,8 +1071,10 @@ private fun AuthStepResult.Failure.toAuthFailure(
             AuthFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
-    return AuthApiResult.Failure(
-        message = AuthRedactor.redact(resolvedMessage),
-        exitCode = exitCode,
+    return Result.Failure(
+        error = AuthError(
+            message = AuthRedactor.redact(resolvedMessage),
+            exitCode = exitCode,
+        ),
     )
 }

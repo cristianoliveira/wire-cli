@@ -4,16 +4,18 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import wirecli.shared.MessageError
+import wirecli.shared.Result
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * Real Kalium-backed implementation of the message API client.
+ * Real Kalium-backed implementation of message API client.
  *
- * This delegates message sending operations to the Kalium SDK via RealKaliumMessageRuntime.
+ * This delegates message sending operations to Kalium SDK via RealKaliumMessageRuntime.
  *
  * @invariant runtime is never null and properly initialized
- * @invariant All public methods return non-null SendMessageResult
+ * @invariant All public methods return non-null MessageResult
  */
 internal class RealKaliumMessageApiClient(
     private val runtime: RealKaliumMessageRuntime,
@@ -22,7 +24,7 @@ internal class RealKaliumMessageApiClient(
         session: AuthSession,
         conversationId: String,
         text: String,
-    ): SendMessageResult {
+    ): MessageResult<Unit> {
         logger.info {
             "message-send api start: conversationId=$conversationId, userId=${session.userId}, textLength=${text.length}"
         }
@@ -30,7 +32,7 @@ internal class RealKaliumMessageApiClient(
         return when (val result = runtime.sendMessage(session, conversationId, text)) {
             is MessageStepResult.Success -> {
                 logger.info { "message-send api outcome=success conversationId=$conversationId" }
-                SendMessageResult.Success
+                Result.Success(value = Unit)
             }
 
             is MessageStepResult.Failure -> {
@@ -63,7 +65,7 @@ internal class RealKaliumMessageApiClient(
                         "conversationId=$conversationId"
                 }
                 logger.warn { "message-send api outcome=failure conversationId=$conversationId message=$message" }
-                SendMessageResult.Failure(message = message, exitCode = exitCode)
+                Result.Failure(error = MessageError(message = message, exitCode = exitCode))
             }
         }
     }
@@ -71,11 +73,11 @@ internal class RealKaliumMessageApiClient(
     override fun fetchMessages(
         session: AuthSession,
         conversationId: String,
-    ): FetchMessagesResult {
+    ): MessageResult<FetchMessagesView> {
         return when (val result = runtime.fetchMessages(session, conversationId)) {
             is MessageStepResult.Success ->
-                FetchMessagesResult.Success(
-                    view =
+                Result.Success(
+                    value =
                         FetchMessagesView(
                             conversationId = conversationId,
                             messages = result.value,
@@ -107,7 +109,7 @@ internal class RealKaliumMessageApiClient(
                             MessageUserMessages.FETCH_UNKNOWN_ERROR to ExitCodes.UNKNOWN_ERROR
                     }
 
-                FetchMessagesResult.Failure(message = message, exitCode = exitCode)
+                Result.Failure(error = MessageError(message = message, exitCode = exitCode))
             }
         }
     }
@@ -116,9 +118,9 @@ internal class RealKaliumMessageApiClient(
         session: AuthSession,
         conversationId: String,
         status: TypingStatus,
-    ): SendTypingResult {
+    ): MessageResult<Unit> {
         return when (val result = runtime.sendTypingStatus(session, conversationId, status)) {
-            is MessageStepResult.Success -> SendTypingResult.Success
+            is MessageStepResult.Success -> Result.Success(Unit)
 
             is MessageStepResult.Failure -> {
                 val (message, exitCode) =
@@ -145,7 +147,7 @@ internal class RealKaliumMessageApiClient(
                             MessageUserMessages.TYPING_UNKNOWN_ERROR to ExitCodes.UNKNOWN_ERROR
                     }
 
-                SendTypingResult.Failure(message = message, exitCode = exitCode)
+                Result.Failure(error = MessageError(message = message, exitCode = exitCode))
             }
         }
     }

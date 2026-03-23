@@ -1,8 +1,8 @@
 package wirecli.presence
 
-import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
 import wirecli.shared.PresenceError
+import wirecli.shared.Result
 
 class AuthGuardedPresenceService(
     private val authSessionService: AuthSessionService,
@@ -10,9 +10,9 @@ class AuthGuardedPresenceService(
 ) : PresenceService {
     override fun getCurrentPresence(): PresenceResult<PresenceView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.getCurrentPresence()
-            is AuthResult.Failure ->
-                PresenceResult.Failure(
+            is Result.Success -> delegate.getCurrentPresence()
+            is Result.Failure ->
+                Result.Failure(
                     error = PresenceError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -23,9 +23,9 @@ class AuthGuardedPresenceService(
 
     override fun setCurrentPresence(state: WritablePresenceState): PresenceResult<PresenceView> {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.setCurrentPresence(state)
-            is AuthResult.Failure ->
-                PresenceResult.Failure(
+            is Result.Success -> delegate.setCurrentPresence(state)
+            is Result.Failure ->
+                Result.Failure(
                     error = PresenceError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,

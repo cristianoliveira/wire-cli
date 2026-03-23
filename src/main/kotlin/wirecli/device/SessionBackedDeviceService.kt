@@ -5,6 +5,7 @@ import wirecli.auth.AuthMessages
 import wirecli.auth.ExitCodes
 import wirecli.auth.SessionProvider
 import wirecli.shared.DeviceError
+import wirecli.shared.Result
 
 private val logger = KotlinLogging.logger {}
 
@@ -17,7 +18,7 @@ class SessionBackedDeviceService(
 
         val session =
             sessionStore.readActiveSession()
-                ?: return DeviceResult.Failure(
+                ?: return Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.noActiveSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -27,8 +28,8 @@ class SessionBackedDeviceService(
         logger.debug { "Active session found, calling API client" }
         return apiClient.listDevices(session).also { result ->
             when (result) {
-                is DeviceResult.Success -> logger.info { "Service: Successfully listed ${result.value.devices.size} device(s)" }
-                is DeviceResult.Failure -> logger.warn { "Service: Failed to list devices - ${result.error.message}" }
+                is Result.Success -> logger.info { "Service: Successfully listed ${result.value.devices.size} device(s)" }
+                is Result.Failure -> logger.warn { "Service: Failed to list devices - ${result.error.message}" }
             }
         }
     }
@@ -38,7 +39,7 @@ class SessionBackedDeviceService(
 
         val session =
             sessionStore.readActiveSession()
-                ?: return DeviceResult.Failure(
+                ?: return Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.noActiveSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -48,8 +49,8 @@ class SessionBackedDeviceService(
         logger.debug { "Active session found, calling API client for user $userId" }
         return apiClient.listDevicesForUser(session, userId).also { result ->
             when (result) {
-                is DeviceResult.Success -> logger.info { "Service: Successfully listed ${result.value.devices.size} device(s)" }
-                is DeviceResult.Failure -> logger.warn { "Service: Failed to list devices for user $userId" }
+                is Result.Success -> logger.info { "Service: Successfully listed ${result.value.devices.size} device(s)" }
+                is Result.Failure -> logger.warn { "Service: Failed to list devices for user $userId" }
             }
         }
     }
@@ -59,7 +60,7 @@ class SessionBackedDeviceService(
 
         val session =
             sessionStore.readActiveSession()
-                ?: return DeviceResult.Failure(
+                ?: return Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.noActiveSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -69,8 +70,8 @@ class SessionBackedDeviceService(
         logger.debug { "Active session found, calling API client for device $deviceId" }
         return apiClient.getDeviceDetail(session, deviceId).also { result ->
             when (result) {
-                is DeviceResult.Success -> logger.info { "Service: Retrieved detail for device ${result.value.device.id}" }
-                is DeviceResult.Failure -> logger.warn { "Service: Failed to get detail for device $deviceId" }
+                is Result.Success -> logger.info { "Service: Retrieved detail for device ${result.value.device.id}" }
+                is Result.Failure -> logger.warn { "Service: Failed to get detail for device $deviceId" }
             }
         }
     }
@@ -84,7 +85,7 @@ class SessionBackedDeviceService(
 
         val session =
             sessionStore.readActiveSession()
-                ?: return DeviceResult.Failure(
+                ?: return Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.noActiveSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -94,8 +95,8 @@ class SessionBackedDeviceService(
         logger.debug { "Active session found, calling API client to delete device $deviceId" }
         return apiClient.deleteDevice(session, deviceId, password).also { result ->
             when (result) {
-                is DeviceResult.Success -> logger.info { "Service: Deleted device $deviceId" }
-                is DeviceResult.Failure -> logger.warn { "Service: Failed to delete device $deviceId" }
+                is Result.Success -> logger.info { "Service: Deleted device $deviceId" }
+                is Result.Failure -> logger.warn { "Service: Failed to delete device $deviceId" }
             }
         }
     }
@@ -105,7 +106,7 @@ class SessionBackedDeviceService(
 
         val session =
             sessionStore.readActiveSession()
-                ?: return DeviceResult.Failure(
+                ?: return Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.noActiveSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -115,8 +116,8 @@ class SessionBackedDeviceService(
         logger.debug { "Active session found, calling API client to verify device $deviceId" }
         return apiClient.verifyDevice(session, deviceId).also { result ->
             when (result) {
-                is DeviceResult.Success -> logger.info { "Service: Successfully verified device $deviceId" }
-                is DeviceResult.Failure -> logger.warn { "Service: Failed to verify device $deviceId" }
+                is Result.Success -> logger.info { "Service: Successfully verified device $deviceId" }
+                is Result.Failure -> logger.warn { "Service: Failed to verify device $deviceId" }
             }
         }
     }

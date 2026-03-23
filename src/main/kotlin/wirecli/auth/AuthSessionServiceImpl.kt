@@ -2,6 +2,7 @@ package wirecli.auth
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.shared.AuthError
+import wirecli.shared.Result
 
 private val logger = KotlinLogging.logger {}
 
@@ -9,20 +10,20 @@ class AuthSessionServiceImpl(
     private val apiClient: AuthApiClient,
     private val sessionStore: AuthSessionStore,
 ) : AuthSessionService {
-    override fun login(input: LoginInput): AuthResult {
+    override fun login(input: LoginInput): AuthResult<String> {
         logger.debug { "Login process starting for email: ${input.email}" }
 
         return when (val loginResult = apiClient.login(input)) {
-            is AuthApiResult.Success -> {
+            is Result.Success -> {
                 logger.debug { "Authentication API call succeeded - attempting to persist session" }
                 try {
                     logger.debug { "Writing active session to store for userId: ${loginResult.value.userId}" }
                     sessionStore.writeActiveSession(loginResult.value)
                     logger.info { "Session persisted successfully for email: ${input.email}" }
-                    AuthResult.Success("Login successful.")
+                    Result.Success(value = "Login successful.")
                 } catch (e: RuntimeException) {
                     logger.error(e) { "Session write failed during login - session data not persisted" }
-                    AuthResult.Failure(
+                    Result.Failure(
                         error = AuthError(
                             message = "Login succeeded, but local session could not be saved. Try again.",
                             exitCode = ExitCodes.SERVER_ERROR,
@@ -31,14 +32,14 @@ class AuthSessionServiceImpl(
                 }
             }
 
-            is AuthApiResult.Failure -> {
+            is Result.Failure -> {
                 logger.warn { "Authentication API failed: ${AuthRedactor.redact(loginResult.error.message)}" }
-                AuthResult.Failure(loginResult.error)
+                Result.Failure(error = loginResult.error)
             }
         }
     }
 
-    override fun logout(): AuthResult {
+    override fun logout(): AuthResult<String> {
         logger.debug { "Logout process starting" }
 
         val inventory = sessionStore.readSessionInventory()
@@ -50,23 +51,25 @@ class AuthSessionServiceImpl(
             inventory.activeSession
                 ?: run {
                     logger.warn { "Logout failed - no active session found" }
-                    return AuthResult.Failure(
-                        message = missingSessionMessage(inventory),
-                        exitCode = ExitCodes.UNAUTHORIZED,
+                    return Result.Failure(
+                        error = AuthError(
+                            message = missingSessionMessage(inventory),
+                            exitCode = ExitCodes.UNAUTHORIZED,
+                        ),
                     )
                 }
 
         logger.debug { "Found active session for userId: ${session.userId} - calling API logout" }
         return when (val logoutResult = apiClient.logout(session)) {
-            is AuthApiResult.Success -> {
+            is Result.Success -> {
                 logger.debug { "Logout API call succeeded - clearing local session" }
                 try {
                     sessionStore.clearActiveSession()
                     logger.info { "Local session cleared successfully" }
-                    AuthResult.Success("Logged out.")
+                    Result.Success(value = "Logged out.")
                 } catch (e: RuntimeException) {
                     logger.error(e) { "Session cleanup failed during logout - remote session cleared but local session remains" }
-                    AuthResult.Failure(
+                    Result.Failure(
                         error = AuthError(
                             message = "Logout completed remotely, but local session cleanup failed.",
                             exitCode = ExitCodes.SERVER_ERROR,
@@ -75,14 +78,14 @@ class AuthSessionServiceImpl(
                 }
             }
 
-            is AuthApiResult.Failure -> {
+            is Result.Failure -> {
                 logger.warn { "Logout API failed: ${AuthRedactor.redact(logoutResult.error.message)}" }
-                AuthResult.Failure(logoutResult.error)
+                Result.Failure(error = logoutResult.error)
             }
         }
     }
 
-    override fun requireActiveSession(): AuthResult {
+    override fun requireActiveSession(): AuthResult<String> {
         logger.debug { "Checking for active session requirement" }
 
         val inventory = sessionStore.readSessionInventory()
@@ -92,7 +95,7 @@ class AuthSessionServiceImpl(
 
         return if (inventory.activeSession == null) {
             logger.warn { "Active session requirement failed - no valid session found" }
-            AuthResult.Failure(
+            Result.Failure(
                 error = AuthError(
                     message = missingSessionMessage(inventory),
                     exitCode = ExitCodes.UNAUTHORIZED,
@@ -100,7 +103,7 @@ class AuthSessionServiceImpl(
             )
         } else {
             logger.debug { "Active session available - requirement satisfied" }
-            AuthResult.Success("Active session available.")
+            Result.Success(value = "Active session available.")
         }
     }
 
@@ -117,12 +120,12 @@ class AuthSessionServiceImpl(
 class StubAuthApiClient(
     private val environment: Map<String, String>,
 ) : AuthApiClient {
-    override fun login(input: LoginInput): AuthApiResult {
+    override fun login(input: LoginInput): AuthApiResult<AuthSession> {
         val mode = environment["WIRE_STUB_MODE"]
 
         return when (mode) {
             "login_ok" ->
-                AuthApiResult.Success(
+                Result.Success(
                     value =
                         AuthSession(
                             userId = "user-jane",
@@ -132,7 +135,7 @@ class StubAuthApiClient(
                 )
 
             "login_invalid" ->
-                AuthApiResult.Failure(
+                Result.Failure(
                     error = AuthError(
                         message = AuthMessages.invalidCredentials(),
                         exitCode = ExitCodes.AUTH_FAILED,
@@ -140,7 +143,7 @@ class StubAuthApiClient(
                 )
 
             "login_network_error" ->
-                AuthApiResult.Failure(
+                Result.Failure(
                     error = AuthError(
                         message = AuthMessages.networkFailure("Authentication"),
                         exitCode = ExitCodes.NETWORK_ERROR,
@@ -148,7 +151,7 @@ class StubAuthApiClient(
                 )
 
             "login_secret_failure" ->
-                AuthApiResult.Failure(
+                Result.Failure(
                     error = AuthError(
                         message = "Authentication failed: token=abc123 password=super-secret",
                         exitCode = ExitCodes.AUTH_FAILED,
@@ -156,7 +159,7 @@ class StubAuthApiClient(
                 )
 
             else ->
-                AuthApiResult.Failure(
+                Result.Failure(
                     error = AuthError(
                         message = AuthMessages.authServiceUnavailable(),
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -166,6 +169,6 @@ class StubAuthApiClient(
     }
 
     override fun logout(session: AuthSession): AuthApiResult<String> {
-        return AuthApiResult.Success(value = session.userId)
+        return Result.Success(value = session.userId)
     }
 }

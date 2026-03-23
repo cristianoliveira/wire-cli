@@ -7,6 +7,12 @@ import wirecli.shared.MessageError
 // Type aliases for module-specific Result types
 typealias MessageResult<T> = Result<T, MessageError>
 
+// Legacy type aliases for backward compatibility during migration
+// TODO: Remove these after full migration to MessageResult<T>
+typealias SendMessageResult = MessageResult<Unit>
+typealias FetchMessagesResult = MessageResult<FetchMessagesView>
+typealias SendTypingResult = MessageResult<Unit>
+
 enum class TypingStatus {
     STARTED,
     STOPPED,
@@ -60,7 +66,7 @@ interface MessageService {
         conversationId: String,
         status: TypingStatus,
     ): MessageResult<Unit> =
-        MessageResult.Failure(
+        Result.Failure(
             error = MessageError(
                 message = MessageUserMessages.TYPING_UNSUPPORTED,
                 exitCode = MessageExitCodes.SERVER_ERROR,

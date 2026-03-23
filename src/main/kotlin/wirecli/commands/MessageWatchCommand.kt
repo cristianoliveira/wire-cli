@@ -5,7 +5,7 @@ import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.ExitCodes
-import wirecli.message.FetchMessagesResult
+import wirecli.message.MessageResult
 import wirecli.message.MessageService
 import wirecli.message.MessageUserMessages
 import kotlin.math.min
@@ -52,42 +52,42 @@ class MessageWatchCommand(
 
         while (keepWatching()) {
             when (val fetchResult = messageService.fetchMessages(validatedConversationId)) {
-                is FetchMessagesResult.Success -> {
+                is MessageResult.Success -> {
                     if (!hasBaselineSnapshot) {
-                        fetchResult.view.messages.forEach { knownMessageIds += it.id }
+                        fetchResult.value.messages.forEach { knownMessageIds += it.id }
                         hasBaselineSnapshot = true
                     } else {
-                        val newMessages = fetchResult.view.messages.filter { it.id !in knownMessageIds }
-                        fetchResult.view.messages.forEach { knownMessageIds += it.id }
+                        val newMessages = fetchResult.value.messages.filter { it.id !in knownMessageIds }
+                        fetchResult.value.messages.forEach { knownMessageIds += it.id }
                         newMessages.forEach { echo(it.content) }
                     }
                     transientFailureCount = 0
                     sleep(pollIntervalMs)
                 }
 
-                is FetchMessagesResult.Failure -> {
+                is MessageResult.Failure -> {
                     if (isRetryableWatchFailure(fetchResult)) {
                         transientFailureCount += 1
                         val delayMs = calculateRetryDelayMs(transientFailureCount)
                         logger.warn {
-                            "Transient message watch fetch failure for conversationId=$validatedConversationId; retrying in ${delayMs}ms: ${fetchResult.message}"
+                            "Transient message watch fetch failure for conversationId=$validatedConversationId; retrying in ${delayMs}ms: ${fetchResult.error.message}"
                         }
-                        echo("${fetchResult.message}; retrying in ${delayMs}ms", err = true)
+                        echo("${fetchResult.error.message}; retrying in ${delayMs}ms", err = true)
                         sleep(delayMs)
                     } else {
-                        echo(fetchResult.message, err = true)
-                        throw ProgramResult(fetchResult.exitCode)
+                        echo(fetchResult.error.message, err = true)
+                        throw ProgramResult(fetchResult.error.exitCode)
                     }
                 }
             }
         }
     }
 
-    private fun isRetryableWatchFailure(result: FetchMessagesResult.Failure): Boolean {
-        if (result.exitCode == ExitCodes.UNAUTHORIZED) return false
-        if (result.exitCode == ExitCodes.VALIDATION_ERROR) return false
+    private fun isRetryableWatchFailure(result: MessageResult.Failure): Boolean {
+        if (result.error.exitCode == ExitCodes.UNAUTHORIZED) return false
+        if (result.error.exitCode == ExitCodes.VALIDATION_ERROR) return false
 
-        val normalizedMessage = result.message.lowercase()
+        val normalizedMessage = result.error.message.lowercase()
         if (normalizedMessage.contains(MessageUserMessages.CONVERSATION_NOT_FOUND)) return false
 
         return true

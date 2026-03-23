@@ -3,6 +3,7 @@ package wirecli.conversation
 import wirecli.auth.AuthResult
 import wirecli.auth.AuthSessionService
 import wirecli.shared.ConversationError
+import wirecli.shared.Result
 
 class AuthGuardedConversationService(
     private val authSessionService: AuthSessionService,
@@ -12,7 +13,7 @@ class AuthGuardedConversationService(
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.listConversations()
             is AuthResult.Failure ->
-                ConversationResult.Failure(
+                Result.Failure(
                     error = ConversationError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -25,7 +26,7 @@ class AuthGuardedConversationService(
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.getConversation(conversationId)
             is AuthResult.Failure ->
-                ConversationResult.Failure(
+                Result.Failure(
                     error = ConversationError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -41,7 +42,7 @@ class AuthGuardedConversationService(
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.createConversation(name, type)
             is AuthResult.Failure ->
-                ConversationResult.Failure(
+                Result.Failure(
                     error = ConversationError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -54,7 +55,7 @@ class AuthGuardedConversationService(
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.deleteConversation(conversationId)
             is AuthResult.Failure ->
-                ConversationResult.Failure(
+                Result.Failure(
                     error = ConversationError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,
@@ -67,7 +68,7 @@ class AuthGuardedConversationService(
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> delegate.getMemberCount(conversationId)
             is AuthResult.Failure ->
-                ConversationResult.Failure(
+                Result.Failure(
                     error = ConversationError(
                         message = authResult.error.message,
                         exitCode = authResult.error.exitCode,

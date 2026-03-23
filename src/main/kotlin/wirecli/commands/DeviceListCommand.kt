@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
+import wirecli.device.DeviceListView
 import wirecli.device.DeviceResult
 import wirecli.device.DeviceService
 
@@ -55,9 +56,9 @@ class DeviceListCommand(
         when (result) {
             is DeviceResult.Success -> {
                 when {
-                    jsonLines -> outputAsJsonLines(result)
-                    json -> outputAsJson(result)
-                    else -> outputAsTable(result)
+                    jsonLines -> outputAsJsonLines(result.value)
+                    json -> outputAsJson(result.value)
+                    else -> outputAsTable(result.value)
                 }
             }
 
@@ -71,13 +72,13 @@ class DeviceListCommand(
     /**
      * Outputs device list in human-readable table format.
      *
-     * @param result The successful device list result
+     * @param view The device list view
      *
      * @post Output includes header row and device rows with columns:
      *       ID | Type | Fingerprint | Last Active
      */
-    private fun outputAsTable(result: DeviceResult.Success<DeviceListView>) {
-        val devices = result.value.devices
+    private fun outputAsTable(view: DeviceListView) {
+        val devices = view.devices
         if (devices.isEmpty()) {
             echo("No devices found.")
             return
@@ -106,13 +107,13 @@ class DeviceListCommand(
      *
      * Format: {"devices": [{...}, {...}]}
      *
-     * @param result The successful device list result
+     * @param view The device list view
      *
      * @post Output is valid JSON with root object containing "devices" array
      * @post All string values are properly escaped for JSON
      */
-    private fun outputAsJson(result: DeviceResult.Success<DeviceListView>) {
-        val devices = result.value.devices
+    private fun outputAsJson(view: DeviceListView) {
+        val devices = view.devices
         val jsonDevices =
             devices
                 .map { device ->
@@ -128,13 +129,13 @@ class DeviceListCommand(
      *
      * Each line is a complete JSON object, suitable for streaming/piping.
      *
-     * @param result The successful device list result
+     * @param view The device list view
      *
      * @post Each output line is valid JSON representing one device
      * @post All string values are properly escaped for JSON
      */
-    private fun outputAsJsonLines(result: DeviceResult.Success<DeviceListView>) {
-        val devices = result.value.devices
+    private fun outputAsJsonLines(view: DeviceListView) {
+        val devices = view.devices
         for (device in devices) {
             echo(buildDeviceJsonObject(device))
         }

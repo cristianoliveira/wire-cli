@@ -4,6 +4,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthMessages
 import wirecli.auth.ExitCodes
 import wirecli.auth.SessionProvider
+import wirecli.shared.MessageError
+import wirecli.shared.Result
 
 private val logger = KotlinLogging.logger {}
 
@@ -15,14 +17,16 @@ class SessionBackedMessageService(
     override fun sendMessage(
         conversationId: String,
         text: String,
-    ): SendMessageResult {
+    ): MessageResult<Unit> {
         logger.debug { "Service operation: sendMessage(conversationId=$conversationId, textLength=${text.length}) started" }
 
         val session =
             sessionStore.readActiveSession()
-                ?: return SendMessageResult.Failure(
-                    message = AuthMessages.noActiveSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                ?: return Result.Failure(
+                    error = MessageError(
+                        message = AuthMessages.noActiveSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 ).also { logger.warn { "No active session found for sendMessage($conversationId)" } }
 
         logger.info {
@@ -31,24 +35,26 @@ class SessionBackedMessageService(
         logger.debug { "message-send forwarding to API client: textLength=${text.length}" }
         return apiClient.sendMessage(session, conversationId, text).also { result ->
             when (result) {
-                is SendMessageResult.Success ->
+                is Result.Success ->
                     logger.info { "message-send service outcome=success conversationId=$conversationId" }
-                is SendMessageResult.Failure ->
+                is Result.Failure ->
                     logger.warn {
-                        "message-send service outcome=failure conversationId=$conversationId exitCode=${result.exitCode}"
+                        "message-send service outcome=failure conversationId=$conversationId exitCode=${result.error.exitCode}"
                     }
             }
         }
     }
 
-    override fun fetchMessages(conversationId: String): FetchMessagesResult {
+    override fun fetchMessages(conversationId: String): MessageResult<FetchMessagesView> {
         logger.debug { "Service operation: fetchMessages(conversationId=$conversationId) started" }
 
         val session =
             sessionStore.readActiveSession()
-                ?: return FetchMessagesResult.Failure(
-                    message = AuthMessages.noActiveSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                ?: return Result.Failure(
+                    error = MessageError(
+                        message = AuthMessages.noActiveSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 ).also { logger.warn { "No active session found for fetchMessages($conversationId)" } }
 
         logger.info {
@@ -56,14 +62,14 @@ class SessionBackedMessageService(
         }
         return apiClient.fetchMessages(session, conversationId).also { result ->
             when (result) {
-                is FetchMessagesResult.Success ->
+                is Result.Success ->
                     logger.info {
-                        "message-fetch service outcome=success conversationId=$conversationId count=${result.view.messages.size}"
+                        "message-fetch service outcome=success conversationId=$conversationId count=${result.value.messages.size}"
                     }
 
-                is FetchMessagesResult.Failure ->
+                is Result.Failure ->
                     logger.warn {
-                        "message-fetch service outcome=failure conversationId=$conversationId exitCode=${result.exitCode}"
+                        "message-fetch service outcome=failure conversationId=$conversationId exitCode=${result.error.exitCode}"
                     }
             }
         }
@@ -72,11 +78,13 @@ class SessionBackedMessageService(
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,
-    ): SendTypingResult {
+    ): MessageResult<Unit> {
         if (typingApiClient == null) {
-            return SendTypingResult.Failure(
-                message = MessageUserMessages.TYPING_UNSUPPORTED,
-                exitCode = MessageExitCodes.SERVER_ERROR,
+            return Result.Failure(
+                error = MessageError(
+                    message = MessageUserMessages.TYPING_UNSUPPORTED,
+                    exitCode = MessageExitCodes.SERVER_ERROR,
+                ),
             )
         }
 
@@ -84,9 +92,11 @@ class SessionBackedMessageService(
 
         val session =
             sessionStore.readActiveSession()
-                ?: return SendTypingResult.Failure(
-                    message = AuthMessages.noActiveSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                ?: return Result.Failure(
+                    error = MessageError(
+                        message = AuthMessages.noActiveSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 ).also { logger.warn { "No active session found for sendTypingStatus($conversationId)" } }
 
         return typingApiClient.sendTypingStatus(session, conversationId, status)

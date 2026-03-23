@@ -15,6 +15,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import wirecli.auth.AuthSession
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
+import wirecli.shared.Result
+import wirecli.shared.SyncError
 import java.time.Instant
 
 private val logger = KotlinLogging.logger {}
@@ -28,20 +30,20 @@ private val logger = KotlinLogging.logger {}
 internal class RealKaliumSyncApiClient(
     private val runtime: RealKaliumSyncRuntime,
 ) : SyncApiClient {
-    override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+    override fun forceSyncAndWait(session: AuthSession): SyncResult<SyncStatusView> {
         require(session.userId.isNotBlank()) { "Force sync requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "Force sync requires a non-blank session access token." }
         logger.debug { "RealKaliumSyncApiClient: Delegating force sync request to runtime for user: ${session.userId}" }
         val result = runtime.forceSyncAndWait(session)
         when (result) {
-            is SyncStatusResult.Success -> {
-                check(result.view.metrics.timestamp.isNotBlank()) {
+            is Result.Success -> {
+                check(result.value.metrics.timestamp.isNotBlank()) {
                     "Force sync success must include a non-blank metrics timestamp."
                 }
             }
 
-            is SyncStatusResult.Failure -> {
-                check(result.exitCode > 0) {
+            is Result.Failure -> {
+                check(result.error.exitCode > 0) {
                     "Force sync failure must include a positive exit code."
                 }
             }
@@ -49,20 +51,20 @@ internal class RealKaliumSyncApiClient(
         return result
     }
 
-    override fun getSyncStatus(session: AuthSession): SyncStatusResult {
+    override fun getSyncStatus(session: AuthSession): SyncResult<SyncStatusView> {
         require(session.userId.isNotBlank()) { "Get sync status requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "Get sync status requires a non-blank session access token." }
         logger.debug { "RealKaliumSyncApiClient: Delegating sync status request to runtime for user: ${session.userId}" }
         val result = runtime.getSyncStatus(session)
         when (result) {
-            is SyncStatusResult.Success -> {
-                check(result.view.metrics.timestamp.isNotBlank()) {
+            is Result.Success -> {
+                check(result.value.metrics.timestamp.isNotBlank()) {
                     "Sync status success must include a non-blank metrics timestamp."
                 }
             }
 
-            is SyncStatusResult.Failure -> {
-                check(result.exitCode > 0) {
+            is Result.Failure -> {
+                check(result.error.exitCode > 0) {
                     "Sync status failure must include a positive exit code."
                 }
             }
@@ -70,20 +72,20 @@ internal class RealKaliumSyncApiClient(
         return result
     }
 
-    override fun getDiagnostics(session: AuthSession): DiagnosticsResult {
+    override fun getDiagnostics(session: AuthSession): SyncResult<DiagnosticsReport> {
         require(session.userId.isNotBlank()) { "Get diagnostics requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "Get diagnostics requires a non-blank session access token." }
         logger.debug { "RealKaliumSyncApiClient: Delegating diagnostics request to runtime for user: ${session.userId}" }
         val result = runtime.getDiagnostics(session)
         when (result) {
-            is DiagnosticsResult.Success -> {
-                check(result.report.summary.isNotBlank()) {
+            is Result.Success -> {
+                check(result.value.summary.isNotBlank()) {
                     "Diagnostics success must include a non-blank summary."
                 }
             }
 
-            is DiagnosticsResult.Failure -> {
-                check(result.exitCode > 0) {
+            is Result.Failure -> {
+                check(result.error.exitCode > 0) {
                     "Diagnostics failure must include a positive exit code."
                 }
             }
@@ -94,7 +96,7 @@ internal class RealKaliumSyncApiClient(
     override fun getConversationSyncStatus(
         session: AuthSession,
         conversationId: String,
-    ): ConversationSyncStatusResult {
+    ): SyncResult<ConversationSyncStatus> {
         require(session.userId.isNotBlank()) {
             "Conversation sync status requires a non-blank session user ID."
         }
@@ -110,14 +112,14 @@ internal class RealKaliumSyncApiClient(
         }
         val result = runtime.getConversationSyncStatus(session, conversationId)
         when (result) {
-            is ConversationSyncStatusResult.Success -> {
-                check(result.status.conversation_id == conversationId) {
+            is Result.Success -> {
+                check(result.value.conversation_id == conversationId) {
                     "Conversation sync status success must preserve the requested conversation ID."
                 }
             }
 
-            is ConversationSyncStatusResult.Failure -> {
-                check(result.exitCode > 0) {
+            is Result.Failure -> {
+                check(result.error.exitCode > 0) {
                     "Conversation sync status failure must include a positive exit code."
                 }
             }
@@ -128,7 +130,7 @@ internal class RealKaliumSyncApiClient(
     override fun getPerConversationDiagnostics(
         session: AuthSession,
         conversationId: String,
-    ): PerConversationDiagnosticsResult {
+    ): SyncResult<PerConversationDiagnosticsReport> {
         require(session.userId.isNotBlank()) {
             "Per-conversation diagnostics requires a non-blank session user ID."
         }
@@ -144,14 +146,14 @@ internal class RealKaliumSyncApiClient(
         }
         val result = runtime.getPerConversationDiagnostics(session, conversationId)
         when (result) {
-            is PerConversationDiagnosticsResult.Success -> {
-                check(result.report.conversation_id == conversationId) {
+            is Result.Success -> {
+                check(result.value.conversation_id == conversationId) {
                     "Per-conversation diagnostics success must preserve the requested conversation ID."
                 }
             }
 
-            is PerConversationDiagnosticsResult.Failure -> {
-                check(result.exitCode > 0) {
+            is Result.Failure -> {
+                check(result.error.exitCode > 0) {
                     "Per-conversation diagnostics failure must include a positive exit code."
                 }
             }
@@ -162,7 +164,7 @@ internal class RealKaliumSyncApiClient(
     override fun resetSync(
         session: AuthSession,
         force: Boolean,
-    ): ResetResult {
+    ): SyncResult<String> {
         require(session.userId.isNotBlank()) { "Reset sync requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "Reset sync requires a non-blank session access token." }
         logger.debug {
@@ -171,14 +173,14 @@ internal class RealKaliumSyncApiClient(
         }
         val result = runtime.resetSync(session, force)
         when (result) {
-            is ResetResult.Success -> {
-                check(result.message.isNotBlank()) {
+            is Result.Success -> {
+                check(result.value.isNotBlank()) {
                     "Reset sync success must include a non-blank message."
                 }
             }
 
-            is ResetResult.Failure -> {
-                check(result.exitCode > 0) {
+            is Result.Failure -> {
+                check(result.error.exitCode > 0) {
                     "Reset sync failure must include a positive exit code."
                 }
             }
@@ -194,29 +196,29 @@ internal class RealKaliumSyncApiClient(
  * real sync status and diagnostic information.
  */
 internal interface RealKaliumSyncRuntime {
-    fun forceSyncAndWait(session: AuthSession): SyncStatusResult
+    fun forceSyncAndWait(session: AuthSession): SyncResult<SyncStatusView>
 
     /**
      * Retrieves the current sync status and health metrics for an authenticated session.
      */
-    fun getSyncStatus(session: AuthSession): SyncStatusResult
+    fun getSyncStatus(session: AuthSession): SyncResult<SyncStatusView>
 
     /**
      * Retrieves diagnostic information about the sync engine.
      */
-    fun getDiagnostics(session: AuthSession): DiagnosticsResult
+    fun getDiagnostics(session: AuthSession): SyncResult<DiagnosticsReport>
 
     /**
      * Retrieves sync status for a specific conversation.
      *
      * @param session The authenticated session
-     * @param conversationId The ID of the conversation to query
+     * @param conversationId The ID of conversation to query
      * @return Sync status and metrics for the conversation
      */
     fun getConversationSyncStatus(
         session: AuthSession,
         conversationId: String,
-    ): ConversationSyncStatusResult
+    ): SyncResult<ConversationSyncStatus>
 
     /**
      * Retrieves detailed diagnostics for a conversation's sync status.
@@ -228,12 +230,12 @@ internal interface RealKaliumSyncRuntime {
     fun getPerConversationDiagnostics(
         session: AuthSession,
         conversationId: String,
-    ): PerConversationDiagnosticsResult
+    ): SyncResult<PerConversationDiagnosticsReport>
 
     fun resetSync(
         session: AuthSession,
         force: Boolean = false,
-    ): ResetResult
+    ): SyncResult<String>
 
     fun shutdown()
 }
@@ -276,7 +278,7 @@ internal class SdkKaliumSyncRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
-    override fun getSyncStatus(session: AuthSession): SyncStatusResult {
+    override fun getSyncStatus(session: AuthSession): SyncResult<SyncStatusView> {
         require(session.userId.isNotBlank()) { "Sync status requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Sync status requires a non-blank access token." }
 
@@ -285,9 +287,11 @@ internal class SdkKaliumSyncRuntime(
             session.userId.toQualifiedIdOrNull()
                 ?: run {
                     logger.warn { "Invalid user ID format: ${session.userId}" }
-                    return SyncStatusResult.Failure(
-                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
+                    return Result.Failure(
+                        error = SyncError(
+                            message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                            exitCode = SyncExitCodes.UNAUTHORIZED,
+                        ),
                     )
                 }
         activeSessionUserIds += qualifiedId
@@ -356,12 +360,14 @@ internal class SdkKaliumSyncRuntime(
 
                     val view = SyncStatusView(status = status, metrics = metrics)
                     logger.info { "Sync status retrieved successfully: status=$status, lag=${lagMs}ms" }
-                    SyncStatusResult.Success(view)
+                    Result.Success(view)
                 } catch (error: Throwable) {
                     logger.error(error) { "Failed to get sync status for user: $qualifiedId" }
-                    SyncStatusResult.Failure(
-                        message = categoryFromThrowableSync(error).getMessage(),
-                        exitCode = categoryFromThrowableSync(error).getExitCode(),
+                    Result.Failure(
+                        error = SyncError(
+                            message = categoryFromThrowableSync(error).getMessage(),
+                            exitCode = categoryFromThrowableSync(error).getExitCode(),
+                        ),
                     )
                 }
             }
@@ -369,15 +375,15 @@ internal class SdkKaliumSyncRuntime(
         check(activeSessionUserIds.contains(qualifiedId)) {
             "Sync status lookup must track active session user IDs for shutdown."
         }
-        if (result is SyncStatusResult.Success) {
-            check(result.view.metrics.lag_ms >= 0) {
+        if (result is Result.Success) {
+            check(result.value.metrics.lag_ms >= 0) {
                 "Sync status success must include a non-negative lag metric."
             }
         }
         return result
     }
 
-    override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
+    override fun forceSyncAndWait(session: AuthSession): SyncResult<SyncStatusView> {
         require(session.userId.isNotBlank()) { "Force sync requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Force sync requires a non-blank access token." }
 
@@ -386,9 +392,11 @@ internal class SdkKaliumSyncRuntime(
             session.userId.toQualifiedIdOrNull()
                 ?: run {
                     logger.warn { "Invalid user ID format for force sync: ${session.userId}" }
-                    return SyncStatusResult.Failure(
-                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
+                    return Result.Failure(
+                        error = SyncError(
+                            message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                            exitCode = SyncExitCodes.UNAUTHORIZED,
+                        ),
                     )
                 }
         activeSessionUserIds += qualifiedId
@@ -405,9 +413,11 @@ internal class SdkKaliumSyncRuntime(
                         }
 
                     if (syncResult == null) {
-                        return@runBlocking SyncStatusResult.Failure(
-                            message = "Timed out waiting for sync to reach live state after force sync.",
-                            exitCode = SyncExitCodes.DEGRADED,
+                        return@runBlocking Result.Failure(
+                            error = SyncError(
+                                message = "Timed out waiting for sync to reach live state after force sync.",
+                                exitCode = SyncExitCodes.DEGRADED,
+                            ),
                         )
                     }
 
@@ -438,33 +448,36 @@ internal class SdkKaliumSyncRuntime(
                             mls = buildMlsMetrics(syncState, keyPackageCountResult),
                         )
 
-                    SyncStatusResult.Success(
-                        SyncStatusView(
-                            status = mapSyncStateToStatus(syncState),
-                            metrics = metrics,
-                        ),
+                    Result.Success(
+                        value =
+                            SyncStatusView(
+                                status = mapSyncStateToStatus(syncState),
+                                metrics = metrics,
+                            ),
                     )
                 } catch (error: Throwable) {
                     logger.error(error) { "Failed to force sync and wait for user: $qualifiedId" }
-                    SyncStatusResult.Failure(
-                        message = categoryFromThrowableSync(error).getMessage(),
-                        exitCode = categoryFromThrowableSync(error).getExitCode(),
+                    Result.Failure(
+                        error = SyncError(
+                            message = categoryFromThrowableSync(error).getMessage(),
+                            exitCode = categoryFromThrowableSync(error).getExitCode(),
+                        ),
                     )
                 }
             }
 
         check(activeSessionUserIds.contains(qualifiedId)) {
-            "Force sync must track active session user IDs for shutdown."
+            "Force sync lookup must track active session user IDs for shutdown."
         }
-        if (result is SyncStatusResult.Success) {
-            check(result.view.metrics.timestamp.isNotBlank()) {
-                "Force sync success must include a non-blank metrics timestamp."
+        if (result is Result.Success) {
+            check(result.value.metrics.lag_ms >= 0) {
+                "Force sync success must include a non-negative lag metric."
             }
         }
         return result
     }
 
-    override fun getDiagnostics(session: AuthSession): DiagnosticsResult {
+    override fun getDiagnostics(session: AuthSession): SyncResult<DiagnosticsReport> {
         require(session.userId.isNotBlank()) { "Diagnostics requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Diagnostics requires a non-blank access token." }
 
@@ -473,9 +486,11 @@ internal class SdkKaliumSyncRuntime(
             session.userId.toQualifiedIdOrNull()
                 ?: run {
                     logger.warn { "Invalid user ID format for diagnostics: ${session.userId}" }
-                    return DiagnosticsResult.Failure(
-                        message = SyncExitMessages.DIAGNOSTICS_NETWORK_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
+                    return Result.Failure(
+                        error = SyncError(
+                            message = SyncExitMessages.DIAGNOSTICS_NETWORK_FAILURE,
+                            exitCode = SyncExitCodes.UNAUTHORIZED,
+                        ),
                     )
                 }
         activeSessionUserIds += qualifiedId
@@ -527,27 +542,30 @@ internal class SdkKaliumSyncRuntime(
                     val summary = buildDiagnosticsSummary(checks)
                     logger.debug { "Diagnostics summary: $summary" }
 
-                    DiagnosticsResult.Success(
-                        DiagnosticsReport(
-                            checks = checks,
-                            summary = summary,
-                            recoveryHints = generateRecoveryHints(checks),
-                        ),
+                    Result.Success(
+                        value =
+                            DiagnosticsReport(
+                                checks = checks,
+                                summary = summary,
+                                recoveryHints = generateRecoveryHints(checks),
+                            ),
                     )
                 } catch (error: Throwable) {
                     logger.error(error) { "Failed to get diagnostics for user: $qualifiedId" }
-                    DiagnosticsResult.Failure(
-                        message = categoryFromThrowableSync(error).getDiagnosticsMessage(),
-                        exitCode = categoryFromThrowableSync(error).getExitCode(),
+                    Result.Failure(
+                        error = SyncError(
+                            message = categoryFromThrowableSync(error).getDiagnosticsMessage(),
+                            exitCode = categoryFromThrowableSync(error).getExitCode(),
+                        ),
                     )
                 }
             }
 
         check(activeSessionUserIds.contains(qualifiedId)) {
-            "Diagnostics lookup must track active session user IDs for shutdown."
+            "Diagnostics must track active session user IDs for shutdown."
         }
-        if (result is DiagnosticsResult.Success) {
-            check(result.report.summary.isNotBlank()) {
+        if (result is Result.Success) {
+            check(result.value.summary.isNotBlank()) {
                 "Diagnostics success must include a non-blank summary."
             }
         }
@@ -557,33 +575,48 @@ internal class SdkKaliumSyncRuntime(
     override fun getConversationSyncStatus(
         session: AuthSession,
         conversationId: String,
-    ): ConversationSyncStatusResult {
-        require(session.userId.isNotBlank()) { "Conversation sync status requires a non-blank user ID." }
-        require(session.accessToken.isNotBlank()) { "Conversation sync status requires a non-blank access token." }
-
-        logger.info { "SdkKaliumSyncRuntime: Getting conversation sync status for user: ${session.userId}, conversation: $conversationId" }
+    ): SyncResult<ConversationSyncStatus> {
+        require(session.userId.isNotBlank()) {
+            "Conversation sync status requires a non-blank user ID."
+        }
+        require(session.accessToken.isNotBlank()) {
+            "Conversation sync status requires a non-blank access token."
+        }
+        require(conversationId.isNotBlank()) {
+            "Conversation sync status requires a non-blank conversation ID."
+        }
+        logger.info {
+            "SdkKaliumSyncRuntime: Getting conversation sync status for user: ${session.userId}, conversation: $conversationId"
+        }
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: run {
-                    logger.warn { "Invalid user ID format for conversation sync status: ${session.userId}" }
-                    return ConversationSyncStatusResult.Failure(
-                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
+                    logger.warn { "Invalid user ID format: ${session.userId}" }
+                    return Result.Failure(
+                        error = SyncError(
+                            message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                            exitCode = SyncExitCodes.UNAUTHORIZED,
+                        ),
                     )
                 }
         activeSessionUserIds += qualifiedId
 
         if (conversationId.isBlank()) {
             logger.warn { "Empty conversation ID provided" }
-            return ConversationSyncStatusResult.Failure(
-                message = SyncExitMessages.CONVERSATION_NOT_FOUND,
-                exitCode = SyncExitCodes.DEGRADED,
+            return Result.Failure(
+                error = SyncError(
+                    message = SyncExitMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = SyncExitCodes.DEGRADED,
+                ),
             )
         }
 
         val result =
             runBlocking {
                 try {
+                    logger.debug {
+                        "Entering session scope to get conversation sync status for user: $qualifiedId, conversation: $conversationId"
+                    }
                     logger.debug { "Observing sync state for conversation: $conversationId" }
                     val syncState: SyncState? =
                         coreLogic.sessionScope(qualifiedId) {
@@ -601,12 +634,14 @@ internal class SdkKaliumSyncRuntime(
                     logger.debug { "Sync state for conversation: ${syncState::class.simpleName}" }
                     val view = buildConversationSyncStatusView(conversationId, syncState)
                     logger.info { "Conversation sync status retrieved: conversation=$conversationId, status=${view.status}" }
-                    ConversationSyncStatusResult.Success(view)
+                    Result.Success(value = view)
                 } catch (error: Throwable) {
                     logger.error(error) { "Failed to get conversation sync status for conversation: $conversationId" }
-                    ConversationSyncStatusResult.Failure(
-                        message = categoryFromThrowableSync(error).getConversationMessage(),
-                        exitCode = categoryFromThrowableSync(error).getExitCode(),
+                    Result.Failure(
+                        error = SyncError(
+                            message = categoryFromThrowableSync(error).getConversationMessage(),
+                            exitCode = categoryFromThrowableSync(error).getExitCode(),
+                        ),
                     )
                 }
             }
@@ -614,9 +649,9 @@ internal class SdkKaliumSyncRuntime(
         check(activeSessionUserIds.contains(qualifiedId)) {
             "Conversation sync lookup must track active session user IDs for shutdown."
         }
-        if (result is ConversationSyncStatusResult.Success) {
-            check(result.status.conversation_id == conversationId) {
-                "Conversation sync success must preserve the requested conversation ID."
+        if (result is Result.Success) {
+            check(result.value.conversation_id == conversationId) {
+                "Conversation sync success must preserve requested conversation ID."
             }
         }
         return result
@@ -625,7 +660,7 @@ internal class SdkKaliumSyncRuntime(
     override fun getPerConversationDiagnostics(
         session: AuthSession,
         conversationId: String,
-    ): PerConversationDiagnosticsResult {
+    ): SyncResult<PerConversationDiagnosticsReport> {
         require(session.userId.isNotBlank()) { "Per-conversation diagnostics requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Per-conversation diagnostics requires a non-blank access token." }
 
@@ -637,18 +672,22 @@ internal class SdkKaliumSyncRuntime(
             session.userId.toQualifiedIdOrNull()
                 ?: run {
                     logger.warn { "Invalid user ID format for conversation diagnostics: ${session.userId}" }
-                    return PerConversationDiagnosticsResult.Failure(
-                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
+                    return Result.Failure(
+                        error = SyncError(
+                            message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                            exitCode = SyncExitCodes.UNAUTHORIZED,
+                        ),
                     )
                 }
         activeSessionUserIds += qualifiedId
 
         if (conversationId.isBlank()) {
             logger.warn { "Empty conversation ID provided for diagnostics" }
-            return PerConversationDiagnosticsResult.Failure(
-                message = SyncExitMessages.CONVERSATION_NOT_FOUND,
-                exitCode = SyncExitCodes.DEGRADED,
+            return Result.Failure(
+                error = SyncError(
+                    message = SyncExitMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = SyncExitCodes.DEGRADED,
+                ),
             )
         }
 
@@ -678,19 +717,22 @@ internal class SdkKaliumSyncRuntime(
                     val summary = buildConversationSummary(checks)
                     logger.debug { "Conversation diagnostics summary: $summary" }
 
-                    PerConversationDiagnosticsResult.Success(
-                        PerConversationDiagnosticsReport(
-                            conversation_id = conversationId,
-                            checks = checks,
-                            summary = summary,
-                            recoveryHints = generateConversationRecoveryHints(checks, conversationId),
-                        ),
+                    Result.Success(
+                        value =
+                            PerConversationDiagnosticsReport(
+                                conversation_id = conversationId,
+                                checks = checks,
+                                summary = summary,
+                                recoveryHints = generateConversationRecoveryHints(checks, conversationId),
+                            ),
                     )
                 } catch (error: Throwable) {
                     logger.error(error) { "Failed to get conversation diagnostics for conversation: $conversationId" }
-                    PerConversationDiagnosticsResult.Failure(
-                        message = categoryFromThrowableSync(error).getConversationMessage(),
-                        exitCode = categoryFromThrowableSync(error).getExitCode(),
+                    Result.Failure(
+                        error = SyncError(
+                            message = categoryFromThrowableSync(error).getConversationMessage(),
+                            exitCode = categoryFromThrowableSync(error).getExitCode(),
+                        ),
                     )
                 }
             }
@@ -698,9 +740,9 @@ internal class SdkKaliumSyncRuntime(
         check(activeSessionUserIds.contains(qualifiedId)) {
             "Per-conversation diagnostics must track active session user IDs for shutdown."
         }
-        if (result is PerConversationDiagnosticsResult.Success) {
-            check(result.report.conversation_id == conversationId) {
-                "Per-conversation diagnostics success must preserve the requested conversation ID."
+        if (result is Result.Success) {
+            check(result.value.conversation_id == conversationId) {
+                "Per-conversation diagnostics success must preserve requested conversation ID."
             }
         }
         return result
@@ -709,7 +751,7 @@ internal class SdkKaliumSyncRuntime(
     override fun resetSync(
         session: AuthSession,
         force: Boolean,
-    ): ResetResult {
+    ): SyncResult<String> {
         require(session.userId.isNotBlank()) { "Reset sync requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Reset sync requires a non-blank access token." }
 
@@ -718,36 +760,40 @@ internal class SdkKaliumSyncRuntime(
             session.userId.toQualifiedIdOrNull()
                 ?: run {
                     logger.warn { "Invalid user ID format for sync reset: ${session.userId}" }
-                    return ResetResult.Failure(
-                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
+                    return Result.Failure(
+                        error = SyncError(
+                            message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                            exitCode = SyncExitCodes.UNAUTHORIZED,
+                        ),
                     )
                 }
 
         val result =
             try {
-                // Reset sync for the user session
-                // In a fully integrated system, this would trigger the Kalium SDK's sync reset
+                // Reset sync for user session
+                // In a fully integrated system, this would trigger Kalium SDK's sync reset
                 logger.debug { "Sync reset completed for user: $qualifiedId (force=$force)" }
-                ResetResult.Success(
-                    message = "Sync reset successful",
+                Result.Success(
+                    value = "Sync reset successful",
                 )
             } catch (error: Throwable) {
                 logger.error(error) { "Failed to reset sync for user: $qualifiedId" }
-                ResetResult.Failure(
-                    message = categoryFromThrowableSync(error).getMessage(),
-                    exitCode = categoryFromThrowableSync(error).getExitCode(),
+                Result.Failure(
+                    error = SyncError(
+                        message = categoryFromThrowableSync(error).getMessage(),
+                        exitCode = categoryFromThrowableSync(error).getExitCode(),
+                    ),
                 )
             }
         when (result) {
-            is ResetResult.Success -> {
-                check(result.message.isNotBlank()) {
+            is Result.Success -> {
+                check(result.value.isNotBlank()) {
                     "Reset sync success must provide a non-blank message."
                 }
             }
 
-            is ResetResult.Failure -> {
-                check(result.exitCode > 0) {
+            is Result.Failure -> {
+                check(result.error.exitCode > 0) {
                     "Reset sync failure must provide a positive exit code."
                 }
             }
@@ -1249,24 +1295,30 @@ internal class SdkKaliumSyncRuntime(
         }
     }
 
-    private fun mapSyncRequestFailure(error: CoreFailure): SyncStatusResult.Failure {
+    private fun mapSyncRequestFailure(error: CoreFailure): Result.Failure<SyncError> {
         return when (error) {
             is NetworkFailure.NoNetworkConnection ->
-                SyncStatusResult.Failure(
-                    message = SyncExitMessages.NETWORK_FAILURE,
-                    exitCode = SyncExitCodes.DEGRADED,
+                Result.Failure(
+                    error = SyncError(
+                        message = SyncExitMessages.NETWORK_FAILURE,
+                        exitCode = SyncExitCodes.DEGRADED,
+                    ),
                 )
 
             is NetworkFailure.ServerMiscommunication ->
-                SyncStatusResult.Failure(
-                    message = SyncExitMessages.SERVER_FAILURE,
-                    exitCode = SyncExitCodes.SERVER_ERROR,
+                Result.Failure(
+                    error = SyncError(
+                        message = SyncExitMessages.SERVER_FAILURE,
+                        exitCode = SyncExitCodes.SERVER_ERROR,
+                    ),
                 )
 
             else ->
-                SyncStatusResult.Failure(
-                    message = "Sync failed while waiting to become live: ${error::class.simpleName}.",
-                    exitCode = SyncExitCodes.DEGRADED,
+                Result.Failure(
+                    error = SyncError(
+                        message = "Sync failed while waiting to become live: ${error::class.simpleName}.",
+                        exitCode = SyncExitCodes.DEGRADED,
+                    ),
                 )
         }
     }

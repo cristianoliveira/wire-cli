@@ -6,8 +6,9 @@ import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.auth.SessionProvider
 import wirecli.presence.PresenceApiClient
-import wirecli.presence.PresenceResult
 import wirecli.presence.PresenceState
+import wirecli.shared.ProfileError
+import wirecli.shared.Result
 
 private val logger = KotlinLogging.logger {}
 
@@ -17,38 +18,40 @@ class SessionBackedProfileService(
     private val presenceApiClient: PresenceApiClient,
 ) : ProfileService {
     // TODO: Consider using SessionInventory for more detailed error messages when not guarded by AuthGuardedProfileService.
-    override fun getCurrentProfile(): ProfileResult {
+    override fun getCurrentProfile(): ProfileResult<ProfileView> {
         logger.debug { "SessionBackedProfileService: Retrieving current profile" }
         val session =
             sessionStore.readActiveSession()
                 ?: run {
                     logger.warn { "No active session found for profile retrieval" }
-                    return ProfileResult.Failure(
-                        message = AuthMessages.noActiveSession(),
-                        exitCode = ExitCodes.UNAUTHORIZED,
+                    return Result.Failure(
+                        error = ProfileError(
+                            message = AuthMessages.noActiveSession(),
+                            exitCode = ExitCodes.UNAUTHORIZED,
+                        ),
                     )
                 }
 
         return when (val profileResult = apiClient.fetchProfile(session)) {
-            is ProfileResult.Success -> {
+            is Result.Success -> {
                 val presence = resolvePresence(session)
                 logger.debug { "Profile retrieved successfully with presence: $presence" }
-                ProfileResult.Success(
-                    profile =
-                        profileResult.profile.copy(
+                Result.Success(
+                    value =
+                        profileResult.value.copy(
                             presence = presence,
                         ),
                 )
             }
 
-            is ProfileResult.Failure -> profileResult
+            is Result.Failure -> profileResult
         }
     }
 
     private fun resolvePresence(session: AuthSession): PresenceState {
         return when (val presenceResult = presenceApiClient.fetchPresence(session)) {
-            is PresenceResult.Success -> presenceResult.presence.state
-            is PresenceResult.Failure -> {
+            is Result.Success -> presenceResult.value.state
+            is Result.Failure -> {
                 logger.warn { "Failed to resolve presence for profile, using UNKNOWN" }
                 PresenceState.UNKNOWN
             }

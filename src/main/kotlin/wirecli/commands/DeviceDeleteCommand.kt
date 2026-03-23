@@ -6,8 +6,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
-import wirecli.auth.ExitCodes
-import wirecli.device.DeviceDeleteResult
+import wirecli.device.DeviceResult
 import wirecli.device.DeviceService
 
 class DeviceDeleteCommand(
@@ -59,13 +58,13 @@ class DeviceDeleteCommand(
 
         val deviceService = deviceServiceProvider()
         when (val result = deviceService.remove(validatedDeviceId, resolvedPassword)) {
-            is DeviceDeleteResult.Success -> {
-                echo(result.message)
+            is DeviceResult.Success -> {
+                echo(result.value)
             }
 
-            is DeviceDeleteResult.Failure -> {
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+            is DeviceResult.Failure -> {
+                echo(AuthRedactor.redact(result.error.message), err = true)
+                throw ProgramResult(result.error.exitCode)
             }
         }
     }

@@ -11,13 +11,15 @@ import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
+import wirecli.shared.ProfileError
+import wirecli.shared.Result
 
 private val logger = KotlinLogging.logger {}
 
 internal class RealKaliumProfileApiClient(
     private val runtime: RealKaliumProfileRuntime,
 ) : ProfileApiClient {
-    override fun fetchProfile(session: AuthSession): ProfileResult {
+    override fun fetchProfile(session: AuthSession): ProfileResult<ProfileView> {
         logger.debug { "RealKaliumProfileApiClient: Fetching profile for user: ${session.userId}" }
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session)) {
@@ -33,8 +35,8 @@ internal class RealKaliumProfileApiClient(
                 logger.info {
                     "Successfully retrieved profile: name=${selfUser.value.name}, email=${selfUser.value.email}, handle=${selfUser.value.handle}"
                 }
-                ProfileResult.Success(
-                    profile =
+                Result.Success(
+                    value =
                         ProfileView(
                             name = selfUser.value.name,
                             email = selfUser.value.email,
@@ -211,7 +213,7 @@ private fun String.toQualifiedIdOrNull(): UserId? {
     return UserId(value = value, domain = domain)
 }
 
-private fun ProfileStepResult.Failure.toProfileFailure(): ProfileResult.Failure {
+private fun ProfileStepResult.Failure.toProfileFailure(): Result.Failure<ProfileError> {
     val message =
         when (category) {
             ProfileFailureCategory.NETWORK -> "Profile fetch failed: network is unreachable. Check your connection and retry."
@@ -228,5 +230,5 @@ private fun ProfileStepResult.Failure.toProfileFailure(): ProfileResult.Failure 
             ProfileFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
-    return ProfileResult.Failure(message = message, exitCode = exitCode)
+    return Result.Failure(error = ProfileError(message = message, exitCode = exitCode))
 }

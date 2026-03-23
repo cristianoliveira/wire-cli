@@ -11,13 +11,15 @@ import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
+import wirecli.shared.PresenceError
+import wirecli.shared.Result
 
 private val logger = KotlinLogging.logger {}
 
 internal class RealKaliumPresenceApiClient(
     private val runtime: RealKaliumPresenceRuntime,
 ) : PresenceApiClient {
-    override fun fetchPresence(session: AuthSession): PresenceResult {
+    override fun fetchPresence(session: AuthSession): PresenceResult<PresenceView> {
         logger.debug { "RealKaliumPresenceApiClient: Fetching presence for user: ${session.userId}" }
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session)) {
@@ -32,8 +34,8 @@ internal class RealKaliumPresenceApiClient(
             is PresenceStepResult.Success -> {
                 val normalizedState = PresenceNormalizer.normalize(status.value.toWirePresenceRawValue())
                 logger.info { "Successfully retrieved presence: $normalizedState" }
-                PresenceResult.Success(
-                    presence =
+                Result.Success(
+                    value =
                         PresenceView(
                             state = normalizedState,
                         ),
@@ -50,7 +52,7 @@ internal class RealKaliumPresenceApiClient(
     override fun updatePresence(
         session: AuthSession,
         state: WritablePresenceState,
-    ): PresenceResult {
+    ): PresenceResult<PresenceView> {
         logger.info { "Updating presence to: $state for user: ${session.userId}" }
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session)) {
@@ -65,8 +67,8 @@ internal class RealKaliumPresenceApiClient(
             is PresenceStepResult.Success -> {
                 val normalizedState = PresenceNormalizer.normalize(state.value)
                 logger.info { "Presence updated successfully: $normalizedState" }
-                PresenceResult.Success(
-                    presence = PresenceView(state = normalizedState),
+                Result.Success(
+                    value = PresenceView(state = normalizedState),
                 )
             }
 
@@ -284,7 +286,7 @@ private fun String.toQualifiedIdOrNull(): UserId? {
     return UserId(value = value, domain = domain)
 }
 
-private fun PresenceStepResult.Failure.toPresenceFailure(): PresenceResult.Failure {
+private fun PresenceStepResult.Failure.toPresenceFailure(): Result.Failure<PresenceError> {
     val message =
         when (category) {
             PresenceFailureCategory.NETWORK -> PresenceMessages.NETWORK_FAILURE
@@ -301,10 +303,10 @@ private fun PresenceStepResult.Failure.toPresenceFailure(): PresenceResult.Failu
             PresenceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
-    return PresenceResult.Failure(message = message, exitCode = exitCode)
+    return Result.Failure(error = PresenceError(message = message, exitCode = exitCode))
 }
 
-private fun PresenceStepResult.Failure.toSetPresenceFailure(): PresenceResult.Failure {
+private fun PresenceStepResult.Failure.toSetPresenceFailure(): Result.Failure<PresenceError> {
     val message =
         when (category) {
             PresenceFailureCategory.NETWORK -> PresenceMessages.SET_NETWORK_FAILURE
@@ -321,5 +323,5 @@ private fun PresenceStepResult.Failure.toSetPresenceFailure(): PresenceResult.Fa
             PresenceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
 
-    return PresenceResult.Failure(message = message, exitCode = exitCode)
+    return Result.Failure(error = PresenceError(message = message, exitCode = exitCode))
 }

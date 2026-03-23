@@ -6,6 +6,8 @@ import kotlinx.datetime.Instant
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import wirecli.shared.ConversationError
+import wirecli.shared.Result
 import com.wire.kalium.logic.data.conversation.Conversation.Type as KaliumConversationType
 
 private val logger = KotlinLogging.logger {}
@@ -24,10 +26,11 @@ internal class RealKaliumConversationApiClient(
             is ConversationStepResult.Success -> {
                 logger.info { "Successfully retrieved ${result.value.size} conversation(s)" }
                 logger.debug { "Conversation types: ${result.value.map { it::class.simpleName }.groupingBy { it }.eachCount()}" }
-                ListConversationsResult.Success(
-                    ConversationListView(
-                        conversations = result.value.map { mapConversationDetailsToDomain(it) },
-                    ),
+                Result.Success(
+                    value =
+                        ConversationListView(
+                            conversations = result.value.map { mapConversationDetailsToDomain(it) },
+                        ),
                 )
             }
 
@@ -49,10 +52,11 @@ internal class RealKaliumConversationApiClient(
             is ConversationStepResult.Success -> {
                 logger.info { "Successfully retrieved conversation: $conversationId" }
                 logger.debug { "Conversation type: ${result.value::class.simpleName}" }
-                GetConversationResult.Success(
-                    ConversationDetailView(
-                        mapConversationDetailsToDomain(result.value),
-                    ),
+                Result.Success(
+                    value =
+                        ConversationDetailView(
+                            mapConversationDetailsToDomain(result.value),
+                        ),
                 )
             }
 
@@ -73,9 +77,12 @@ internal class RealKaliumConversationApiClient(
 
         // Note: Full creation requires more complex Kalium operations
         // For now, return not implemented
-        return CreateConversationResult.Failure(
-            message = "Conversation creation not yet implemented with real backend",
-            exitCode = ExitCodes.SERVER_ERROR,
+        return Result.Failure(
+            error =
+                ConversationError(
+                    message = "Conversation creation not yet implemented with real backend",
+                    exitCode = ExitCodes.SERVER_ERROR,
+                ),
         ).also { logger.warn { "Conversation creation not yet implemented with real backend" } }
     }
 
@@ -88,9 +95,12 @@ internal class RealKaliumConversationApiClient(
 
         // Note: Full deletion requires more complex Kalium operations
         // For now, return not implemented
-        return DeleteConversationResult.Failure(
-            message = "Conversation deletion not yet implemented with real backend",
-            exitCode = ExitCodes.SERVER_ERROR,
+        return Result.Failure(
+            error =
+                ConversationError(
+                    message = "Conversation deletion not yet implemented with real backend",
+                    exitCode = ExitCodes.SERVER_ERROR,
+                ),
         ).also { logger.warn { "Conversation deletion not yet implemented with real backend" } }
     }
 
@@ -208,54 +218,60 @@ internal class RealKaliumConversationApiClient(
 }
 
 // Extension functions for error handling
-private fun ConversationStepResult.Failure.toListConversationsFailure(): ListConversationsResult.Failure {
-    return ListConversationsResult.Failure(
-        message =
-            when (this.category) {
-                ConversationFailureCategory.UNAUTHORIZED ->
-                    AuthMessages.invalidOrExpiredSession()
+private fun ConversationStepResult.Failure.toListConversationsFailure(): Result.Failure<ConversationError> {
+    return Result.Failure(
+        error =
+            ConversationError(
+                message =
+                    when (this.category) {
+                        ConversationFailureCategory.UNAUTHORIZED ->
+                            AuthMessages.invalidOrExpiredSession()
 
-                ConversationFailureCategory.NETWORK ->
-                    ConversationMessages.NETWORK_FAILURE
+                        ConversationFailureCategory.NETWORK ->
+                            ConversationMessages.NETWORK_FAILURE
 
-                ConversationFailureCategory.NOT_FOUND ->
-                    ConversationMessages.CONVERSATION_NOT_FOUND
+                        ConversationFailureCategory.NOT_FOUND ->
+                            ConversationMessages.CONVERSATION_NOT_FOUND
 
-                else ->
-                    ConversationMessages.SERVER_FAILURE
-            },
-        exitCode =
-            when (this.category) {
-                ConversationFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-                ConversationFailureCategory.NETWORK -> ConversationExitCodes.NETWORK_ERROR
-                ConversationFailureCategory.NOT_FOUND -> ConversationExitCodes.NOT_FOUND
-                else -> ConversationExitCodes.SERVER_ERROR
-            },
+                        else ->
+                            ConversationMessages.SERVER_FAILURE
+                    },
+                exitCode =
+                    when (this.category) {
+                        ConversationFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+                        ConversationFailureCategory.NETWORK -> ConversationExitCodes.NETWORK_ERROR
+                        ConversationFailureCategory.NOT_FOUND -> ConversationExitCodes.NOT_FOUND
+                        else -> ConversationExitCodes.SERVER_ERROR
+                    },
+            ),
     )
 }
 
-private fun ConversationStepResult.Failure.toGetConversationFailure(): GetConversationResult.Failure {
-    return GetConversationResult.Failure(
-        message =
-            when (this.category) {
-                ConversationFailureCategory.UNAUTHORIZED ->
-                    AuthMessages.invalidOrExpiredSession()
+private fun ConversationStepResult.Failure.toGetConversationFailure(): Result.Failure<ConversationError> {
+    return Result.Failure(
+        error =
+            ConversationError(
+                message =
+                    when (this.category) {
+                        ConversationFailureCategory.UNAUTHORIZED ->
+                            AuthMessages.invalidOrExpiredSession()
 
-                ConversationFailureCategory.NETWORK ->
-                    ConversationMessages.NETWORK_FAILURE
+                        ConversationFailureCategory.NETWORK ->
+                            ConversationMessages.NETWORK_FAILURE
 
-                ConversationFailureCategory.NOT_FOUND ->
-                    ConversationMessages.CONVERSATION_NOT_FOUND
+                        ConversationFailureCategory.NOT_FOUND ->
+                            ConversationMessages.CONVERSATION_NOT_FOUND
 
-                else ->
-                    ConversationMessages.SERVER_FAILURE
-            },
-        exitCode =
-            when (this.category) {
-                ConversationFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-                ConversationFailureCategory.NETWORK -> ConversationExitCodes.NETWORK_ERROR
-                ConversationFailureCategory.NOT_FOUND -> ConversationExitCodes.NOT_FOUND
-                else -> ConversationExitCodes.SERVER_ERROR
-            },
+                        else ->
+                            ConversationMessages.SERVER_FAILURE
+                    },
+                exitCode =
+                    when (this.category) {
+                        ConversationFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+                        ConversationFailureCategory.NETWORK -> ConversationExitCodes.NETWORK_ERROR
+                        ConversationFailureCategory.NOT_FOUND -> ConversationExitCodes.NOT_FOUND
+                        else -> ConversationExitCodes.SERVER_ERROR
+                    },
+            ),
     )
 }

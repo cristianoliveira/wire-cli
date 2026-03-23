@@ -7,6 +7,12 @@ import wirecli.shared.ConversationError
 // Type aliases for module-specific Result types
 typealias ConversationResult<T> = Result<T, ConversationError>
 
+// Type aliases for specific conversation operations
+typealias ListConversationsResult = ConversationResult<ConversationListView>
+typealias GetConversationResult = ConversationResult<ConversationDetailView>
+typealias CreateConversationResult = ConversationResult<ConversationDetailView>
+typealias DeleteConversationResult = ConversationResult<String>
+
 // Enum for conversation types
 enum class ConversationType(val value: String) {
     ONE_TO_ONE("one_to_one"),

@@ -3,6 +3,8 @@ package wirecli.message
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import wirecli.shared.MessageError
+import wirecli.shared.Result
 
 enum class StubMode {
     SUCCESS,
@@ -33,39 +35,49 @@ class StubMessageApiClient(
         session: AuthSession,
         conversationId: String,
         text: String,
-    ): SendMessageResult {
+    ): MessageResult<Unit> {
         return when (mode) {
             StubMode.SUCCESS ->
-                SendMessageResult.Success
+                Result.Success(Unit)
 
             StubMode.UNAUTHORIZED ->
-                SendMessageResult.Failure(
-                    message = AuthMessages.invalidOrExpiredSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                Result.Failure(
+                    error = MessageError(
+                        message = AuthMessages.invalidOrExpiredSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 )
 
             StubMode.NETWORK_ERROR ->
-                SendMessageResult.Failure(
-                    message = MessageUserMessages.NETWORK_ERROR,
-                    exitCode = ExitCodes.NETWORK_ERROR,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.NETWORK_ERROR,
+                        exitCode = ExitCodes.NETWORK_ERROR,
+                    ),
                 )
 
             StubMode.SERVER_ERROR ->
-                SendMessageResult.Failure(
-                    message = MessageUserMessages.SERVER_ERROR,
-                    exitCode = ExitCodes.SERVER_ERROR,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.SERVER_ERROR,
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    ),
                 )
 
             StubMode.VALIDATION_ERROR ->
-                SendMessageResult.Failure(
-                    message = MessageUserMessages.VALIDATION_ERROR,
-                    exitCode = MessageExitCodes.VALIDATION_ERROR,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.VALIDATION_ERROR,
+                        exitCode = MessageExitCodes.VALIDATION_ERROR,
+                    ),
                 )
 
             StubMode.CONVERSATION_NOT_FOUND ->
-                SendMessageResult.Failure(
-                    message = MessageUserMessages.CONVERSATION_NOT_FOUND,
-                    exitCode = MessageExitCodes.NOT_FOUND,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.CONVERSATION_NOT_FOUND,
+                        exitCode = MessageExitCodes.NOT_FOUND,
+                    ),
                 )
         }
     }
@@ -73,60 +85,71 @@ class StubMessageApiClient(
     override fun fetchMessages(
         session: AuthSession,
         conversationId: String,
-    ): FetchMessagesResult {
+    ): MessageResult<FetchMessagesView> {
         return when (mode) {
             StubMode.SUCCESS ->
-                FetchMessagesResult.Success(
-                    FetchMessagesView(
-                        conversationId = conversationId,
-                        messages =
-                            listOf(
-                                ConversationMessage(
-                                    id = "msg-001",
-                                    senderId = "alice@example.com",
-                                    senderName = "Alice",
-                                    timestamp = "2026-03-20T10:00:00Z",
-                                    content = "Hello from stub",
+                Result.Success(
+                    value =
+                        FetchMessagesView(
+                            conversationId = conversationId,
+                            messages =
+                                listOf(
+                                    ConversationMessage(
+                                        id = "msg-001",
+                                        senderId = "alice@example.com",
+                                        senderName = "Alice",
+                                        timestamp = "2026-03-20T10:00:00Z",
+                                        content = "Hello from stub",
+                                    ),
+                                    ConversationMessage(
+                                        id = "msg-002",
+                                        senderId = "bob@example.com",
+                                        senderName = "Bob",
+                                        timestamp = "2026-03-20T10:01:00Z",
+                                        content = "Reply from stub",
+                                    ),
                                 ),
-                                ConversationMessage(
-                                    id = "msg-002",
-                                    senderId = "bob@example.com",
-                                    senderName = "Bob",
-                                    timestamp = "2026-03-20T10:01:00Z",
-                                    content = "Reply from stub",
-                                ),
-                            ),
                     ),
                 )
 
             StubMode.UNAUTHORIZED ->
-                FetchMessagesResult.Failure(
-                    message = AuthMessages.invalidOrExpiredSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                Result.Failure(
+                    error = MessageError(
+                        message = AuthMessages.invalidOrExpiredSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 )
 
             StubMode.NETWORK_ERROR ->
-                FetchMessagesResult.Failure(
-                    message = MessageUserMessages.FETCH_NETWORK_ERROR,
-                    exitCode = ExitCodes.NETWORK_ERROR,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.FETCH_NETWORK_ERROR,
+                        exitCode = ExitCodes.NETWORK_ERROR,
+                    ),
                 )
 
             StubMode.SERVER_ERROR ->
-                FetchMessagesResult.Failure(
-                    message = MessageUserMessages.FETCH_SERVER_ERROR,
-                    exitCode = ExitCodes.SERVER_ERROR,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.FETCH_SERVER_ERROR,
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    ),
                 )
 
             StubMode.VALIDATION_ERROR ->
-                FetchMessagesResult.Failure(
-                    message = MessageUserMessages.VALIDATION_ERROR,
-                    exitCode = MessageExitCodes.VALIDATION_ERROR,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.VALIDATION_ERROR,
+                        exitCode = MessageExitCodes.VALIDATION_ERROR,
+                    ),
                 )
 
             StubMode.CONVERSATION_NOT_FOUND ->
-                FetchMessagesResult.Failure(
-                    message = MessageUserMessages.CONVERSATION_NOT_FOUND,
-                    exitCode = MessageExitCodes.NOT_FOUND,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.CONVERSATION_NOT_FOUND,
+                        exitCode = MessageExitCodes.NOT_FOUND,
+                    ),
                 )
         }
     }
@@ -135,29 +158,35 @@ class StubMessageApiClient(
         session: AuthSession,
         conversationId: String,
         status: TypingStatus,
-    ): SendTypingResult {
+    ): MessageResult<Unit> {
         return when (mode) {
-            StubMode.SUCCESS -> SendTypingResult.Success
+            StubMode.SUCCESS -> Result.Success(value = Unit)
 
             StubMode.UNAUTHORIZED ->
-                SendTypingResult.Failure(
-                    message = AuthMessages.invalidOrExpiredSession(),
-                    exitCode = ExitCodes.UNAUTHORIZED,
+                Result.Failure(
+                    error = MessageError(
+                        message = AuthMessages.invalidOrExpiredSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    ),
                 )
 
             StubMode.NETWORK_ERROR ->
-                SendTypingResult.Failure(
-                    message = MessageUserMessages.TYPING_NETWORK_ERROR,
-                    exitCode = ExitCodes.NETWORK_ERROR,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.TYPING_NETWORK_ERROR,
+                        exitCode = ExitCodes.NETWORK_ERROR,
+                    ),
                 )
 
             StubMode.SERVER_ERROR,
             StubMode.VALIDATION_ERROR,
             StubMode.CONVERSATION_NOT_FOUND,
             ->
-                SendTypingResult.Failure(
-                    message = MessageUserMessages.TYPING_SERVER_ERROR,
-                    exitCode = ExitCodes.SERVER_ERROR,
+                Result.Failure(
+                    error = MessageError(
+                        message = MessageUserMessages.TYPING_SERVER_ERROR,
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    ),
                 )
         }
     }

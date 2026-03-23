@@ -4,6 +4,7 @@ import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.shared.DeviceError
+import wirecli.shared.Result
 
 class StubDeviceApiClient(
     private val environment: Map<String, String>,
@@ -57,17 +58,17 @@ class StubDeviceApiClient(
 
         return when (mode) {
             "list_empty" ->
-                DeviceResult.Success(
+                Result.Success(
                     value = DeviceListView(devices = emptyList()),
                 )
 
             "list_ok" ->
-                DeviceResult.Success(
+                Result.Success(
                     value = DeviceListView(devices = defaultDevices),
                 )
 
             "not_found" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.DEVICE_NOT_FOUND,
                         exitCode = DeviceExitCodes.NOT_FOUND,
@@ -75,7 +76,7 @@ class StubDeviceApiClient(
                 )
 
             "server_error" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.SERVER_FAILURE,
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -83,7 +84,7 @@ class StubDeviceApiClient(
                 )
 
             "unauthorized" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.invalidOrExpiredSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -91,7 +92,7 @@ class StubDeviceApiClient(
                 )
 
             else ->
-                DeviceResult.Success(
+                Result.Success(
                     value = DeviceListView(devices = defaultDevices),
                 )
         }
@@ -105,17 +106,17 @@ class StubDeviceApiClient(
 
         return when (mode) {
             "list_empty" ->
-                DeviceResult.Success(
+                Result.Success(
                     value = DeviceListView(devices = emptyList()),
                 )
 
             "list_ok" ->
-                DeviceResult.Success(
+                Result.Success(
                     value = DeviceListView(devices = defaultDevices),
                 )
 
             "not_found" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.DEVICE_NOT_FOUND,
                         exitCode = DeviceExitCodes.NOT_FOUND,
@@ -123,7 +124,7 @@ class StubDeviceApiClient(
                 )
 
             "server_error" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.SERVER_FAILURE,
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -131,7 +132,7 @@ class StubDeviceApiClient(
                 )
 
             "unauthorized" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.invalidOrExpiredSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -139,7 +140,7 @@ class StubDeviceApiClient(
                 )
 
             else ->
-                DeviceResult.Success(
+                Result.Success(
                     value = DeviceListView(devices = defaultDevices),
                 )
         }
@@ -153,7 +154,7 @@ class StubDeviceApiClient(
 
         return when (mode) {
             "not_found" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.DEVICE_NOT_FOUND,
                         exitCode = DeviceExitCodes.NOT_FOUND,
@@ -161,7 +162,7 @@ class StubDeviceApiClient(
                 )
 
             "server_error" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.SERVER_FAILURE,
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -169,7 +170,7 @@ class StubDeviceApiClient(
                 )
 
             "unauthorized" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.invalidOrExpiredSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -179,14 +180,14 @@ class StubDeviceApiClient(
             else -> {
                 val device =
                     defaultDevices.find { it.id == deviceId }
-                        ?: return DeviceResult.Failure(
+                        ?: return Result.Failure(
                             error = DeviceError(
                                 message = DeviceMessages.DEVICE_NOT_FOUND,
                                 exitCode = DeviceExitCodes.NOT_FOUND,
                             ),
                         )
 
-                DeviceResult.Success(
+                Result.Success(
                     value =
                         DeviceDetailView(
                             device = device,
@@ -206,7 +207,7 @@ class StubDeviceApiClient(
 
         return when (mode) {
             "not_found" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.DEVICE_NOT_FOUND,
                         exitCode = DeviceExitCodes.NOT_FOUND,
@@ -214,7 +215,7 @@ class StubDeviceApiClient(
                 )
 
             "server_error" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.DELETE_SERVER_FAILURE,
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -222,7 +223,7 @@ class StubDeviceApiClient(
                 )
 
             "unauthorized" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.invalidOrExpiredSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -230,7 +231,7 @@ class StubDeviceApiClient(
                 )
 
             "password_required" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.PASSWORD_REQUIRED,
                         exitCode = DeviceExitCodes.UNAUTHORIZED,
@@ -238,7 +239,7 @@ class StubDeviceApiClient(
                 )
 
             else ->
-                DeviceResult.Success(
+                Result.Success(
                     value = "Device deleted successfully.",
                 )
         }
@@ -252,7 +253,7 @@ class StubDeviceApiClient(
 
         return when (mode) {
             "not_found" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.DEVICE_NOT_FOUND,
                         exitCode = DeviceExitCodes.NOT_FOUND,
@@ -260,7 +261,7 @@ class StubDeviceApiClient(
                 )
 
             "server_error" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = DeviceMessages.VERIFY_SERVER_FAILURE,
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -268,7 +269,7 @@ class StubDeviceApiClient(
                 )
 
             "unauthorized" ->
-                DeviceResult.Failure(
+                Result.Failure(
                     error = DeviceError(
                         message = AuthMessages.invalidOrExpiredSession(),
                         exitCode = ExitCodes.UNAUTHORIZED,
@@ -278,7 +279,7 @@ class StubDeviceApiClient(
             else -> {
                 val device =
                     defaultDevices.find { it.id == deviceId }
-                        ?: return DeviceResult.Failure(
+                        ?: return Result.Failure(
                             error = DeviceError(
                                 message = DeviceMessages.DEVICE_NOT_FOUND,
                                 exitCode = DeviceExitCodes.NOT_FOUND,
@@ -287,7 +288,7 @@ class StubDeviceApiClient(
 
                 // Note: DeviceVerifyResult.Success had both message and fingerprint
                 // We're simplifying to just return the message
-                DeviceResult.Success(
+                Result.Success(
                     value = "Device verified successfully.",
                 )
             }

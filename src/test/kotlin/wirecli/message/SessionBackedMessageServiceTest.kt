@@ -243,7 +243,11 @@ class SessionBackedMessageServiceTest {
                                 server = null,
                             ),
                     ),
-                apiClient = FakeMessageApiClient(result = SendMessageResult.Success, typingResult = SendTypingResult.Success),
+                apiClient =
+                    FakeMessageApiClient(
+                        result = SendMessageResult.Success,
+                        typingResult = SendTypingResult.Success,
+                    ),
             )
 
         val result = service.sendTypingStatus("conv-123", TypingStatus.STOPPED)

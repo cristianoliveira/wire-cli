@@ -40,7 +40,8 @@ class AuthSessionServiceImpl(
 
         val inventory = sessionStore.readSessionInventory()
         logger.debug {
-            "Session inventory read: active=${inventory.activeSession != null}, valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
+            "Session inventory read: active=${inventory.activeSession != null}, " +
+                "valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
         }
 
         val session =
@@ -62,7 +63,9 @@ class AuthSessionServiceImpl(
                     logger.info { "Local session cleared successfully" }
                     AuthResult.Success("Logged out.")
                 } catch (e: RuntimeException) {
-                    logger.error(e) { "Session cleanup failed during logout - remote session cleared but local session remains" }
+                    logger.error(
+                        e,
+                    ) { "Session cleanup failed during logout - remote session cleared but local session remains" }
                     AuthResult.Failure(
                         message = "Logout completed remotely, but local session cleanup failed.",
                         exitCode = ExitCodes.SERVER_ERROR,

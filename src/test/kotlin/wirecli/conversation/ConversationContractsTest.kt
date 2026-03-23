@@ -195,11 +195,17 @@ class ConversationContractsTest {
 
     @Test
     fun `conversation messages are non-empty`() {
-        assertEquals("Conversation not found. Check conversation ID and try again.", ConversationMessages.CONVERSATION_NOT_FOUND)
+        assertEquals(
+            "Conversation not found. Check conversation ID and try again.",
+            ConversationMessages.CONVERSATION_NOT_FOUND,
+        )
         assertEquals(
             "Conversation fetch failed: network is unreachable. Check your connection and retry.",
             ConversationMessages.NETWORK_FAILURE,
         )
-        assertEquals("Conversation service is unavailable. Retry later or check server settings.", ConversationMessages.SERVER_FAILURE)
+        assertEquals(
+            "Conversation service is unavailable. Retry later or check server settings.",
+            ConversationMessages.SERVER_FAILURE,
+        )
     }
 }

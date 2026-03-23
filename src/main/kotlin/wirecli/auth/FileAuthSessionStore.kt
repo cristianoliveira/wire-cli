@@ -109,7 +109,10 @@ class FileAuthSessionStore(
         }
 
         logger.debug {
-            "Session inventory loaded: active=${parsedData.inventory.activeSession != null}, valid=${parsedData.inventory.validSessions}, invalid=${parsedData.inventory.invalidSessions}"
+            "Session inventory loaded: " +
+                "active=${parsedData.inventory.activeSession != null}, " +
+                "valid=${parsedData.inventory.validSessions}, " +
+                "invalid=${parsedData.inventory.invalidSessions}"
         }
         check(parsedData.inventory.validSessions >= 0) {
             "Session inventory valid session count must be non-negative."

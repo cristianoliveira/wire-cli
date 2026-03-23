@@ -79,7 +79,8 @@ class InputValidatorTest {
 
     @Test
     fun `validateConversationId rejects invalid uuid`() {
-        val error = assertFailsWith<IllegalArgumentException> { InputValidator.validateConversationId("conversation-1") }
+        val error =
+            assertFailsWith<IllegalArgumentException> { InputValidator.validateConversationId("conversation-1") }
 
         assertEquals("Conversation ID must be a valid UUID.", error.message)
     }

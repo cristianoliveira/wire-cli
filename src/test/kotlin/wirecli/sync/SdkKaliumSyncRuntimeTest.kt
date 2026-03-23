@@ -28,13 +28,6 @@ class SdkKaliumSyncRuntimeTest {
 
     @Test
     fun `SdkKaliumSyncRuntime creates instance with customizable network checker`() {
-        val testSession =
-            AuthSession(
-                userId = "user@example.com",
-                accessToken = "token",
-                server = null,
-            )
-
         val runtime =
             SdkKaliumSyncRuntime(
                 environment = emptyMap(),

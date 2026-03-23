@@ -819,58 +819,6 @@ internal class SdkKaliumSyncRuntime(
         )
     }
 
-    private fun calculateMLSMetrics(syncState: SyncState): MLSMetrics {
-        // Calculate detailed MLS metrics based on sync state
-        // Estimated values derived from sync state indicating MLS health
-        val (enrollmentPct, keyPackageCount, enrollmentFailures, groupUpdateFailures, mlsErrorRate) =
-            when (syncState) {
-                is SyncState.Live -> {
-                    // Live sync: MLS fully operational
-                    Quintuple(100, 50, 0, 0, 0.0)
-                }
-                is SyncState.SlowSync -> {
-                    // Initial sync: MLS not yet enrolled
-                    Quintuple(0, 0, 1, 0, 0.05)
-                }
-                is SyncState.GatheringPendingEvents -> {
-                    // Gathering: partial MLS enrollment in progress
-                    Quintuple(50, 30, 0, 0, 0.02)
-                }
-                is SyncState.Waiting -> {
-                    // Waiting: MLS enrollment pending
-                    Quintuple(10, 5, 0, 0, 0.01)
-                }
-                is SyncState.Failed -> {
-                    // Failed: MLS operations suspended
-                    Quintuple(0, 0, 2, 1, 0.15)
-                }
-            }
-
-        return MLSMetrics(
-            enrollment_pct = enrollmentPct,
-            key_package_available = keyPackageCount,
-            key_package_exhausted = keyPackageCount < 10,
-            key_package_generation_enabled = syncState is SyncState.Live,
-            key_package_refresh_required = keyPackageCount < 20,
-            mls_group_updates_failed_count = groupUpdateFailures,
-            mls_enrollment_failures_count = enrollmentFailures,
-            mls_error_rate = mlsErrorRate,
-            last_key_package_refresh_timestamp = if (syncState is SyncState.Live) Instant.now().toString() else null,
-            timestamp = Instant.now().toString(),
-        )
-    }
-
-    /**
-     * Helper data class for holding multiple return values
-     */
-    private data class Quintuple<A, B, C, D, E>(
-        val first: A,
-        val second: B,
-        val third: C,
-        val fourth: D,
-        val fifth: E,
-    )
-
     private fun buildConversationSyncStatusView(
         conversationId: String,
         syncState: SyncState,

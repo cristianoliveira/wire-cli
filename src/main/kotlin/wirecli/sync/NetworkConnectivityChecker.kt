@@ -107,7 +107,12 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
             } else {
                 (failureCount.toDouble() / totalAttempts.toDouble()).coerceIn(0.0, 1.0)
             }
-        logger.debug { "Calculated error rate: $failureCount failures / $totalAttempts attempts = ${String.format("%.2f%%", rate * 100)}" }
+        logger.debug {
+            "Calculated error rate: $failureCount failures / $totalAttempts attempts = ${String.format(
+                "%.2f%%",
+                rate * 100,
+            )}"
+        }
         return rate
     }
 

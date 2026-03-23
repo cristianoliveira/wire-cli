@@ -561,7 +561,9 @@ internal class SdkKaliumSyncRuntime(
         require(session.userId.isNotBlank()) { "Conversation sync status requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Conversation sync status requires a non-blank access token." }
 
-        logger.info { "SdkKaliumSyncRuntime: Getting conversation sync status for user: ${session.userId}, conversation: $conversationId" }
+        logger.info {
+            "SdkKaliumSyncRuntime: Getting conversation sync status for user: ${session.userId}, conversation: $conversationId"
+        }
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: run {

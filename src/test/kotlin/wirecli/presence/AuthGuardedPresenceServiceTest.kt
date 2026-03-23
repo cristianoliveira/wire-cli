@@ -48,7 +48,10 @@ class AuthGuardedPresenceServiceTest {
             )
         val service =
             AuthGuardedPresenceService(
-                authSessionService = FakeAuthSessionService(authResult = AuthResult.Success("Active session available.")),
+                authSessionService =
+                    FakeAuthSessionService(
+                        authResult = AuthResult.Success("Active session available."),
+                    ),
                 delegate = delegate,
             )
 
@@ -96,7 +99,10 @@ class AuthGuardedPresenceServiceTest {
             )
         val service =
             AuthGuardedPresenceService(
-                authSessionService = FakeAuthSessionService(authResult = AuthResult.Success("Active session available.")),
+                authSessionService =
+                    FakeAuthSessionService(
+                        authResult = AuthResult.Success("Active session available."),
+                    ),
                 delegate = delegate,
             )
 

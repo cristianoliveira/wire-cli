@@ -98,7 +98,9 @@ class SessionBackedSyncService(
                     )
                 }
 
-        logger.debug { "Active session found for user: ${session.userId} - fetching sync status for conversation $conversationId" }
+        logger.debug {
+            "Active session found for user: ${session.userId} - fetching sync status for conversation $conversationId"
+        }
         return apiClient.getConversationSyncStatus(session, conversationId).also { result ->
             when (result) {
                 is ConversationSyncStatusResult.Success ->
@@ -127,7 +129,9 @@ class SessionBackedSyncService(
                     )
                 }
 
-        logger.debug { "Active session found for user: ${session.userId} - fetching diagnostics for conversation $conversationId" }
+        logger.debug {
+            "Active session found for user: ${session.userId} - fetching diagnostics for conversation $conversationId"
+        }
         return apiClient.getPerConversationDiagnostics(session, conversationId).also { result ->
             when (result) {
                 is PerConversationDiagnosticsResult.Success -> {

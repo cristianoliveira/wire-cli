@@ -143,7 +143,9 @@ internal object ConversationMessages {
 
 // Conversation-specific exceptions for error handling
 sealed class ConversationException(message: String, cause: Throwable? = null) : Exception(message, cause) {
-    class ConversationNotFound(message: String = ConversationMessages.CONVERSATION_NOT_FOUND) : ConversationException(message)
+    class ConversationNotFound(
+        message: String = ConversationMessages.CONVERSATION_NOT_FOUND,
+    ) : ConversationException(message)
 
     class Unauthorized(message: String = ConversationMessages.UNAUTHORIZED_FAILURE) : ConversationException(message)
 

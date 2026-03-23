@@ -62,7 +62,9 @@ class AuthGuardedSyncService(
     }
 
     override fun getConversationSyncStatus(conversationId: String): ConversationSyncStatusResult {
-        logger.debug { "AuthGuardedSyncService: Checking authentication for getConversationSyncStatus (conversationId: $conversationId)" }
+        logger.debug {
+            "AuthGuardedSyncService: Checking authentication for getConversationSyncStatus (conversationId: $conversationId)"
+        }
         return when (val authResult = authSessionService.requireActiveSession()) {
             is AuthResult.Success -> {
                 logger.debug { "Authentication check passed - delegating to sync service" }

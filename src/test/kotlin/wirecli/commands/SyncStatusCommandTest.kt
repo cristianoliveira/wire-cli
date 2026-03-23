@@ -563,7 +563,10 @@ class SyncStatusCommandTest {
 
         val output = SyncOutputFormatter.formatStatusHuman(result)
 
-        assertTrue(output.contains("Encryption: ⟳ Pending (75% complete)"), "Should show encryption pending with percentage")
+        assertTrue(
+            output.contains("Encryption: ⟳ Pending (75% complete)"),
+            "Should show encryption pending with percentage",
+        )
     }
 
     @Test

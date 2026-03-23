@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.ajalt.clikt:clikt:4.4.0")
+    implementation("com.github.ajalt.clikt:clikt:5.1.0")
     implementation("com.wire:logic")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")

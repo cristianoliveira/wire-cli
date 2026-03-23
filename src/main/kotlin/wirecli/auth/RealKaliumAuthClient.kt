@@ -27,65 +27,21 @@ private val logger = KotlinLogging.logger {}
 /**
  * Real Kalium-backed implementation of the authentication client.
  *
- * This class serves as a facade that delegates to [StandardAuthenticationOrchestrator]
+ * This class serves as a thin facade that delegates to [AuthenticationOrchestrator]
  * for authentication operations, maintaining backward compatibility with the
  * [AuthApiClient] interface while separating concerns:
- * - [StandardAuthenticationOrchestrator] handles flow orchestration
+ * - [AuthenticationOrchestrator] handles flow orchestration
  * - [StandardAuthResponseParser] handles response transformation
- * - [SdkKaliumAuthRuntime] handles low-level API communication
+ * - [RealKaliumAuthRuntime] handles low-level API communication
  *
- * @param runtime The Kalium authentication runtime for API operations
+ * @param orchestrator The authentication orchestrator for login/logout operations
  *
- * @invariant runtime is never null and properly initialized
+ * @invariant orchestrator is never null and properly initialized
  * @invariant All public methods return non-null AuthApiResult
  */
 internal class RealKaliumAuthClient(
-    runtime: RealKaliumAuthRuntime,
-) : AuthApiClient {
-    private val orchestrator: AuthenticationOrchestrator =
-        StandardAuthenticationOrchestrator(
-            runtime = runtime,
-            parser = StandardAuthResponseParser(),
-        )
-
-    /**
-     * Authenticates a user with email and password against a Wire backend.
-     *
-     * Delegates to the authentication orchestrator for the full login flow.
-     *
-     * @param input Login credentials and server configuration
-     * @return AuthApiResult.Success with authenticated session if successful; AuthApiResult.Failure with error details otherwise
-     * @throws Nothing - All errors are wrapped in AuthApiResult
-     *
-     * @pre input.email must be non-null and non-empty
-     * @pre input.password must be non-null and non-empty
-     * @post result is either Success with valid AuthSession or Failure with appropriate error code
-     * @post If Success, returned session has non-null userId and accessToken
-     *
-     * @see AuthApiResult.Success
-     * @see AuthApiResult.Failure
-     */
-    override fun login(input: LoginInput): AuthApiResult = orchestrator.login(input)
-
-    /**
-     * Logs out the currently authenticated user, invalidating their session.
-     *
-     * Delegates to the authentication orchestrator for the logout flow.
-     *
-     * @param session The authenticated session to logout (must be valid and active)
-     * @return AuthApiResult.Success if logout completed successfully; AuthApiResult.Failure with error details otherwise
-     * @throws Nothing - All errors are wrapped in AuthApiResult
-     *
-     * @pre session must be non-null with valid userId and accessToken
-     * @pre session must represent an active authenticated state
-     * @post result is either Success (even if logout already happened) or Failure with error details
-     * @post If Success, the session tokens are invalidated on the server
-     *
-     * @see AuthApiResult.Success
-     * @see AuthApiResult.Failure
-     */
-    override fun logout(session: AuthSession): AuthApiResult = orchestrator.logout(session)
-}
+    orchestrator: AuthenticationOrchestrator,
+) : AuthApiClient by orchestrator
 
 /**
  * Contract for Kalium SDK authentication runtime operations.

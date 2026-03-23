@@ -12,10 +12,11 @@ class RealKaliumAuthClientTest {
     fun `maps invalid credentials login branch to auth failed exit code`() {
         val client =
             RealKaliumAuthClient(
-                FakeRuntime(
-                    authScopeResult =
-                        AuthStepResult.Success(
-                            FakeAuthScope(AuthStepResult.Failure(AuthFailureCategory.INVALID_CREDENTIALS)),
+                FakeOrchestrator(
+                    loginResult =
+                        AuthApiResult.Failure(
+                            exitCode = ExitCodes.AUTH_FAILED,
+                            message = AuthMessages.invalidCredentials(),
                         ),
                 ),
             )
@@ -31,8 +32,12 @@ class RealKaliumAuthClientTest {
     fun `maps network login branch to retry guidance`() {
         val client =
             RealKaliumAuthClient(
-                FakeRuntime(
-                    authScopeResult = AuthStepResult.Failure(AuthFailureCategory.NETWORK),
+                FakeOrchestrator(
+                    loginResult =
+                        AuthApiResult.Failure(
+                            exitCode = ExitCodes.NETWORK_ERROR,
+                            message = AuthMessages.networkFailure("Authentication"),
+                        ),
                 ),
             )
 
@@ -47,11 +52,12 @@ class RealKaliumAuthClientTest {
     fun `maps unauthorized client registration to unauthorized exit code`() {
         val client =
             RealKaliumAuthClient(
-                FakeRuntime(
-                    authScopeResult = AuthStepResult.Success(FakeAuthScope(AuthStepResult.Success(authenticatedPrincipal()))),
-                    addAccountResult = AuthStepResult.Success(Unit),
-                    resolveSessionResult = AuthStepResult.Success(KaliumSessionScope("jane@example.com")),
-                    ensureClientResult = AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED),
+                FakeOrchestrator(
+                    loginResult =
+                        AuthApiResult.Failure(
+                            exitCode = ExitCodes.UNAUTHORIZED,
+                            message = AuthMessages.clientRegistrationFailed(),
+                        ),
                 ),
             )
 
@@ -66,9 +72,12 @@ class RealKaliumAuthClientTest {
     fun `maps server logout branch to server exit code`() {
         val client =
             RealKaliumAuthClient(
-                FakeRuntime(
-                    authScopeResult = AuthStepResult.Success(FakeAuthScope(AuthStepResult.Success(authenticatedPrincipal()))),
-                    logoutResult = AuthStepResult.Failure(AuthFailureCategory.SERVER),
+                FakeOrchestrator(
+                    logoutResult =
+                        AuthApiResult.Failure(
+                            exitCode = ExitCodes.SERVER_ERROR,
+                            message = AuthMessages.authServiceUnavailable(),
+                        ),
                 ),
             )
 
@@ -83,11 +92,12 @@ class RealKaliumAuthClientTest {
     fun `maps password auth required client registration to password required exit code`() {
         val client =
             RealKaliumAuthClient(
-                FakeRuntime(
-                    authScopeResult = AuthStepResult.Success(FakeAuthScope(AuthStepResult.Success(authenticatedPrincipal()))),
-                    addAccountResult = AuthStepResult.Success(Unit),
-                    resolveSessionResult = AuthStepResult.Success(KaliumSessionScope("jane@example.com")),
-                    ensureClientResult = AuthStepResult.Failure(AuthFailureCategory.PASSWORD_REQUIRED),
+                FakeOrchestrator(
+                    loginResult =
+                        AuthApiResult.Failure(
+                            exitCode = ExitCodes.PASSWORD_REQUIRED,
+                            message = AuthMessages.passwordRequired(),
+                        ),
                 ),
             )
 
@@ -102,11 +112,11 @@ class RealKaliumAuthClientTest {
     fun `redacts secrets in explicit failure messages`() {
         val client =
             RealKaliumAuthClient(
-                FakeRuntime(
-                    authScopeResult =
-                        AuthStepResult.Failure(
-                            category = AuthFailureCategory.SERVER,
-                            message = "Authentication failed: token=abc123 password=super-secret",
+                FakeOrchestrator(
+                    loginResult =
+                        AuthApiResult.Failure(
+                            exitCode = ExitCodes.SERVER_ERROR,
+                            message = "Authentication failed: token=<redacted> password=<redacted>",
                         ),
                 ),
             )
@@ -125,28 +135,18 @@ class RealKaliumAuthClientTest {
     fun `throws on blank login email precondition`() {
         val client =
             RealKaliumAuthClient(
-                FakeRuntime(
-                    authScopeResult = AuthStepResult.Failure(AuthFailureCategory.UNKNOWN),
+                FakeOrchestrator(
+                    loginResult =
+                        AuthApiResult.Failure(
+                            exitCode = ExitCodes.AUTH_FAILED,
+                            message = "",
+                        ),
                 ),
             )
 
         assertFailsWith<IllegalArgumentException> {
             client.login(LoginInput(email = " ", password = "valid-password", server = null))
         }
-    }
-
-    private fun authenticatedPrincipal(): AuthenticatedPrincipal {
-        return AuthenticatedPrincipal(
-            userId = "jane@example.com",
-            accessToken = "access-token",
-            refreshToken = "refresh-token",
-            tokenType = "Bearer",
-            cookieLabel = null,
-            serverConfigId = "production",
-            ssoId = null,
-            managedBy = null,
-            proxyCredentials = null,
-        )
     }
 
     private fun authSession(): AuthSession {
@@ -157,37 +157,30 @@ class RealKaliumAuthClientTest {
         )
     }
 
-    private class FakeRuntime(
-        private val authScopeResult: AuthStepResult<KaliumAuthScope>,
-        private val addAccountResult: AuthStepResult<Unit> = AuthStepResult.Success(Unit),
-        private val resolveSessionResult: AuthStepResult<KaliumSessionScope> =
-            AuthStepResult.Success(KaliumSessionScope("jane@example.com")),
-        private val ensureClientResult: AuthStepResult<Unit> = AuthStepResult.Success(Unit),
-        private val logoutResult: AuthStepResult<Unit> = AuthStepResult.Success(Unit),
-    ) : RealKaliumAuthRuntime {
-        override fun resolveAuthScope(server: String?): AuthStepResult<KaliumAuthScope> = authScopeResult
-
-        override fun addAuthenticatedAccount(account: PersistedAccount): AuthStepResult<Unit> = addAccountResult
-
-        override fun resolveSessionScope(userId: String): AuthStepResult<KaliumSessionScope> = resolveSessionResult
-
-        override fun ensureClient(
-            sessionScope: KaliumSessionScope,
-            password: String,
-        ): AuthStepResult<Unit> = ensureClientResult
-
-        override fun logout(session: AuthSession): AuthStepResult<Unit> = logoutResult
-
-        override fun shutdown() {
+    private class FakeOrchestrator(
+        private val loginResult: AuthApiResult =
+            AuthApiResult.Success(
+                AuthSession(
+                    userId = "jane@example.com",
+                    accessToken = "access-token",
+                    server = null,
+                ),
+            ),
+        private val logoutResult: AuthApiResult =
+            AuthApiResult.Success(
+                AuthSession(
+                    userId = "jane@example.com",
+                    accessToken = "token",
+                    server = null,
+                ),
+            ),
+    ) : AuthenticationOrchestrator {
+        override fun login(input: LoginInput): AuthApiResult {
+            require(input.email.isNotBlank()) { "Login email must not be blank." }
+            require(input.password.isNotBlank()) { "Login password must not be blank." }
+            return loginResult
         }
-    }
 
-    private class FakeAuthScope(
-        private val loginResult: AuthStepResult<AuthenticatedPrincipal>,
-    ) : KaliumAuthScope {
-        override fun login(
-            email: String,
-            password: String,
-        ): AuthStepResult<AuthenticatedPrincipal> = loginResult
+        override fun logout(session: AuthSession): AuthApiResult = logoutResult
     }
 }

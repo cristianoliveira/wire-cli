@@ -109,60 +109,65 @@ object SyncOutputFormatter {
             val statusIcon = getStatusIcon(view.status.value)
             appendLine("$statusIcon Account Health: ${view.status}")
             appendLine("")
-            appendLine("Health Metrics:")
-            appendLine("  • Event Queue Lag: ${view.metrics.lag_ms}ms")
-            if (view.metrics.last_message_received_ms != null) {
-                val secondsAgo = (System.currentTimeMillis() - view.metrics.last_message_received_ms) / 1000
-                appendLine("  • Messages: ${view.metrics.pending_messages} pending (last received ${secondsAgo}s ago)")
-            } else {
-                appendLine("  • Pending Messages: ${view.metrics.pending_messages}")
-            }
-            appendLine("  • MLS Migration: ${view.metrics.mls_pct}% complete")
-            appendLine("  • Last Sync: ${view.metrics.timestamp}")
-
-            // Add MLS details if available
-            if (view.metrics.mls != null) {
-                appendLine("")
-                val mlsMetrics = view.metrics.mls
-                val keyPackageStatus =
-                    when {
-                        mlsMetrics.key_package_exhausted -> "exhausted, refresh needed"
-                        mlsMetrics.key_package_available < 50 -> "low, refilling"
-                        else -> "${mlsMetrics.key_package_available} available"
-                    }
-                if (mlsMetrics.device_name != null && mlsMetrics.key_package_total != null) {
-                    val keyPackageInfo =
-                        "  • ${mlsMetrics.device_name}: ${mlsMetrics.key_package_available}/${mlsMetrics.key_package_total} ($keyPackageStatus)"
-                    appendLine(keyPackageInfo)
-                } else {
-                    appendLine("  • Key Packages: $keyPackageStatus")
-                }
-                if (mlsMetrics.estimated_remaining_ms != null) {
-                    val secondsRemaining = mlsMetrics.estimated_remaining_ms / 1000
-                    appendLine("  • estimated: ${secondsRemaining}s remaining")
-                }
-            }
-            appendLine("")
-
-            // Add recovery hints if available
-            if (view.diagnosticsReport != null && view.diagnosticsReport.recoveryHints.isNotEmpty()) {
-                appendLine("Recovery Actions:")
-                view.diagnosticsReport.recoveryHints.forEach { hint ->
-                    appendLine("  • ${hint.description}")
-                    appendLine("    Command: ${hint.command}")
-                }
-                appendLine("")
-            }
-
-            // Add interpretation
-            val interpretation =
-                when {
-                    view.metrics.lag_ms > 5000 -> "⚠ High lag detected. Sync may be slow."
-                    view.metrics.pending_messages > 100 -> "⚠ Large message backlog detected."
-                    view.metrics.mls_pct < 50 -> "⚠ MLS migration is still in progress."
-                    else -> "✓ All metrics are healthy."
-                }
+            appendHealthMetrics(view.metrics)
+            appendMlsDetails(view.metrics.mls)
+            appendRecoveryActions(view.diagnosticsReport)
+            val interpretation = buildInterpretation(view.metrics)
             appendLine(interpretation)
+        }
+
+    private fun StringBuilder.appendHealthMetrics(metrics: HealthMetrics) {
+        appendLine("Health Metrics:")
+        appendLine("  • Event Queue Lag: ${metrics.lag_ms}ms")
+        if (metrics.last_message_received_ms != null) {
+            val secondsAgo = (System.currentTimeMillis() - metrics.last_message_received_ms) / 1000
+            appendLine("  • Messages: ${metrics.pending_messages} pending (last received ${secondsAgo}s ago)")
+        } else {
+            appendLine("  • Pending Messages: ${metrics.pending_messages}")
+        }
+        appendLine("  • MLS Migration: ${metrics.mls_pct}% complete")
+        appendLine("  • Last Sync: ${metrics.timestamp}")
+    }
+
+    private fun StringBuilder.appendMlsDetails(mlsMetrics: MLSMetrics?) {
+        if (mlsMetrics == null) return
+        appendLine("")
+        val keyPackageStatus =
+            when {
+                mlsMetrics.key_package_exhausted -> "exhausted, refresh needed"
+                mlsMetrics.key_package_available < 50 -> "low, refilling"
+                else -> "${mlsMetrics.key_package_available} available"
+            }
+        if (mlsMetrics.device_name != null && mlsMetrics.key_package_total != null) {
+            val keyPkgInfo =
+                "  • ${mlsMetrics.device_name}: ${mlsMetrics.key_package_available}/${mlsMetrics.key_package_total} ($keyPackageStatus)"
+            appendLine(keyPkgInfo)
+        } else {
+            appendLine("  • Key Packages: $keyPackageStatus")
+        }
+        if (mlsMetrics.estimated_remaining_ms != null) {
+            val secondsRemaining = mlsMetrics.estimated_remaining_ms / 1000
+            appendLine("  • estimated: ${secondsRemaining}s remaining")
+        }
+    }
+
+    private fun StringBuilder.appendRecoveryActions(diagnosticsReport: DiagnosticsReport?) {
+        if (diagnosticsReport?.recoveryHints?.isEmpty() != false) return
+        appendLine("")
+        appendLine("Recovery Actions:")
+        diagnosticsReport.recoveryHints.forEach { hint ->
+            appendLine("  • ${hint.description}")
+            appendLine("    Command: ${hint.command}")
+        }
+        appendLine("")
+    }
+
+    private fun buildInterpretation(metrics: HealthMetrics): String =
+        when {
+            metrics.lag_ms > 5000 -> "⚠ High lag detected. Sync may be slow."
+            metrics.pending_messages > 100 -> "⚠ Large message backlog detected."
+            metrics.mls_pct < 50 -> "⚠ MLS migration is still in progress."
+            else -> "✓ All metrics are healthy."
         }
 
     private fun formatSuccessDiagnostics(report: DiagnosticsReport): String =

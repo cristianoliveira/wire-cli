@@ -418,7 +418,9 @@ internal class SdkKaliumAuthRuntime(
                             AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
                         }
                     }
-                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     AuthStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -468,7 +470,9 @@ internal class SdkKaliumAuthRuntime(
                     }
                     logger.info { "Logout completed successfully for user: $userId" }
                     AuthStepResult.Success(Unit)
-                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     logger.error(error) { "Failed to logout user: $userId" }
                     AuthStepResult.Failure(categoryFromThrowable(error))
                 }

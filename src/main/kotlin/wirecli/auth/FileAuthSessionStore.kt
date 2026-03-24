@@ -2,6 +2,7 @@ package wirecli.auth
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
+import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
@@ -9,7 +10,6 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
-import java.io.IOException
 
 private val logger = KotlinLogging.logger {}
 

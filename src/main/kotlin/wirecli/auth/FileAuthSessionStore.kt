@@ -9,6 +9,7 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
+import java.io.IOException
 
 private val logger = KotlinLogging.logger {}
 
@@ -79,13 +80,21 @@ class FileAuthSessionStore(
         val parsedData =
             try {
                 parseStoredSessions(sessionFile.readLines())
-            } catch (e: Exception) {
+            } catch (e: IOException) {
                 logger.error(e) { "Error reading session file: ${sessionFile.absolutePath}" }
                 return SessionInventory(
                     activeSession = null,
                     validSessions = 0,
                     invalidSessions = 0,
                     diagnosticMessage = "Failed to read session file: ${e.message}",
+                )
+            } catch (e: IllegalStateException) {
+                logger.error(e) { "Error parsing session file: ${sessionFile.absolutePath}" }
+                return SessionInventory(
+                    activeSession = null,
+                    validSessions = 0,
+                    invalidSessions = 0,
+                    diagnosticMessage = "Failed to parse session file: ${e.message}",
                 )
             }
 
@@ -149,8 +158,11 @@ class FileAuthSessionStore(
                 "Session file must exist after successful session persistence."
             }
             logger.info { "Session persisted successfully to ${sessionFile.absolutePath}" }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to persist session to ${sessionFile.absolutePath}" }
+        } catch (e: IllegalStateException) {
+            logger.error(e) { "Session write validation failed" }
+            throw e
+        } catch (e: IOException) {
+            logger.error(e) { "Failed to write session atomically to ${sessionFile.absolutePath}" }
             throw e
         }
     }
@@ -234,7 +246,7 @@ class FileAuthSessionStore(
             logger.debug { "Setting final file permissions: 0600" }
             restrictFilePermissions(path)
             logger.info { "Atomic write completed successfully" }
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             logger.error(e) { "Atomic write failed" }
             throw e
         } finally {

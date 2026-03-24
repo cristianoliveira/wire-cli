@@ -37,7 +37,7 @@ fun main(args: Array<String>) {
         try {
             logger.debug { "Initializing Kalium runtime" }
             KaliumRuntimeBootstrap.create()
-        } catch (e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             logger.error(e) { "Failed to initialize Kalium runtime" }
             throw e
         }
@@ -60,7 +60,7 @@ fun main(args: Array<String>) {
             .main(args)
         completed = true
         logger.info { "Wire CLI execution completed successfully" }
-    } catch (e: Exception) {
+    } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
         logger.error(e) { "Uncaught exception during Wire CLI execution" }
         throw e
     } finally {

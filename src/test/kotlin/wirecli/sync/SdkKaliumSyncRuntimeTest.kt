@@ -104,7 +104,9 @@ class SdkKaliumSyncRuntimeTest {
                     return ResetResult.Success("Reset successful (test mode)")
                 }
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumSyncApiClient(runtime)
@@ -165,7 +167,9 @@ class SdkKaliumSyncRuntimeTest {
                     return ResetResult.Failure("failure", SyncExitCodes.DEGRADED)
                 }
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumSyncApiClient(runtime)

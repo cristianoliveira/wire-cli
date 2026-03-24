@@ -286,7 +286,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -312,7 +314,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -339,7 +343,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -366,7 +372,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -393,7 +401,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -420,7 +430,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -459,7 +471,9 @@ class SdkKaliumMessageRuntimeTest {
                         conversationId: String,
                     ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                    override fun shutdown() {}
+                    override fun shutdown() {
+                        // No-op for test stub
+                    }
                 }
 
             val client = RealKaliumMessageApiClient(stubRuntime)

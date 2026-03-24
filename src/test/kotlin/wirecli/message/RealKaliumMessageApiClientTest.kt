@@ -517,7 +517,9 @@ class RealKaliumMessageApiClientTest {
                             status: TypingStatus,
                         ): MessageStepResult<Unit> = MessageStepResult.Success(Unit)
 
-                        override fun shutdown() {}
+                        override fun shutdown() {
+                            // No-op for test stub
+                        }
                     },
             )
 
@@ -549,7 +551,9 @@ class RealKaliumMessageApiClientTest {
                             status: TypingStatus,
                         ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
 
-                        override fun shutdown() {}
+                        override fun shutdown() {
+                            // No-op for test stub
+                        }
                     },
             )
 
@@ -583,7 +587,9 @@ class RealKaliumMessageApiClientTest {
             return fetchResult
         }
 
-        override fun shutdown() {}
+        override fun shutdown() {
+            // No-op for test stub
+        }
     }
 
     private class HangingKaliumMessageRuntime(
@@ -606,7 +612,9 @@ class RealKaliumMessageApiClientTest {
             return MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
         }
 
-        override fun shutdown() {}
+        override fun shutdown() {
+            // No-op for test stub
+        }
     }
 
     private class FakeKaliumMessageRuntimeWithFetchCapture(
@@ -627,6 +635,8 @@ class RealKaliumMessageApiClientTest {
             return fetchResult
         }
 
-        override fun shutdown() {}
+        override fun shutdown() {
+            // No-op for test stub
+        }
     }
 }

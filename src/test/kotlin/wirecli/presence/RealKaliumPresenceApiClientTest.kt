@@ -238,6 +238,7 @@ class RealKaliumPresenceApiClientTest {
         }
 
         override fun shutdown() {
+            // No-op for test stub
         }
     }
 }

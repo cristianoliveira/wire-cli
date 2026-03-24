@@ -49,7 +49,9 @@ class MessageWatchCommandTest {
                             FetchMessagesResult.Success(FetchMessagesView("conv-123", listOf(existing))),
                             FetchMessagesResult.Success(FetchMessagesView("conv-123", listOf(existing, incoming))),
                             FetchMessagesResult.Success(FetchMessagesView("conv-123", listOf(existing, incoming))),
-                            FetchMessagesResult.Success(FetchMessagesView("conv-123", listOf(existing, incoming, incomingSecond))),
+                            FetchMessagesResult.Success(
+                                FetchMessagesView("conv-123", listOf(existing, incoming, incomingSecond)),
+                            ),
                         ),
                     )
                 },

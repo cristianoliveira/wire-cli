@@ -495,7 +495,12 @@ class PerConversationSyncDiagnosticsTest {
             conversationId: String,
         ): List<RecoveryHint> {
             return withRuntime { runtime ->
-                val method = runtime.javaClass.getDeclaredMethod("generateConversationRecoveryHints", List::class.java, String::class.java)
+                val method =
+                    runtime.javaClass.getDeclaredMethod(
+                        "generateConversationRecoveryHints",
+                        List::class.java,
+                        String::class.java,
+                    )
                 method.isAccessible = true
                 @Suppress("UNCHECKED_CAST")
                 method.invoke(runtime, checks, conversationId) as List<RecoveryHint>
@@ -575,7 +580,11 @@ class PerConversationSyncDiagnosticsTest {
             runtime: SdkKaliumSyncRuntime,
             syncState: SyncState?,
         ): Int {
-            val method = runtime.javaClass.getDeclaredMethod("calculateConversationPendingMessages", SyncState::class.java)
+            val method =
+                runtime.javaClass.getDeclaredMethod(
+                    "calculateConversationPendingMessages",
+                    SyncState::class.java,
+                )
             method.isAccessible = true
             return method.invoke(runtime, syncState) as Int
         }
@@ -584,7 +593,11 @@ class PerConversationSyncDiagnosticsTest {
             runtime: SdkKaliumSyncRuntime,
             syncState: SyncState?,
         ): Int {
-            val method = runtime.javaClass.getDeclaredMethod("calculateSyncCompletenessPercentage", SyncState::class.java)
+            val method =
+                runtime.javaClass.getDeclaredMethod(
+                    "calculateSyncCompletenessPercentage",
+                    SyncState::class.java,
+                )
             method.isAccessible = true
             return method.invoke(runtime, syncState) as Int
         }

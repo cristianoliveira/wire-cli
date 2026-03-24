@@ -658,7 +658,9 @@ internal class SdkKaliumDeviceRuntime(
         sessionScope: KaliumDeviceSessionScope,
         userId: String,
     ): DeviceStepResult<List<Device>> {
-        require(sessionScope.userId.isNotBlank()) { "List devices for user requires a non-blank session scope user ID." }
+        require(
+            sessionScope.userId.isNotBlank(),
+        ) { "List devices for user requires a non-blank session scope user ID." }
         require(userId.isNotBlank()) { "List devices for user requires a non-blank target user ID." }
 
         val sessionUserId =

@@ -19,9 +19,16 @@ class RootCommand : NoOpCliktCommand(
             "Logs are saved to: ~/.cache/wire-cli/logs/\n" +
             "Console logs are off by default; use --verbose or --log-level to enable them.",
 ) {
-    private val verbose by option("--verbose", "-v", help = "Enable console debug logs (also sets file log level to DEBUG)").flag()
+    private val verbose by option(
+        "--verbose",
+        "-v",
+        help = "Enable console debug logs (also sets file log level to DEBUG)",
+    ).flag()
 
-    private val logLevel by option("--log-level", help = "Log level: TRACE, DEBUG, INFO, WARN, ERROR (also enables console logs)")
+    private val logLevel by option(
+        "--log-level",
+        help = "Log level: TRACE, DEBUG, INFO, WARN, ERROR (also enables console logs)",
+    )
 
     private val logDir by option("--log-dir", help = "Custom log directory (default: ~/.cache/wire-cli/logs)")
 

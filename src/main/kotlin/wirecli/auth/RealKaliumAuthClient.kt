@@ -1,5 +1,9 @@
 package wirecli.auth
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
+
 /**
  * Real Kalium-backed implementation of the authentication client.
  *

@@ -303,7 +303,10 @@ internal class SdkKaliumMessageRuntime(
                                                 "message-fetch getRecentMessages request body start: " +
                                                     "conversationId=$conversationId"
                                             }
-                                            messages.getRecentMessages(kaliumConvId, limit = FETCH_MESSAGES_LIMIT).first()
+                                            messages.getRecentMessages(
+                                                kaliumConvId,
+                                                limit = FETCH_MESSAGES_LIMIT,
+                                            ).first()
                                         }
                                     logger.info { "message-fetch request end: conversationId=$conversationId" }
                                     fetchResult

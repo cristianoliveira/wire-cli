@@ -259,60 +259,109 @@ internal class SdkKaliumAuthRuntime(
         logger.info { "SdkKaliumAuthRuntime: Adding authenticated account for user: ${account.userId}" }
         val result =
             runBlocking {
-                val userId =
-                    account.userId.toQualifiedIdOrNull()
-                        ?: run {
-                            logger.warn { "Invalid user ID format for persisting account: ${account.userId}" }
-                            return@runBlocking AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
-                        }
-                logger.debug { "User ID qualified: $userId" }
-
-                val authTokens =
-                    AccountTokens(
-                        userId = userId,
-                        accessToken = account.accessToken,
-                        refreshToken = account.refreshToken,
-                        tokenType = account.tokenType,
-                        cookieLabel = account.cookieLabel,
-                    )
-
-                logger.debug { "Persisting authenticated account to storage" }
-                when (
-                    val result =
-                        coreLogic.globalScope {
-                            addAuthenticatedAccount(
-                                session =
-                                    StoreSessionParam(
-                                        serverConfigId = account.serverConfigId,
-                                        ssoId = account.ssoId,
-                                        accountTokens = authTokens,
-                                        proxyCredentials = account.proxyCredentials,
-                                        isPersistentWebSocketEnabled = false,
-                                        managedBy = account.managedBy,
-                                    ),
-                                replace = true,
-                            )
-                        }
-                ) {
-                    is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Success -> {
-                        logger.info { "Account persisted successfully for user: $userId" }
-                        AuthStepResult.Success(Unit)
-                    }
-                    com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.UserAlreadyExists -> {
-                        logger.debug { "Account already exists for user: $userId - replacing" }
-                        AuthStepResult.Success(Unit)
-                    }
-                    com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.NomadSingleUserViolation -> {
-                        logger.error { "Nomad single user violation for user $userId" }
-                        AuthStepResult.Failure(AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION)
-                    }
-                    is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.Generic -> {
-                        logger.error { "Failed to persist account for user $userId: ${result.genericFailure}" }
-                        AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
-                    }
-                }
+                persistAccountBlocking(account)
             }
 
+        validatePersistAccountResult(result, account)
+        return result
+    }
+
+    /**
+     * Persists authenticated account in a blocking coroutine context.
+     *
+     * @param account The account to persist
+     * @return AuthStepResult indicating success or failure
+     */
+    private suspend fun persistAccountBlocking(account: PersistedAccount): AuthStepResult<Unit> {
+        val userId =
+            account.userId.toQualifiedIdOrNull()
+                ?: run {
+                    logger.warn { "Invalid user ID format for persisting account: ${account.userId}" }
+                    return AuthStepResult.Failure(AuthFailureCategory.UNAUTHORIZED)
+                }
+        logger.debug { "User ID qualified: $userId" }
+
+        val authTokens = buildAccountTokens(account, userId)
+        logger.debug { "Persisting authenticated account to storage" }
+
+        val sdkResult =
+            coreLogic.globalScope {
+                addAuthenticatedAccount(
+                    session =
+                        StoreSessionParam(
+                            serverConfigId = account.serverConfigId,
+                            ssoId = account.ssoId,
+                            accountTokens = authTokens,
+                            proxyCredentials = account.proxyCredentials,
+                            isPersistentWebSocketEnabled = false,
+                            managedBy = account.managedBy,
+                        ),
+                    replace = true,
+                )
+            }
+        return mapPersistResult(sdkResult, userId)
+    }
+
+    /**
+     * Builds AccountTokens from PersistedAccount and qualified user ID.
+     *
+     * @param account The persisted account
+     * @param userId The qualified user ID
+     * @return AccountTokens for the account
+     */
+    private fun buildAccountTokens(
+        account: PersistedAccount,
+        userId: UserId,
+    ): AccountTokens =
+        AccountTokens(
+            userId = userId,
+            accessToken = account.accessToken,
+            refreshToken = account.refreshToken,
+            tokenType = account.tokenType,
+            cookieLabel = account.cookieLabel,
+        )
+
+    /**
+     * Maps SDK result to AuthStepResult.
+     *
+     * @param sdkResult The result from the SDK call
+     * @param userId The qualified user ID
+     * @return Mapped AuthStepResult
+     */
+    private fun mapPersistResult(
+        sdkResult: com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result,
+        userId: UserId,
+    ): AuthStepResult<Unit> =
+        when (sdkResult) {
+            is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Success -> {
+                logger.info { "Account persisted successfully for user: $userId" }
+                AuthStepResult.Success(Unit)
+            }
+            com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.UserAlreadyExists -> {
+                logger.debug { "Account already exists for user: $userId - replacing" }
+                AuthStepResult.Success(Unit)
+            }
+            com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.NomadSingleUserViolation -> {
+                logger.error { "Nomad single user violation for user $userId" }
+                AuthStepResult.Failure(AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION)
+            }
+            is com.wire.kalium.logic.feature.auth.AddAuthenticatedUserUseCase.Result.Failure.Generic -> {
+                logger.error { "Failed to persist account for user $userId: ${sdkResult.genericFailure}" }
+                AuthStepResult.Failure(coreFailureToCategory(sdkResult.genericFailure))
+            }
+        }
+
+    /**
+     * Validates the result of persisting an account.
+     *
+     * @param result The authentication result
+     * @param account The account being persisted
+     * @throws AssertionError if validation fails
+     */
+    private fun validatePersistAccountResult(
+        result: AuthStepResult<Unit>,
+        account: PersistedAccount,
+    ) {
         when (result) {
             is AuthStepResult.Success -> {
                 check(account.userId.toQualifiedIdOrNull() != null) {
@@ -326,7 +375,6 @@ internal class SdkKaliumAuthRuntime(
                 }
             }
         }
-        return result
     }
 
     /**

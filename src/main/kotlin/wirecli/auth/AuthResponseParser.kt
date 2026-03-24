@@ -110,30 +110,52 @@ internal class StandardAuthResponseParser : AuthResponseParser {
         defaultMessage: String?,
     ): AuthApiResult.Failure {
         val resolvedMessage =
-            failure.message ?: defaultMessage ?: when (failure.category) {
-                AuthFailureCategory.INVALID_CREDENTIALS -> AuthMessages.invalidCredentials()
-                AuthFailureCategory.PASSWORD_REQUIRED -> AuthMessages.passwordRequired()
-                AuthFailureCategory.NETWORK -> AuthMessages.networkFailure(action)
-                AuthFailureCategory.SERVER -> AuthMessages.authServiceUnavailable()
-                AuthFailureCategory.UNAUTHORIZED -> AuthMessages.unauthorizedAction(action)
-                AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION -> "Nomad single user mode violation: cannot add additional users."
-                AuthFailureCategory.UNKNOWN -> "Unexpected authentication error. Please retry."
-            }
+            failure.message ?: defaultMessage ?: resolveFailureMessage(failure, action)
 
-        val exitCode =
-            when (failure.category) {
-                AuthFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-                AuthFailureCategory.PASSWORD_REQUIRED -> ExitCodes.PASSWORD_REQUIRED
-                AuthFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-                AuthFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-                AuthFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-                AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION -> ExitCodes.NOMAD_SINGLE_USER_VIOLATION
-                AuthFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-            }
+        val exitCode = resolveExitCode(failure)
 
         return AuthApiResult.Failure(
             message = AuthRedactor.redact(resolvedMessage),
             exitCode = exitCode,
         )
     }
+
+    /**
+     * Maps failure category to appropriate user-facing message.
+     *
+     * @param failure The authentication step failure
+     * @param action The action context for message formatting
+     * @return User-facing message for the failure
+     */
+    private fun resolveFailureMessage(
+        failure: AuthStepResult.Failure,
+        action: String,
+    ): String =
+        when (failure.category) {
+            AuthFailureCategory.INVALID_CREDENTIALS -> AuthMessages.invalidCredentials()
+            AuthFailureCategory.PASSWORD_REQUIRED -> AuthMessages.passwordRequired()
+            AuthFailureCategory.NETWORK -> AuthMessages.networkFailure(action)
+            AuthFailureCategory.SERVER -> AuthMessages.authServiceUnavailable()
+            AuthFailureCategory.UNAUTHORIZED -> AuthMessages.unauthorizedAction(action)
+            AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION ->
+                "Nomad single user mode violation: cannot add additional users."
+            AuthFailureCategory.UNKNOWN -> "Unexpected authentication error. Please retry."
+        }
+
+    /**
+     * Maps failure category to appropriate exit code.
+     *
+     * @param failure The authentication step failure
+     * @return Exit code corresponding to failure category
+     */
+    private fun resolveExitCode(failure: AuthStepResult.Failure): Int =
+        when (failure.category) {
+            AuthFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
+            AuthFailureCategory.PASSWORD_REQUIRED -> ExitCodes.PASSWORD_REQUIRED
+            AuthFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
+            AuthFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
+            AuthFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+            AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION -> ExitCodes.NOMAD_SINGLE_USER_VIOLATION
+            AuthFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
+        }
 }

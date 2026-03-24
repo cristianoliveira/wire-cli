@@ -76,28 +76,59 @@ class FileAuthSessionStore(
             return SessionInventory(activeSession = null, validSessions = 0, invalidSessions = 0)
         }
 
-        logger.debug { "Session file found, parsing contents" }
-        val parsedData =
-            try {
-                parseStoredSessions(sessionFile.readLines())
-            } catch (e: IOException) {
-                logger.error(e) { "Error reading session file: ${sessionFile.absolutePath}" }
-                return SessionInventory(
-                    activeSession = null,
-                    validSessions = 0,
-                    invalidSessions = 0,
-                    diagnosticMessage = "Failed to read session file: ${e.message}",
-                )
-            } catch (e: IllegalStateException) {
-                logger.error(e) { "Error parsing session file: ${sessionFile.absolutePath}" }
-                return SessionInventory(
-                    activeSession = null,
-                    validSessions = 0,
-                    invalidSessions = 0,
-                    diagnosticMessage = "Failed to parse session file: ${e.message}",
-                )
-            }
+        val parsedData = parseSessionFile() ?: return emptyInventoryWithError()
 
+        val inventory = handleLegacyFormatMigration(parsedData)
+        validateInventory(inventory)
+
+        logger.debug {
+            "Session inventory loaded: " +
+                "active=${inventory.activeSession != null}, " +
+                "valid=${inventory.validSessions}, " +
+                "invalid=${inventory.invalidSessions}"
+        }
+
+        return inventory
+    }
+
+    /**
+     * Parses the session file contents, handling read and parse errors gracefully.
+     *
+     * @return ParsedSessionData if successful, null if an error occurred
+     */
+    private fun parseSessionFile(): ParsedSessionData? {
+        logger.debug { "Session file found, parsing contents" }
+        return try {
+            parseStoredSessions(sessionFile.readLines())
+        } catch (e: IOException) {
+            logger.error(e) { "Error reading session file: ${sessionFile.absolutePath}" }
+            null
+        } catch (e: IllegalStateException) {
+            logger.error(e) { "Error parsing session file: ${sessionFile.absolutePath}" }
+            null
+        }
+    }
+
+    /**
+     * Returns an empty session inventory with an error diagnostic message.
+     *
+     * @return Empty SessionInventory with failure diagnostic
+     */
+    private fun emptyInventoryWithError(): SessionInventory =
+        SessionInventory(
+            activeSession = null,
+            validSessions = 0,
+            invalidSessions = 0,
+            diagnosticMessage = "Failed to read or parse session file",
+        )
+
+    /**
+     * Handles migration of legacy session format to versioned format if needed.
+     *
+     * @param parsedData The parsed session data (may be in legacy format)
+     * @return Updated inventory after migration (if any)
+     */
+    private fun handleLegacyFormatMigration(parsedData: ParsedSessionData): SessionInventory {
         logger.debug { "Parsed session format: ${parsedData.format}" }
 
         if (parsedData.format == SessionFileFormat.LEGACY) {
@@ -117,22 +148,25 @@ class FileAuthSessionStore(
             }
         }
 
-        logger.debug {
-            "Session inventory loaded: " +
-                "active=${parsedData.inventory.activeSession != null}, " +
-                "valid=${parsedData.inventory.validSessions}, " +
-                "invalid=${parsedData.inventory.invalidSessions}"
-        }
-        check(parsedData.inventory.validSessions >= 0) {
+        return parsedData.inventory
+    }
+
+    /**
+     * Validates the inventory data for consistency.
+     *
+     * @param inventory The session inventory to validate
+     * @throws AssertionError if validation fails
+     */
+    private fun validateInventory(inventory: SessionInventory) {
+        check(inventory.validSessions >= 0) {
             "Session inventory valid session count must be non-negative."
         }
-        check(parsedData.inventory.invalidSessions >= 0) {
+        check(inventory.invalidSessions >= 0) {
             "Session inventory invalid session count must be non-negative."
         }
-        check(parsedData.inventory.activeSession == null || parsedData.inventory.activeSession.userId.isNotBlank()) {
+        check(inventory.activeSession == null || inventory.activeSession.userId.isNotBlank()) {
             "Session inventory active session must include a non-blank user ID."
         }
-        return parsedData.inventory
     }
 
     /**

@@ -19,8 +19,14 @@ class AuthSessionServiceImpl(
                     sessionStore.writeActiveSession(loginResult.session)
                     logger.info { "Session persisted successfully for email: ${input.email}" }
                     AuthResult.Success("Login successful.")
-                } catch (e: RuntimeException) {
+                } catch (e: IllegalStateException) {
                     logger.error(e) { "Session write failed during login - session data not persisted" }
+                    AuthResult.Failure(
+                        message = "Login succeeded, but local session could not be saved. Try again.",
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    )
+                } catch (e: RuntimeException) {
+                    logger.error(e) { "Unexpected error during session write" }
                     AuthResult.Failure(
                         message = "Login succeeded, but local session could not be saved. Try again.",
                         exitCode = ExitCodes.SERVER_ERROR,

@@ -76,26 +76,25 @@ internal const val MAX_SEND_TIMEOUT_MS = 300_000L
 
 internal fun resolveSendTimeoutMs(environment: Map<String, String>): Long {
     val rawValue = environment[MESSAGE_SEND_TIMEOUT_ENV]?.trim().orEmpty()
-    if (rawValue.isEmpty()) {
-        return DEFAULT_SEND_TIMEOUT_MS
-    }
 
     val parsedValue = rawValue.toLongOrNull()
-    if (parsedValue == null || parsedValue <= 0L) {
-        logger.warn {
-            "Invalid $MESSAGE_SEND_TIMEOUT_ENV='$rawValue'; using default ${DEFAULT_SEND_TIMEOUT_MS}ms"
-        }
-        return DEFAULT_SEND_TIMEOUT_MS
-    }
 
-    if (parsedValue > MAX_SEND_TIMEOUT_MS) {
-        logger.warn {
-            "$MESSAGE_SEND_TIMEOUT_ENV=$parsedValue exceeds max ${MAX_SEND_TIMEOUT_MS}ms; clamping to ${MAX_SEND_TIMEOUT_MS}ms"
+    return when {
+        rawValue.isEmpty() -> DEFAULT_SEND_TIMEOUT_MS
+        parsedValue == null || parsedValue <= 0L -> {
+            logger.warn {
+                "Invalid $MESSAGE_SEND_TIMEOUT_ENV='$rawValue'; using default ${DEFAULT_SEND_TIMEOUT_MS}ms"
+            }
+            DEFAULT_SEND_TIMEOUT_MS
         }
-        return MAX_SEND_TIMEOUT_MS
+        parsedValue > MAX_SEND_TIMEOUT_MS -> {
+            logger.warn {
+                "$MESSAGE_SEND_TIMEOUT_ENV=$parsedValue exceeds max ${MAX_SEND_TIMEOUT_MS}ms; clamping to ${MAX_SEND_TIMEOUT_MS}ms"
+            }
+            MAX_SEND_TIMEOUT_MS
+        }
+        else -> parsedValue
     }
-
-    return parsedValue
 }
 
 /**
@@ -533,9 +532,13 @@ private fun Message.toConversationMessageOrNull(): ConversationMessage? {
 private fun String.toQualifiedIdOrNull(): UserId? {
     val trimmed = trim()
     val atIndex = trimmed.lastIndexOf('@')
-    if (atIndex <= 0 || atIndex == trimmed.lastIndex) return null
-    val value = trimmed.substring(0, atIndex)
-    val domain = trimmed.substring(atIndex + 1)
-    if (value.isBlank() || domain.isBlank()) return null
-    return UserId(value = value, domain = domain)
+    val isValidFormat = atIndex > 0 && atIndex < trimmed.lastIndex
+
+    return if (isValidFormat) {
+        val value = trimmed.substring(0, atIndex)
+        val domain = trimmed.substring(atIndex + 1)
+        if (value.isNotBlank() && domain.isNotBlank()) UserId(value = value, domain = domain) else null
+    } else {
+        null
+    }
 }

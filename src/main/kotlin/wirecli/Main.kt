@@ -88,36 +88,30 @@ private fun determineConsoleLogLevel(args: Array<String>): String {
     val hasVerbose = args.contains("--verbose") || args.contains("-v")
     if (hasVerbose) return "DEBUG"
 
-    val explicitLogLevel = parseCliLogLevel(args)
-    if (explicitLogLevel != null) return explicitLogLevel
-
-    // If user set it explicitly via -D, honor it.
-    val existingProp = System.getProperty("WIRECLI_CONSOLE_LOG_LEVEL")
-    if (!existingProp.isNullOrBlank()) return existingProp.uppercase()
-
-    // Finally, allow env var to opt-in.
-    val env = System.getenv("WIRECLI_CONSOLE_LOG_LEVEL")
-    if (!env.isNullOrBlank()) return env.uppercase()
-
-    return "OFF"
+    // Check explicit log level from CLI, system property, or environment
+    return parseCliLogLevel(args)
+        ?: System.getProperty("WIRECLI_CONSOLE_LOG_LEVEL")?.takeIf { it.isNotBlank() }?.uppercase()
+        ?: System.getenv("WIRECLI_CONSOLE_LOG_LEVEL")?.takeIf { it.isNotBlank() }?.uppercase()
+        ?: "OFF"
 }
 
 private fun parseCliLogLevel(args: Array<String>): String? {
     val allowed = setOf("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF")
     var i = 0
-    while (i < args.size) {
+    var result: String? = null
+    while (i < args.size && result == null) {
         val arg = args[i]
         when {
             arg.startsWith("--log-level=") -> {
                 val value = arg.substringAfter("--log-level=").trim().uppercase()
-                if (value in allowed) return value
+                if (value in allowed) result = value
             }
             arg == "--log-level" -> {
                 val value = args.getOrNull(i + 1)?.trim()?.uppercase()
-                if (!value.isNullOrBlank() && value in allowed) return value
+                if (!value.isNullOrBlank() && value in allowed) result = value
             }
         }
         i++
     }
-    return null
+    return result
 }

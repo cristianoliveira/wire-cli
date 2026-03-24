@@ -12,6 +12,7 @@ import wirecli.auth.AuthSessionService
 import wirecli.auth.ExitCodes
 import wirecli.auth.LoginInput
 import wirecli.validation.InputValidator
+import java.io.IOException
 
 private val logger = KotlinLogging.logger {}
 
@@ -142,7 +143,7 @@ class LoginCommand(
                 logger.warn { "No password data available from stdin" }
             }
             password
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             logger.error(e) { "Failed to read password from stdin" }
             null
         }

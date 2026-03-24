@@ -6,13 +6,16 @@ import com.wire.kalium.logic.feature.keypackage.MLSKeyPackageCountResult
 /**
  * Builder for diagnostic checks in sync operations.
  *
- * This class is responsible for creating diagnostic checks and recovery hints
- * for sync status and diagnostics reports. It encapsulates all the check-building
- * logic to reduce complexity in the main sync runtime class.
+ * This class is responsible for creating diagnostic checks for sync status and
+ * diagnostics reports. It encapsulates all the check-building logic to reduce
+ * complexity in the main sync runtime class.
+ *
+ * Recovery hints generation is delegated to [SyncRecoveryHintBuilder].
  */
 internal class SyncCheckBuilder(
     private val networkConnectivityChecker: NetworkConnectivityChecker,
     private val syncMetricsCalculator: SyncMetricsCalculator,
+    private val recoveryHintBuilder: SyncRecoveryHintBuilder = SyncRecoveryHintBuilder(),
 ) {
     fun buildAuthenticationCheck(): Check =
         Check(
@@ -145,7 +148,15 @@ internal class SyncCheckBuilder(
     }
 
     fun buildCompletenessCheck(syncState: SyncState?): Check {
-        val completeness = calculateSyncCompletenessPercentage(syncState)
+        val completeness =
+            when (syncState) {
+                is SyncState.Live -> 100
+                is SyncState.SlowSync -> 10
+                is SyncState.GatheringPendingEvents -> 70
+                is SyncState.Waiting -> 5
+                is SyncState.Failed -> 0
+                null -> 0
+            }
         return Check(
             name = "Sync Completeness",
             status =
@@ -160,7 +171,7 @@ internal class SyncCheckBuilder(
 
     fun buildConversationNetworkCheck(syncState: SyncState?): Check {
         val convNetworkMetrics = networkConnectivityChecker.checkNetworkConnectivity()
-        val convLagMs = calculateConversationLagMs(syncState)
+        val convLagMs = if (syncState == null) 30000L else syncMetricsCalculator.calculateLagMs(syncState)
         val convEstimatedLatency = networkConnectivityChecker.estimateNetworkLatency(convLagMs)
 
         val status =
@@ -193,96 +204,13 @@ internal class SyncCheckBuilder(
         }
 
     fun generateRecoveryHints(checks: List<Check>): List<RecoveryHint> {
-        val hints = mutableListOf<RecoveryHint>()
-
-        if (checks.any { it.name == "Sync Engine" && it.status == "Fail" }) {
-            hints.add(
-                RecoveryHint(
-                    description = "Sync engine is not responding",
-                    command = "wire-cli sync status --retry",
-                ),
-            )
-        }
-
-        val networkCheck = checks.find { it.name == "Network Connectivity" }
-        when (networkCheck?.status) {
-            "Fail" -> {
-                hints.add(
-                    RecoveryHint(
-                        description = "Network is disconnected or unreachable",
-                        command =
-                            "1. Check your internet connection\n2. Verify DNS resolution " +
-                                "(ping 8.8.8.8)\n3. Retry with: wire-cli sync status --retry",
-                    ),
-                )
-            }
-            "Warn" -> {
-                hints.add(
-                    RecoveryHint(
-                        description = "High error rate detected on network connection",
-                        command =
-                            "1. Check for network instability\n2. Try switching networks " +
-                                "if available\n3. Retry with: wire-cli sync status --retry",
-                    ),
-                )
-            }
-        }
-
-        return hints
+        return recoveryHintBuilder.generateRecoveryHints(checks)
     }
 
     fun generateConversationRecoveryHints(
         checks: List<Check>,
         conversationId: String,
-    ): List<RecoveryHint> {
-        val hints = mutableListOf<RecoveryHint>()
-
-        if (checks.any { it.name == "Message Sync" && it.status == "Fail" }) {
-            hints.add(
-                RecoveryHint(
-                    description = "Message sync failed for conversation",
-                    command = "wire-cli sync status --conversation $conversationId --retry",
-                ),
-            )
-        }
-
-        if (checks.any { it.name == "Sync Completeness" && it.status == "Fail" }) {
-            hints.add(
-                RecoveryHint(
-                    description = "Conversation sync is incomplete",
-                    command = "1. Check network connection status\n2. Verify server availability\n3. Retry full sync",
-                ),
-            )
-        }
-
-        val connCheck = checks.find { it.name == "Conversation Connectivity" }
-        when (connCheck?.status) {
-            "Fail" -> {
-                hints.add(
-                    RecoveryHint(
-                        description =
-                            "Conversation connectivity failed - verify network and " +
-                                "permissions",
-                        command =
-                            "1. Confirm network connectivity\n2. Verify conversation " +
-                                "exists: wire-cli sync status\n3. Check access permissions and retry",
-                    ),
-                )
-            }
-            "Warn" -> {
-                hints.add(
-                    RecoveryHint(
-                        description = "Conversation connectivity has intermittent issues",
-                        command =
-                            "1. Check for network instability\n2. Retry with exponential " +
-                                "backoff\n3. Consider retrying later if issue persists",
-                    ),
-                )
-            }
-        }
-
-        return hints
-    }
+    ): List<RecoveryHint> = recoveryHintBuilder.generateConversationRecoveryHints(checks, conversationId)
 
     private fun buildActualKeyPackagesCheck(keyPackageSuccess: MLSKeyPackageCountResult.Success): Check {
         val status =
@@ -304,46 +232,28 @@ internal class SyncCheckBuilder(
     }
 
     private fun buildEstimatedKeyPackagesCheck(syncState: SyncState?): Check {
-        val estimatedKeyPackageCount = estimateKeyPackageCount(syncState)
-        val status = determineKeyPackageStatus(estimatedKeyPackageCount)
-        val details = buildKeyPackageDetails(estimatedKeyPackageCount)
+        val estimatedCount =
+            when (syncState) {
+                is SyncState.Live -> 50
+                is SyncState.SlowSync -> 0
+                is SyncState.GatheringPendingEvents -> 30
+                is SyncState.Waiting -> 5
+                is SyncState.Failed -> 0
+                null -> 0
+            }
+        val status =
+            when {
+                estimatedCount < 10 -> "Fail"
+                estimatedCount < 20 -> "Warn"
+                else -> "Pass"
+            }
+        val details =
+            when {
+                estimatedCount < 10 -> "Critical: Only $estimatedCount key packages available"
+                estimatedCount < 20 ->
+                    "Warning: Only $estimatedCount key packages available (refresh recommended)"
+                else -> "OK: $estimatedCount key packages available"
+            }
         return Check(name = "Key Packages", status = status, details = details)
     }
-
-    private fun estimateKeyPackageCount(syncState: SyncState?): Int =
-        when (syncState) {
-            is SyncState.Live -> 50
-            is SyncState.SlowSync -> 0
-            is SyncState.GatheringPendingEvents -> 30
-            is SyncState.Waiting -> 5
-            is SyncState.Failed -> 0
-            null -> 0
-        }
-
-    private fun determineKeyPackageStatus(count: Int): String =
-        when {
-            count < 10 -> "Fail"
-            count < 20 -> "Warn"
-            else -> "Pass"
-        }
-
-    private fun buildKeyPackageDetails(count: Int): String =
-        when {
-            count < 10 -> "Critical: Only $count key packages available"
-            count < 20 -> "Warning: Only $count key packages available (refresh recommended)"
-            else -> "OK: $count key packages available"
-        }
-
-    private fun calculateConversationLagMs(syncState: SyncState?): Long =
-        if (syncState == null) 30000L else syncMetricsCalculator.calculateLagMs(syncState)
-
-    private fun calculateSyncCompletenessPercentage(syncState: SyncState?): Int =
-        when (syncState) {
-            is SyncState.Live -> 100
-            is SyncState.SlowSync -> 10
-            is SyncState.GatheringPendingEvents -> 70
-            is SyncState.Waiting -> 5
-            is SyncState.Failed -> 0
-            null -> 0
-        }
 }

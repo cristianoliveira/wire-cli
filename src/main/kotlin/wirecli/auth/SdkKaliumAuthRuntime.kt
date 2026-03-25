@@ -461,7 +461,10 @@ internal class SdkKaliumAuthRuntime(
                         RegisterClientResult.Failure.PasswordAuthRequired ->
                             AuthStepResult.Failure(AuthFailureCategory.PASSWORD_REQUIRED)
 
-                        RegisterClientResult.Failure.TooManyClients -> AuthStepResult.Failure(AuthFailureCategory.SERVER)
+                        RegisterClientResult.Failure.TooManyClients ->
+                            AuthStepResult.Failure(
+                                AuthFailureCategory.SERVER,
+                            )
                         is RegisterClientResult.Failure.Generic -> {
                             AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
                         }

@@ -151,7 +151,11 @@ internal class SdkKaliumMessageRuntime(
                         conversationId,
                         PREFLIGHT_SYNC_TIMEOUT_MS,
                     )
-                if (preflightFailureCategory != null) return@runBlocking MessageStepResult.Failure(preflightFailureCategory)
+                if (preflightFailureCategory != null) {
+                    return@runBlocking MessageStepResult.Failure(
+                        preflightFailureCategory,
+                    )
+                }
 
                 val kaliumConvId = MessageOperationHelper.buildQualifiedConversationId(conversationId, session.server)
 
@@ -238,7 +242,11 @@ internal class SdkKaliumMessageRuntime(
                         conversationId,
                         PREFLIGHT_SYNC_TIMEOUT_MS,
                     )
-                if (preflightFailureCategory != null) return@runBlocking MessageStepResult.Failure(preflightFailureCategory)
+                if (preflightFailureCategory != null) {
+                    return@runBlocking MessageStepResult.Failure(
+                        preflightFailureCategory,
+                    )
+                }
 
                 val kaliumConvId = MessageOperationHelper.buildQualifiedConversationId(conversationId, session.server)
 

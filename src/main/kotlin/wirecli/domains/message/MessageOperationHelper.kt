@@ -43,13 +43,15 @@ internal object MessageOperationHelper {
             logger.info {
                 "message-send preflight sync end: conversationId=$conversationId, elapsedMs=$preflightElapsedMs"
             }
-            null // Success
-        } catch (@Suppress("SwallowedException") error: TimeoutCancellationException) {
-            logger.warn {
-                "message-send preflight sync timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
-            }
-            MessageFailureCategory.TIMEOUT
-        }
+             null // Success
+         } catch (error: TimeoutCancellationException) {
+             // Timeout is intentionally caught and logged - normal operational behavior for preflight sync.
+             // This is not an error but a timeout constraint being enforced.
+             logger.warn {
+                 "message-send preflight sync timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
+             }
+             MessageFailureCategory.TIMEOUT
+         }
     }
 
     /**
@@ -88,13 +90,15 @@ internal object MessageOperationHelper {
             logger.info {
                 "message-send sendTextMessage end: conversationId=$conversationId, elapsedMs=$sendElapsedMs"
             }
-            Pair(result, null)
-        } catch (@Suppress("SwallowedException") error: TimeoutCancellationException) {
-            logger.warn {
-                "message-send sendTextMessage timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
-            }
-            Pair(null, MessageStepResult.Failure(MessageFailureCategory.TIMEOUT))
-        }
+             Pair(result, null)
+         } catch (error: TimeoutCancellationException) {
+             // Timeout is intentionally caught and logged - normal operational behavior for send operation.
+             // This is not an error but a timeout constraint being enforced.
+             logger.warn {
+                 "message-send sendTextMessage timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
+             }
+             Pair(null, MessageStepResult.Failure(MessageFailureCategory.TIMEOUT))
+         }
     }
 
     /**
@@ -119,12 +123,14 @@ internal object MessageOperationHelper {
             logger.info {
                 "message-fetch getRecentMessages end: conversationId=$conversationId, elapsedMs=$fetchElapsedMs"
             }
-            Pair(result, null)
-        } catch (@Suppress("SwallowedException") error: TimeoutCancellationException) {
-            logger.warn {
-                "message-fetch getRecentMessages timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
-            }
-            Pair(null, MessageStepResult.Failure(MessageFailureCategory.TIMEOUT))
-        }
-    }
-}
+             Pair(result, null)
+         } catch (error: TimeoutCancellationException) {
+             // Timeout is intentionally caught and logged - normal operational behavior for fetch operation.
+             // This is not an error but a timeout constraint being enforced.
+             logger.warn {
+                 "message-fetch getRecentMessages timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
+             }
+             Pair(null, MessageStepResult.Failure(MessageFailureCategory.TIMEOUT))
+         }
+     }
+ }

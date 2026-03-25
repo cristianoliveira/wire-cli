@@ -15,6 +15,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import wirecli.auth.AuthSession
+import wirecli.domains.message.MessageFailureMapper
+import wirecli.domains.message.MessageOperationHelper
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 import java.nio.file.Paths

@@ -10,6 +10,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthSession
+import wirecli.domains.device.DeviceFailureMapper
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 

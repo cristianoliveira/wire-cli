@@ -1,7 +1,11 @@
-package wirecli.sync
+package wirecli.domains.sync
 
 import com.wire.kalium.logic.data.sync.SyncState
 import com.wire.kalium.logic.feature.keypackage.MLSKeyPackageCountResult
+import wirecli.sync.Check
+import wirecli.sync.NetworkConnectivityChecker
+import wirecli.sync.RecoveryHint
+import wirecli.sync.SyncMetricsCalculator
 
 /**
  * Builder for diagnostic checks in sync operations.

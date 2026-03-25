@@ -1,7 +1,10 @@
-package wirecli.device
+package wirecli.domains.device
 
 import wirecli.auth.AuthMessages
 import wirecli.auth.ExitCodes
+import wirecli.device.DeviceExitCodes
+import wirecli.device.DeviceFailureCategory
+import wirecli.device.DeviceMessages
 
 /**
  * Maps DeviceFailureCategory to appropriate messages and exit codes.

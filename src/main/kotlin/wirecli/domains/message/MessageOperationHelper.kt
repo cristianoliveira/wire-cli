@@ -1,4 +1,4 @@
-package wirecli.message
+package wirecli.domains.message
 
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.id.ConversationId
@@ -8,6 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import wirecli.message.MessageFailureCategory
+import wirecli.message.MessageStepResult
 import java.util.concurrent.TimeUnit
 
 private val logger = KotlinLogging.logger {}

@@ -28,6 +28,24 @@ private val logger = KotlinLogging.logger {}
 internal class RealKaliumSyncApiClient(
     private val runtime: RealKaliumSyncRuntime,
 ) : SyncApiClient {
+    companion object {
+        // Key package thresholds
+        const val LIVE_KEY_PACKAGES = 50
+        const val SLOW_SYNC_KEY_PACKAGES = 0
+        const val GATHERING_KEY_PACKAGES = 30
+        const val WAITING_KEY_PACKAGES = 5
+
+        // Key package status thresholds
+        const val CRITICAL_KEY_PACKAGES_THRESHOLD = 10
+        const val WARNING_KEY_PACKAGES_THRESHOLD = 20
+
+        // Sync completeness percentages
+        const val LIVE_SYNC_COMPLETENESS = 100
+        const val SLOW_SYNC_COMPLETENESS = 10
+        const val GATHERING_SYNC_COMPLETENESS = 70
+        const val WAITING_SYNC_COMPLETENESS = 5
+    }
+
     override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
         require(session.userId.isNotBlank()) { "Force sync requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "Force sync requires a non-blank session access token." }
@@ -111,7 +129,7 @@ internal class RealKaliumSyncApiClient(
         val result = runtime.getConversationSyncStatus(session, conversationId)
         when (result) {
             is ConversationSyncStatusResult.Success -> {
-                check(result.status.conversation_id == conversationId) {
+                check(result.status.conversationId == conversationId) {
                     "Conversation sync status success must preserve the requested conversation ID."
                 }
             }
@@ -145,7 +163,7 @@ internal class RealKaliumSyncApiClient(
         val result = runtime.getPerConversationDiagnostics(session, conversationId)
         when (result) {
             is PerConversationDiagnosticsResult.Success -> {
-                check(result.report.conversation_id == conversationId) {
+                check(result.report.conversationId == conversationId) {
                     "Per-conversation diagnostics success must preserve the requested conversation ID."
                 }
             }
@@ -336,28 +354,30 @@ internal class SdkKaliumSyncRuntime(
                     logger.debug { "Checking network connectivity" }
                     val networkMetrics =
                         networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                            estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                            estimatedLatencyMs = networkConnectivityChecker.estimateNetworkLatency(lagMs),
                         )
 
                     val metrics =
                         HealthMetrics(
-                            lag_ms = lagMs,
-                            pending_messages = calculatePendingMessages(syncState),
-                            mls_pct = calculateMlsPercentage(syncState),
+                            lagMs = lagMs,
+                            pendingMessages = calculatePendingMessages(syncState),
+                            mlsPct = calculateMlsPercentage(syncState),
                             timestamp = Instant.now().toString(),
                             network = networkMetrics,
                             mls = buildMlsMetrics(syncState, keyPackageCountResult),
                         )
 
                     logger.debug {
-                        "Health metrics calculated: lag=${metrics.lag_ms}ms, " +
-                            "pending=${metrics.pending_messages}, mls=${metrics.mls_pct}%"
+                        "Health metrics calculated: lag=${metrics.lagMs}ms, " +
+                            "pending=${metrics.pendingMessages}, mls=${metrics.mlsPct}%"
                     }
 
                     val view = SyncStatusView(status = status, metrics = metrics)
                     logger.info { "Sync status retrieved successfully: status=$status, lag=${lagMs}ms" }
                     SyncStatusResult.Success(view)
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     logger.error(error) { "Failed to get sync status for user: $qualifiedId" }
                     SyncStatusResult.Failure(
                         message = categoryFromThrowableSync(error).getMessage(),
@@ -370,7 +390,7 @@ internal class SdkKaliumSyncRuntime(
             "Sync status lookup must track active session user IDs for shutdown."
         }
         if (result is SyncStatusResult.Success) {
-            check(result.view.metrics.lag_ms >= 0) {
+            check(result.view.metrics.lagMs >= 0) {
                 "Sync status success must include a non-negative lag metric."
             }
         }
@@ -426,13 +446,13 @@ internal class SdkKaliumSyncRuntime(
                     val lagMs = calculateLagMs(syncState)
                     val networkMetrics =
                         networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                            estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                            estimatedLatencyMs = networkConnectivityChecker.estimateNetworkLatency(lagMs),
                         )
                     val metrics =
                         HealthMetrics(
-                            lag_ms = lagMs,
-                            pending_messages = calculatePendingMessages(syncState),
-                            mls_pct = calculateMlsPercentage(syncState),
+                            lagMs = lagMs,
+                            pendingMessages = calculatePendingMessages(syncState),
+                            mlsPct = calculateMlsPercentage(syncState),
                             timestamp = Instant.now().toString(),
                             network = networkMetrics,
                             mls = buildMlsMetrics(syncState, keyPackageCountResult),
@@ -444,7 +464,9 @@ internal class SdkKaliumSyncRuntime(
                             metrics = metrics,
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     logger.error(error) { "Failed to force sync and wait for user: $qualifiedId" }
                     SyncStatusResult.Failure(
                         message = categoryFromThrowableSync(error).getMessage(),
@@ -534,7 +556,9 @@ internal class SdkKaliumSyncRuntime(
                             recoveryHints = generateRecoveryHints(checks),
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     logger.error(error) { "Failed to get diagnostics for user: $qualifiedId" }
                     DiagnosticsResult.Failure(
                         message = categoryFromThrowableSync(error).getDiagnosticsMessage(),
@@ -604,7 +628,9 @@ internal class SdkKaliumSyncRuntime(
                     val view = buildConversationSyncStatusView(conversationId, syncState)
                     logger.info { "Conversation sync status retrieved: conversation=$conversationId, status=${view.status}" }
                     ConversationSyncStatusResult.Success(view)
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     logger.error(error) { "Failed to get conversation sync status for conversation: $conversationId" }
                     ConversationSyncStatusResult.Failure(
                         message = categoryFromThrowableSync(error).getConversationMessage(),
@@ -617,7 +643,7 @@ internal class SdkKaliumSyncRuntime(
             "Conversation sync lookup must track active session user IDs for shutdown."
         }
         if (result is ConversationSyncStatusResult.Success) {
-            check(result.status.conversation_id == conversationId) {
+            check(result.status.conversationId == conversationId) {
                 "Conversation sync success must preserve the requested conversation ID."
             }
         }
@@ -682,13 +708,15 @@ internal class SdkKaliumSyncRuntime(
 
                     PerConversationDiagnosticsResult.Success(
                         PerConversationDiagnosticsReport(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             checks = checks,
                             summary = summary,
                             recoveryHints = generateConversationRecoveryHints(checks, conversationId),
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     logger.error(error) { "Failed to get conversation diagnostics for conversation: $conversationId" }
                     PerConversationDiagnosticsResult.Failure(
                         message = categoryFromThrowableSync(error).getConversationMessage(),
@@ -701,7 +729,7 @@ internal class SdkKaliumSyncRuntime(
             "Per-conversation diagnostics must track active session user IDs for shutdown."
         }
         if (result is PerConversationDiagnosticsResult.Success) {
-            check(result.report.conversation_id == conversationId) {
+            check(result.report.conversationId == conversationId) {
                 "Per-conversation diagnostics success must preserve the requested conversation ID."
             }
         }
@@ -734,7 +762,9 @@ internal class SdkKaliumSyncRuntime(
                 ResetResult.Success(
                     message = "Sync reset successful",
                 )
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 logger.error(error) { "Failed to reset sync for user: $qualifiedId" }
                 ResetResult.Failure(
                     message = categoryFromThrowableSync(error).getMessage(),
@@ -805,17 +835,17 @@ internal class SdkKaliumSyncRuntime(
     ): MLSMetrics? {
         val keyPackageSuccess = keyPackageCountResult as? MLSKeyPackageCountResult.Success ?: return null
         return MLSMetrics(
-            enrollment_pct = calculateMlsPercentage(syncState),
-            key_package_available = keyPackageSuccess.count,
-            key_package_exhausted = keyPackageSuccess.count == 0,
-            key_package_generation_enabled = syncState is SyncState.Live,
-            key_package_refresh_required = keyPackageSuccess.needsRefill,
-            mls_group_updates_failed_count = if (syncState is SyncState.Failed) 1 else 0,
-            mls_enrollment_failures_count = if (syncState is SyncState.Failed) 1 else 0,
-            mls_error_rate = if (syncState is SyncState.Failed) 0.10 else 0.0,
-            last_key_package_refresh_timestamp = if (syncState is SyncState.Live) Instant.now().toString() else null,
+            enrollmentPct = calculateMlsPercentage(syncState),
+            keyPackageAvailable = keyPackageSuccess.count,
+            keyPackageExhausted = keyPackageSuccess.count == 0,
+            keyPackageGenerationEnabled = syncState is SyncState.Live,
+            keyPackageRefreshRequired = keyPackageSuccess.needsRefill,
+            mlsGroupUpdatesFailedCount = if (syncState is SyncState.Failed) 1 else 0,
+            mlsEnrollmentFailuresCount = if (syncState is SyncState.Failed) 1 else 0,
+            mlsErrorRate = if (syncState is SyncState.Failed) 0.10 else 0.0,
+            lastKeyPackageRefreshTimestamp = if (syncState is SyncState.Live) Instant.now().toString() else null,
             timestamp = Instant.now().toString(),
-            device_name = keyPackageSuccess.clientId.value,
+            deviceName = keyPackageSuccess.clientId.value,
         )
     }
 
@@ -827,23 +857,23 @@ internal class SdkKaliumSyncRuntime(
         val lagMs = calculateConversationLagMs(syncState)
         val networkMetrics =
             networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                estimatedLatencyMs = networkConnectivityChecker.estimateNetworkLatency(lagMs),
             )
         val metrics =
             ConversationMetrics(
-                conversation_id = conversationId,
-                lag_ms = lagMs,
-                pending_messages = calculateConversationPendingMessages(syncState),
-                sync_completeness_pct = calculateSyncCompletenessPercentage(syncState),
+                conversationId = conversationId,
+                lagMs = lagMs,
+                pendingMessages = calculateConversationPendingMessages(syncState),
+                syncCompletenessPct = calculateSyncCompletenessPercentage(syncState),
                 timestamp = Instant.now().toString(),
                 network = networkMetrics,
             )
 
         return ConversationSyncStatus(
-            conversation_id = conversationId,
+            conversationId = conversationId,
             status = status,
             metrics = metrics,
-            last_sync_timestamp = Instant.now().toString(),
+            lastSyncTimestamp = Instant.now().toString(),
         )
     }
 
@@ -941,25 +971,27 @@ internal class SdkKaliumSyncRuntime(
 
     private fun estimateKeyPackageCount(syncState: SyncState?): Int =
         when (syncState) {
-            is SyncState.Live -> 50
-            is SyncState.SlowSync -> 0
-            is SyncState.GatheringPendingEvents -> 30
-            is SyncState.Waiting -> 5
+            is SyncState.Live -> RealKaliumSyncApiClient.LIVE_KEY_PACKAGES
+            is SyncState.SlowSync -> RealKaliumSyncApiClient.SLOW_SYNC_KEY_PACKAGES
+            is SyncState.GatheringPendingEvents -> RealKaliumSyncApiClient.GATHERING_KEY_PACKAGES
+            is SyncState.Waiting -> RealKaliumSyncApiClient.WAITING_KEY_PACKAGES
             is SyncState.Failed -> 0
             null -> 0
         }
 
     private fun determineKeyPackageStatus(count: Int): String =
         when {
-            count < 10 -> "Fail"
-            count < 20 -> "Warn"
+            count < RealKaliumSyncApiClient.CRITICAL_KEY_PACKAGES_THRESHOLD -> "Fail"
+            count < RealKaliumSyncApiClient.WARNING_KEY_PACKAGES_THRESHOLD -> "Warn"
             else -> "Pass"
         }
 
     private fun buildKeyPackageDetails(count: Int): String =
         when {
-            count < 10 -> "Critical: Only $count key packages available"
-            count < 20 -> "Warning: Only $count key packages available (refresh recommended)"
+            count < RealKaliumSyncApiClient.CRITICAL_KEY_PACKAGES_THRESHOLD ->
+                "Critical: Only $count key packages available"
+            count < RealKaliumSyncApiClient.WARNING_KEY_PACKAGES_THRESHOLD ->
+                "Warning: Only $count key packages available (refresh recommended)"
             else -> "OK: $count key packages available"
         }
 
@@ -972,18 +1004,18 @@ internal class SdkKaliumSyncRuntime(
             when {
                 networkMetrics != null && !networkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                networkMetrics != null && networkMetrics.error_rate > 0.3 -> "Warn"
+                networkMetrics != null && networkMetrics.errorRate > 0.3 -> "Warn"
                 else -> "Pass"
             }
 
         val details =
             buildString {
                 if (networkMetrics != null) {
-                    append("Network: ${networkMetrics.network_type}, ")
+                    append("Network: ${networkMetrics.networkType}, ")
                     append("Latency: ${estimatedLatency}ms, ")
-                    append("Error Rate: ${String.format("%.1f%%", networkMetrics.error_rate * 100)}")
-                    if (networkMetrics.last_recovery_time_ms != null) {
-                        append(", Last Recovery: ${networkMetrics.last_recovery_time_ms}ms ago")
+                    append("Error Rate: ${String.format(java.util.Locale.US, "%.1f%%", networkMetrics.errorRate * 100)}")
+                    if (networkMetrics.lastRecoveryTimeMs != null) {
+                        append(", Last Recovery: ${networkMetrics.lastRecoveryTimeMs}ms ago")
                     }
                 } else {
                     append("Network connectivity status unavailable")
@@ -1054,14 +1086,14 @@ internal class SdkKaliumSyncRuntime(
             when {
                 convNetworkMetrics != null && !convNetworkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                convNetworkMetrics != null && convNetworkMetrics.error_rate > 0.3 -> "Warn"
+                convNetworkMetrics != null && convNetworkMetrics.errorRate > 0.3 -> "Warn"
                 else -> "Pass"
             }
 
         val details =
             buildString {
                 if (convNetworkMetrics != null) {
-                    append("Type: ${convNetworkMetrics.network_type}, ")
+                    append("Type: ${convNetworkMetrics.networkType}, ")
                     append("Latency: ${convEstimatedLatency}ms, ")
                     append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
                 } else {
@@ -1133,10 +1165,10 @@ internal class SdkKaliumSyncRuntime(
         // Calculate sync completeness as a percentage based on the sync state
         // Estimated progress based on sync state indicating completeness
         return when (syncState) {
-            is SyncState.Live -> 100 // All messages synced
-            is SyncState.SlowSync -> 10 // Initial sync just started
-            is SyncState.GatheringPendingEvents -> 70 // Gathering missed messages
-            is SyncState.Waiting -> 5 // About to start sync
+            is SyncState.Live -> RealKaliumSyncApiClient.LIVE_SYNC_COMPLETENESS // All messages synced
+            is SyncState.SlowSync -> RealKaliumSyncApiClient.SLOW_SYNC_COMPLETENESS // Initial sync just started
+            is SyncState.GatheringPendingEvents -> RealKaliumSyncApiClient.GATHERING_SYNC_COMPLETENESS // Gathering missed messages
+            is SyncState.Waiting -> RealKaliumSyncApiClient.WAITING_SYNC_COMPLETENESS // About to start sync
             is SyncState.Failed -> 0 // Sync failed, no progress
             null -> 0 // Unable to determine
         }

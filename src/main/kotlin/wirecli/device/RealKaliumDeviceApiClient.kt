@@ -585,7 +585,9 @@ internal class SdkKaliumDeviceRuntime(
                             server = session.server,
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -632,7 +634,9 @@ internal class SdkKaliumDeviceRuntime(
                         is SelfClientsResult.Failure.Generic ->
                             DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -679,7 +683,9 @@ internal class SdkKaliumDeviceRuntime(
                         "Fetching devices for other users is not yet implemented. " +
                             "This requires proper Flow-based device collection from Kalium SDK.",
                     )
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -733,7 +739,9 @@ internal class SdkKaliumDeviceRuntime(
                         is SelfClientsResult.Failure.Generic ->
                             DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -790,7 +798,9 @@ internal class SdkKaliumDeviceRuntime(
                         is DeleteClientResult.Failure.Generic ->
                             DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -832,7 +842,13 @@ internal class SdkKaliumDeviceRuntime(
             field.isAccessible = true
             val lastActive = field.get(client)
             lastActive?.toString() ?: "unknown"
-        } catch (e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught")
+            e: Exception,
+        ) {
+            // Reflection failure is intentionally caught with safe fallback.
+            // This occurs when the underlying SDK changes its data model.
+            // Reason: Fallback to "unknown" is acceptable for display purposes.
             "unknown"
         }
     }

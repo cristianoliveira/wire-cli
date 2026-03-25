@@ -31,7 +31,7 @@ class NetworkConnectivityCheckerTest {
     fun `stub checker returns correct network type`() {
         val metrics = stubChecker.checkNetworkConnectivity()
         assertNotNull(metrics, "Network metrics should not be null")
-        assertEquals(NetworkType.WIFI, metrics.network_type)
+        assertEquals(NetworkType.WIFI, metrics.networkType)
     }
 
     @Test
@@ -111,11 +111,11 @@ class NetworkConnectivityCheckerTest {
     @Test
     fun `network metrics include all required fields`() {
         val metrics = stubChecker.checkNetworkConnectivity()
-        assertNotNull(metrics.reachability_check_timestamp, "Timestamp should be set")
+        assertNotNull(metrics.reachabilityCheckTimestamp, "Timestamp should be set")
         assertTrue(metrics.connected, "Connection status should be set")
-        assertEquals(NetworkType.WIFI, metrics.network_type, "Network type should be set")
-        assertEquals(20L, metrics.estimated_latency_ms, "Latency should be set")
-        assertEquals(0.0, metrics.error_rate, "Error rate should be set")
+        assertEquals(NetworkType.WIFI, metrics.networkType, "Network type should be set")
+        assertEquals(20L, metrics.estimatedLatencyMs, "Latency should be set")
+        assertEquals(0.0, metrics.errorRate, "Error rate should be set")
     }
 
     @Test
@@ -124,7 +124,7 @@ class NetworkConnectivityCheckerTest {
             StubNetworkConnectivityChecker(
                 errorRate = 0.5,
             ).checkNetworkConnectivity()
-        assertNotNull(metricsWithErrors.last_recovery_time_ms, "Recovery time should be set when there are errors")
+        assertNotNull(metricsWithErrors.lastRecoveryTimeMs, "Recovery time should be set when there are errors")
     }
 
     @Test
@@ -133,7 +133,7 @@ class NetworkConnectivityCheckerTest {
             StubNetworkConnectivityChecker(
                 errorRate = 0.0,
             ).checkNetworkConnectivity()
-        assertEquals(null, metricsWithoutErrors.last_recovery_time_ms, "Recovery time should be null without errors")
+        assertEquals(null, metricsWithoutErrors.lastRecoveryTimeMs, "Recovery time should be null without errors")
     }
 
     // ==================== NETWORK TYPE ENUMERATION TESTS ====================

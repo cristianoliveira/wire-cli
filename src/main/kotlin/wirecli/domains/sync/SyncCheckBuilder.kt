@@ -94,18 +94,18 @@ internal class SyncCheckBuilder(
             when {
                 networkMetrics != null && !networkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                networkMetrics != null && networkMetrics.error_rate > 0.3 -> "Warn"
+                networkMetrics != null && networkMetrics.errorRate > 0.3 -> "Warn"
                 else -> "Pass"
             }
 
         val details =
             buildString {
                 if (networkMetrics != null) {
-                    append("Network: ${networkMetrics.network_type}, ")
+                    append("Network: ${networkMetrics.networkType}, ")
                     append("Latency: ${estimatedLatency}ms, ")
-                    append("Error Rate: ${String.format("%.1f%%", networkMetrics.error_rate * 100)}")
-                    if (networkMetrics.last_recovery_time_ms != null) {
-                        append(", Last Recovery: ${networkMetrics.last_recovery_time_ms}ms ago")
+                    append("Error Rate: ${String.format(java.util.Locale.US, "%.1f%%", networkMetrics.errorRate * 100)}")
+                    if (networkMetrics.lastRecoveryTimeMs != null) {
+                        append(", Last Recovery: ${networkMetrics.lastRecoveryTimeMs}ms ago")
                     }
                 } else {
                     append("Network connectivity status unavailable")
@@ -182,14 +182,14 @@ internal class SyncCheckBuilder(
             when {
                 convNetworkMetrics != null && !convNetworkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                convNetworkMetrics != null && convNetworkMetrics.error_rate > 0.3 -> "Warn"
+                convNetworkMetrics != null && convNetworkMetrics.errorRate > 0.3 -> "Warn"
                 else -> "Pass"
             }
 
         val details =
             buildString {
                 if (convNetworkMetrics != null) {
-                    append("Type: ${convNetworkMetrics.network_type}, ")
+                    append("Type: ${convNetworkMetrics.networkType}, ")
                     append("Latency: ${convEstimatedLatency}ms, ")
                     append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
                 } else {

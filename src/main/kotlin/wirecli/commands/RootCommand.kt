@@ -50,8 +50,13 @@ class RootCommand : NoOpCliktCommand(
             val rootLogger = logbackContext.getLogger(Logger.ROOT_LOGGER_NAME)
             rootLogger.level = Level.valueOf(effectiveLevel)
             System.setProperty("WIRECLI_LOG_LEVEL", effectiveLevel)
-        } catch (e: Exception) {
-            // Silently continue if logging setup fails
+        } catch (
+            @Suppress("TooGenericExceptionCaught")
+            e: Exception,
+        ) {
+            // Logging configuration failure is intentionally caught and ignored.
+            // This is non-critical to CLI operation - the application continues with default settings.
+            // Reason: Logback may not be fully configured in all environments; this is acceptable.
         }
 
         // Set log directory from option or default
@@ -63,7 +68,13 @@ class RootCommand : NoOpCliktCommand(
         // Create log directory if it doesn't exist
         try {
             File(logDirPath).mkdirs()
-        } catch (e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught")
+            e: Exception,
+        ) {
+            // Directory creation failure is intentionally caught and logged to stderr.
+            // This is non-critical - logging will still function with system defaults.
+            // Reason: Permission issues or filesystem errors should not block CLI startup.
             System.err.println(
                 "Warning: Failed to create log directory at $logDirPath: ${e.message}",
             )

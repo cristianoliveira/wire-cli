@@ -131,7 +131,9 @@ internal class SdkKaliumProfileRuntime(
                         server = session.server,
                     ),
                 )
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 logger.error(error) { "Failed to resolve profile session scope for user: ${session.userId}" }
                 ProfileStepResult.Failure(categoryFromThrowable(error))
             }
@@ -176,7 +178,9 @@ internal class SdkKaliumProfileRuntime(
                         handle = selfUser.handle,
                     ),
                 )
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 logger.error(error) { "Failed to fetch self user for: $qualifiedId" }
                 ProfileStepResult.Failure(categoryFromThrowable(error))
             }

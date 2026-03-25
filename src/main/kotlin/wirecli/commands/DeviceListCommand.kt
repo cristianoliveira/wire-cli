@@ -10,6 +10,13 @@ import wirecli.auth.AuthRedactor
 import wirecli.device.DeviceListResult
 import wirecli.device.DeviceService
 
+private const val DEVICE_ID_COLUMN_WIDTH = 20
+private const val DEVICE_TYPE_COLUMN_WIDTH = 15
+private const val FINGERPRINT_COLUMN_WIDTH = 25
+private const val LAST_ACTIVE_COLUMN_WIDTH = 20
+private const val HEADER_LINE_LENGTH = 80
+private const val FINGERPRINT_MAX_DISPLAY_LENGTH = 20
+
 /**
  * CLI command to list devices registered to the current user or another user.
  *
@@ -84,17 +91,26 @@ class DeviceListCommand(
         }
 
         // Print header
-        echo(String.format("%-20s %-15s %-25s %-20s", "ID", "Type", "Fingerprint", "Last Active"))
-        echo("-".repeat(80))
+        val headerFormat =
+            "%-${DEVICE_ID_COLUMN_WIDTH}s %-${DEVICE_TYPE_COLUMN_WIDTH}s " +
+                "%-${FINGERPRINT_COLUMN_WIDTH}s %-${LAST_ACTIVE_COLUMN_WIDTH}s"
+        echo(String.format(headerFormat, "ID", "Type", "Fingerprint", "Last Active"))
+        echo("-".repeat(HEADER_LINE_LENGTH))
 
         // Print rows
+        val rowFormat =
+            "%-${DEVICE_ID_COLUMN_WIDTH}s %-${DEVICE_TYPE_COLUMN_WIDTH}s " +
+                "%-${FINGERPRINT_COLUMN_WIDTH}s %-${LAST_ACTIVE_COLUMN_WIDTH}s"
         for (device in devices) {
+            val displayFingerprint =
+                device.fingerprint.take(FINGERPRINT_MAX_DISPLAY_LENGTH) +
+                    if (device.fingerprint.length > FINGERPRINT_MAX_DISPLAY_LENGTH) "..." else ""
             echo(
                 String.format(
-                    "%-20s %-15s %-25s %-20s",
+                    rowFormat,
                     device.id,
                     device.type,
-                    device.fingerprint.take(20) + if (device.fingerprint.length > 20) "..." else "",
+                    displayFingerprint,
                     device.lastActive,
                 ),
             )

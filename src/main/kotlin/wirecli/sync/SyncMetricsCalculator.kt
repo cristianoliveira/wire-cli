@@ -13,6 +13,20 @@ internal interface SyncMetricsCalculator {
 }
 
 internal class RealSyncMetricsCalculator : SyncMetricsCalculator {
+    companion object {
+        private const val SLOW_SYNC_LAG_MS = 5000L
+        private const val GATHERING_EVENTS_LAG_MS = 2000L
+        private const val WAITING_LAG_MS = 1000L
+        private const val FAILED_MAX_RETRY_LAG_MS = 10000L
+
+        private const val SLOW_SYNC_PENDING_MESSAGES = 100
+        private const val GATHERING_EVENTS_PENDING_MESSAGES = 50
+        private const val WAITING_PENDING_MESSAGES = 10
+
+        private const val LIVE_MLS_PERCENTAGE = 100
+        private const val GATHERING_EVENTS_MLS_PERCENTAGE = 50
+    }
+
     override fun mapSyncStateToStatus(syncState: SyncState): SyncStatus {
         return when (syncState) {
             is SyncState.Live -> SyncStatus.READY
@@ -26,28 +40,28 @@ internal class RealSyncMetricsCalculator : SyncMetricsCalculator {
     override fun calculateLagMs(syncState: SyncState): Long {
         return when (syncState) {
             is SyncState.Live -> 0L
-            is SyncState.SlowSync -> 5000L
-            is SyncState.GatheringPendingEvents -> 2000L
-            is SyncState.Waiting -> 1000L
-            is SyncState.Failed -> maxOf(syncState.retryDelay.inWholeMilliseconds, 10000L)
+            is SyncState.SlowSync -> SLOW_SYNC_LAG_MS
+            is SyncState.GatheringPendingEvents -> GATHERING_EVENTS_LAG_MS
+            is SyncState.Waiting -> WAITING_LAG_MS
+            is SyncState.Failed -> maxOf(syncState.retryDelay.inWholeMilliseconds, FAILED_MAX_RETRY_LAG_MS)
         }
     }
 
     override fun calculatePendingMessages(syncState: SyncState): Int {
         return when (syncState) {
             is SyncState.Live -> 0
-            is SyncState.SlowSync -> 100
-            is SyncState.GatheringPendingEvents -> 50
-            is SyncState.Waiting -> 10
+            is SyncState.SlowSync -> SLOW_SYNC_PENDING_MESSAGES
+            is SyncState.GatheringPendingEvents -> GATHERING_EVENTS_PENDING_MESSAGES
+            is SyncState.Waiting -> WAITING_PENDING_MESSAGES
             is SyncState.Failed -> 0
         }
     }
 
     override fun calculateMlsPercentage(syncState: SyncState): Int {
         return when (syncState) {
-            is SyncState.Live -> 100
+            is SyncState.Live -> LIVE_MLS_PERCENTAGE
             is SyncState.SlowSync -> 0
-            is SyncState.GatheringPendingEvents -> 50
+            is SyncState.GatheringPendingEvents -> GATHERING_EVENTS_MLS_PERCENTAGE
             is SyncState.Waiting -> 0
             is SyncState.Failed -> 0
         }

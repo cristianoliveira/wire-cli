@@ -45,6 +45,8 @@ internal object MessageOperationHelper {
             }
             null // Success
         } catch (error: TimeoutCancellationException) {
+            // Timeout is intentionally caught and logged - normal operational behavior for preflight sync.
+            // This is not an error but a timeout constraint being enforced.
             logger.warn {
                 "message-send preflight sync timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
             }
@@ -90,6 +92,8 @@ internal object MessageOperationHelper {
             }
             Pair(result, null)
         } catch (error: TimeoutCancellationException) {
+            // Timeout is intentionally caught and logged - normal operational behavior for send operation.
+            // This is not an error but a timeout constraint being enforced.
             logger.warn {
                 "message-send sendTextMessage timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
             }
@@ -121,6 +125,8 @@ internal object MessageOperationHelper {
             }
             Pair(result, null)
         } catch (error: TimeoutCancellationException) {
+            // Timeout is intentionally caught and logged - normal operational behavior for fetch operation.
+            // This is not an error but a timeout constraint being enforced.
             logger.warn {
                 "message-fetch getRecentMessages timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
             }

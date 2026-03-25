@@ -151,7 +151,11 @@ internal class SdkKaliumMessageRuntime(
                         conversationId,
                         PREFLIGHT_SYNC_TIMEOUT_MS,
                     )
-                if (preflightFailureCategory != null) return@runBlocking MessageStepResult.Failure(preflightFailureCategory)
+                if (preflightFailureCategory != null) {
+                    return@runBlocking MessageStepResult.Failure(
+                        preflightFailureCategory,
+                    )
+                }
 
                 val kaliumConvId = MessageOperationHelper.buildQualifiedConversationId(conversationId, session.server)
 
@@ -197,7 +201,9 @@ internal class SdkKaliumMessageRuntime(
 
                     null -> MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
                 }
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 val mappedCategory = MessageFailureMapper.categoryFromThrowable(error)
                 logger.error(error) {
                     "message-send runtime exception: conversationId=$conversationId " +
@@ -238,7 +244,11 @@ internal class SdkKaliumMessageRuntime(
                         conversationId,
                         PREFLIGHT_SYNC_TIMEOUT_MS,
                     )
-                if (preflightFailureCategory != null) return@runBlocking MessageStepResult.Failure(preflightFailureCategory)
+                if (preflightFailureCategory != null) {
+                    return@runBlocking MessageStepResult.Failure(
+                        preflightFailureCategory,
+                    )
+                }
 
                 val kaliumConvId = MessageOperationHelper.buildQualifiedConversationId(conversationId, session.server)
 
@@ -264,7 +274,9 @@ internal class SdkKaliumMessageRuntime(
 
                 logger.info { "message-fetch runtime outcome=success conversationId=$conversationId" }
                 MessageStepResult.Success(mappedMessages)
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 val mappedCategory = MessageFailureMapper.categoryFromThrowable(error)
                 logger.error(error) {
                     "message-fetch runtime exception: conversationId=$conversationId " +
@@ -319,7 +331,9 @@ internal class SdkKaliumMessageRuntime(
                 MessageStepResult.Success(Unit)
             } catch (_: TimeoutCancellationException) {
                 MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 MessageStepResult.Failure(MessageFailureMapper.categoryFromThrowable(error))
             }
         }

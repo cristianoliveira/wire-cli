@@ -85,7 +85,9 @@ internal class SdkKaliumConversationRuntime(
                     }
 
                 ConversationStepResult.Success(conversationDetails)
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 ConversationStepResult.Failure(categoryFromThrowable(error))
             }
         }
@@ -119,7 +121,9 @@ internal class SdkKaliumConversationRuntime(
                 } else {
                     ConversationStepResult.Failure(ConversationFailureCategory.NOT_FOUND)
                 }
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 ConversationStepResult.Failure(categoryFromThrowable(error))
             }
         }
@@ -133,8 +137,13 @@ internal class SdkKaliumConversationRuntime(
                         coreLogic.sessionScope(userId) {
                             // Clear the session
                         }
-                    } catch (e: Exception) {
-                        // Ignore errors during shutdown
+                    } catch (
+                        @Suppress("TooGenericExceptionCaught")
+                        e: Exception,
+                    ) {
+                        // Exceptions during shutdown cleanup are intentionally caught and suppressed.
+                        // This is normal during application termination when resources may be partially unavailable.
+                        // Reason: Errors during cleanup should not prevent the application from shutting down.
                     }
                 }
             }

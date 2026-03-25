@@ -178,7 +178,9 @@ class LoginCommand(
                 logger.warn { "Console read password returned null" }
                 null
             }
-        } catch (e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
             logger.error(e) { "Error reading password from console" }
             null
         }

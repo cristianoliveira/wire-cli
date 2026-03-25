@@ -25,7 +25,16 @@ class AuthSessionServiceImpl(
                         message = "Login succeeded, but local session could not be saved. Try again.",
                         exitCode = ExitCodes.SERVER_ERROR,
                     )
-                } catch (e: RuntimeException) {
+                } catch (e: IllegalArgumentException) {
+                    logger.error(e) { "Session validation failed during write - session data not persisted" }
+                    AuthResult.Failure(
+                        message = "Login succeeded, but local session could not be saved. Try again.",
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    )
+                } catch (
+                    @Suppress("TooGenericExceptionCaught")
+                    e: Exception,
+                ) {
                     logger.error(e) { "Unexpected error during session write" }
                     AuthResult.Failure(
                         message = "Login succeeded, but local session could not be saved. Try again.",
@@ -68,7 +77,10 @@ class AuthSessionServiceImpl(
                     sessionStore.clearActiveSession()
                     logger.info { "Local session cleared successfully" }
                     AuthResult.Success("Logged out.")
-                } catch (e: RuntimeException) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught")
+                    e: Exception,
+                ) {
                     logger.error(
                         e,
                     ) { "Session cleanup failed during logout - remote session cleared but local session remains" }

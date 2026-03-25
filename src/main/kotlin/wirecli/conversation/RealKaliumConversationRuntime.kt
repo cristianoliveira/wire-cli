@@ -133,7 +133,10 @@ internal class SdkKaliumConversationRuntime(
                         coreLogic.sessionScope(userId) {
                             // Clear the session
                         }
-                    } catch (e: Exception) {
+                    } catch (
+                        @Suppress("TooGenericExceptionCaught")
+                        e: Exception,
+                    ) {
                         // Exceptions during shutdown cleanup are intentionally caught and suppressed.
                         // This is normal during application termination when resources may be partially unavailable.
                         // Reason: Errors during cleanup should not prevent the application from shutting down.

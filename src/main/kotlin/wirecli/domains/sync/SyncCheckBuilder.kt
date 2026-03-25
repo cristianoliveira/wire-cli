@@ -94,23 +94,23 @@ internal class SyncCheckBuilder(
             when {
                 networkMetrics != null && !networkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                 networkMetrics != null && networkMetrics.errorRate > 0.3 -> "Warn"
-                 else -> "Pass"
-             }
+                networkMetrics != null && networkMetrics.errorRate > 0.3 -> "Warn"
+                else -> "Pass"
+            }
 
-         val details =
-             buildString {
-                 if (networkMetrics != null) {
-                     append("Network: ${networkMetrics.networkType}, ")
-                     append("Latency: ${estimatedLatency}ms, ")
-                     append("Error Rate: ${String.format("%.1f%%", networkMetrics.errorRate * 100)}")
-                     if (networkMetrics.lastRecoveryTimeMs != null) {
-                         append(", Last Recovery: ${networkMetrics.lastRecoveryTimeMs}ms ago")
-                     }
-                 } else {
-                     append("Network connectivity status unavailable")
-                 }
-             }
+        val details =
+            buildString {
+                if (networkMetrics != null) {
+                    append("Network: ${networkMetrics.networkType}, ")
+                    append("Latency: ${estimatedLatency}ms, ")
+                    append("Error Rate: ${String.format("%.1f%%", networkMetrics.errorRate * 100)}")
+                    if (networkMetrics.lastRecoveryTimeMs != null) {
+                        append(", Last Recovery: ${networkMetrics.lastRecoveryTimeMs}ms ago")
+                    }
+                } else {
+                    append("Network connectivity status unavailable")
+                }
+            }
 
         return Check(name = "Network Connectivity", status = status, details = details)
     }
@@ -182,20 +182,20 @@ internal class SyncCheckBuilder(
             when {
                 convNetworkMetrics != null && !convNetworkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                 convNetworkMetrics != null && convNetworkMetrics.errorRate > 0.3 -> "Warn"
-                 else -> "Pass"
-             }
+                convNetworkMetrics != null && convNetworkMetrics.errorRate > 0.3 -> "Warn"
+                else -> "Pass"
+            }
 
-         val details =
-             buildString {
-                 if (convNetworkMetrics != null) {
-                     append("Type: ${convNetworkMetrics.networkType}, ")
-                     append("Latency: ${convEstimatedLatency}ms, ")
-                     append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
-                 } else {
-                     append("Conversation connectivity status unavailable")
-                 }
-             }
+        val details =
+            buildString {
+                if (convNetworkMetrics != null) {
+                    append("Type: ${convNetworkMetrics.networkType}, ")
+                    append("Latency: ${convEstimatedLatency}ms, ")
+                    append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
+                } else {
+                    append("Conversation connectivity status unavailable")
+                }
+            }
 
         return Check(name = "Conversation Connectivity", status = status, details = details)
     }

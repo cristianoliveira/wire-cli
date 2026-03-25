@@ -585,7 +585,9 @@ internal class SdkKaliumDeviceRuntime(
                             server = session.server,
                         ),
                     )
-                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -632,7 +634,9 @@ internal class SdkKaliumDeviceRuntime(
                         is SelfClientsResult.Failure.Generic ->
                             DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -679,7 +683,9 @@ internal class SdkKaliumDeviceRuntime(
                         "Fetching devices for other users is not yet implemented. " +
                             "This requires proper Flow-based device collection from Kalium SDK.",
                     )
-                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -733,7 +739,9 @@ internal class SdkKaliumDeviceRuntime(
                         is SelfClientsResult.Failure.Generic ->
                             DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -790,7 +798,9 @@ internal class SdkKaliumDeviceRuntime(
                         is DeleteClientResult.Failure.Generic ->
                             DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }

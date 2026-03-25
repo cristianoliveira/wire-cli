@@ -9,6 +9,10 @@ import kotlinx.serialization.json.Json
  * Supports human-readable and JSON output modes.
  */
 object SyncOutputFormatter {
+    private const val HIGH_LAG_THRESHOLD_MS = 5000
+    private const val LARGE_BACKLOG_THRESHOLD = 100
+    private const val MLS_MIGRATION_THRESHOLD_PCT = 50
+
     private val json = Json { prettyPrint = true }
 
     fun formatStatusHuman(result: SyncStatusResult): String =
@@ -164,9 +168,9 @@ object SyncOutputFormatter {
 
     private fun buildInterpretation(metrics: HealthMetrics): String =
         when {
-            metrics.lagMs > 5000 -> "⚠ High lag detected. Sync may be slow."
-            metrics.pendingMessages > 100 -> "⚠ Large message backlog detected."
-            metrics.mlsPct < 50 -> "⚠ MLS migration is still in progress."
+            metrics.lagMs > HIGH_LAG_THRESHOLD_MS -> "⚠ High lag detected. Sync may be slow."
+            metrics.pendingMessages > LARGE_BACKLOG_THRESHOLD -> "⚠ Large message backlog detected."
+            metrics.mlsPct < MLS_MIGRATION_THRESHOLD_PCT -> "⚠ MLS migration is still in progress."
             else -> "✓ All metrics are healthy."
         }
 

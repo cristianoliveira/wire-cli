@@ -46,6 +46,15 @@ internal interface NetworkConnectivityChecker {
  * and estimating latency from sync performance.
  */
 internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
+    companion object {
+        internal const val MINIMUM_LATENCY_ESTIMATE_MS = 10L
+        private const val ERROR_RATE_PERCENTAGE_MULTIPLIER = 100
+        private const val MAXIMUM_LATENCY_MS = 5000L
+        private const val DEFAULT_LATENCY_FAILED_PING_MS = 100L
+        private const val DEFAULT_LATENCY_NO_PING_MS = 50L
+        private const val PING_TIMEOUT_MS = 1000
+    }
+
     private var lastErrorTime: Instant? = null
     private var errorCount = 0
     private var attemptCount = 0
@@ -64,7 +73,7 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
 
             val errorRate = calculateErrorRate(errorCount, attemptCount)
             logger.debug {
-                "Network error rate: ${String.format("%.2f%%", errorRate * 100)} " +
+                "Network error rate: ${String.format("%.2f%%", errorRate * ERROR_RATE_PERCENTAGE_MULTIPLIER)} " +
                     "(errors: $errorCount, attempts: $attemptCount)"
             }
 
@@ -85,14 +94,16 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
 
             logger.info { "Network connectivity check completed: connected=$isConnected, type=$networkType, latency=${latency}ms" }
             metrics
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
             logger.error(e) { "Failed to check network connectivity" }
             null
         }
     }
 
     override fun estimateNetworkLatency(syncLagMs: Long): Long {
-        val estimated = maxOf(10L, syncLagMs / 2)
+        val estimated = maxOf(MINIMUM_LATENCY_ESTIMATE_MS, syncLagMs / 2)
         logger.debug { "Estimated network latency from sync lag: ${syncLagMs}ms -> ${estimated}ms" }
         return estimated
     }
@@ -110,7 +121,7 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
         logger.debug {
             "Calculated error rate: $failureCount failures / $totalAttempts attempts = ${String.format(
                 "%.2f%%",
-                rate * 100,
+                rate * ERROR_RATE_PERCENTAGE_MULTIPLIER,
             )}"
         }
         return rate
@@ -122,15 +133,17 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
     private fun isNetworkConnected(): Boolean {
         return try {
             logger.debug { "Checking network connectivity by resolving DNS (8.8.8.8)" }
-             val address = java.net.InetAddress.getByName("8.8.8.8")
-             val connected = address.hostAddress != null
-             logger.debug { "DNS resolution result: ${address.hostAddress} (connected: $connected)" }
-             connected
-         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-             logger.warn(e) { "DNS resolution failed - network may be unavailable" }
-             false
-         }
-     }
+            val address = java.net.InetAddress.getByName("8.8.8.8")
+            val connected = address.hostAddress != null
+            logger.debug { "DNS resolution result: ${address.hostAddress} (connected: $connected)" }
+            connected
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
+            logger.warn(e) { "DNS resolution failed - network may be unavailable" }
+            false
+        }
+    }
 
     /**
      * Detect the network type by checking system properties and network interfaces.
@@ -164,13 +177,15 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
                         NetworkType.UNKNOWN
                     }
                 }
-             logger.debug { "Detected network type: $type" }
-             type
-         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-             logger.warn(e) { "Failed to detect network type - defaulting to UNKNOWN" }
-             NetworkType.UNKNOWN
-         }
-     }
+            logger.debug { "Detected network type: $type" }
+            type
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
+            logger.warn(e) { "Failed to detect network type - defaulting to UNKNOWN" }
+            NetworkType.UNKNOWN
+        }
+    }
 
     /**
      * Check if WiFi is the active network connection.
@@ -201,21 +216,23 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
                     logger.debug { "WiFi detection not supported on this OS" }
                     false
                 }
-             }
-         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-             logger.warn(e) { "Failed to check WiFi connection status" }
-             false
-         }
-     }
+            }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
+            logger.warn(e) { "Failed to check WiFi connection status" }
+            false
+        }
+    }
 
-     /**
+    /**
      * Estimate system latency based on typical ping results.
      */
     private fun estimateLatencyBasedOnSystemMetrics(): Long {
         return try {
             logger.debug { "Estimating latency by pinging 8.8.8.8" }
             val runtime = Runtime.getRuntime()
-            val process = runtime.exec(arrayOf("ping", "-c", "1", "-W", "1000", "8.8.8.8"))
+            val process = runtime.exec(arrayOf("ping", "-c", "1", "-W", PING_TIMEOUT_MS.toString(), "8.8.8.8"))
             val startTime = System.currentTimeMillis()
             val exitCode = process.waitFor()
             val endTime = System.currentTimeMillis()
@@ -223,16 +240,18 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
 
             if (exitCode == 0) {
                 logger.debug { "Ping successful: ${duration}ms" }
-                duration.coerceIn(1L, 5000L)
-             } else {
-                 logger.debug { "Ping failed with exit code $exitCode - using default latency estimate" }
-                 100L // Default estimate if ping fails
-             }
-         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-             logger.debug(e) { "Unable to ping for latency estimation - using default estimate" }
-             50L // Default estimate if unable to ping
-         }
-     }
+                duration.coerceIn(1L, MAXIMUM_LATENCY_MS)
+            } else {
+                logger.debug { "Ping failed with exit code $exitCode - using default latency estimate" }
+                DEFAULT_LATENCY_FAILED_PING_MS
+            }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
+            logger.debug(e) { "Unable to ping for latency estimation - using default estimate" }
+            DEFAULT_LATENCY_NO_PING_MS
+        }
+    }
 
     /**
      * Calculate the time since the last error recovery.
@@ -255,7 +274,7 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
         val errorRate = calculateErrorRate(errorCount, attemptCount)
         logger.warn {
             "Network error recorded: errorCount=$errorCount, attemptCount=$attemptCount, " +
-                "errorRate=${String.format("%.2f%%", errorRate * 100)}"
+                "errorRate=${String.format("%.2f%%", errorRate * ERROR_RATE_PERCENTAGE_MULTIPLIER)}"
         }
     }
 
@@ -267,7 +286,7 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
         val errorRate = calculateErrorRate(errorCount, attemptCount)
         logger.debug {
             "Network success recorded: errorCount=$errorCount, attemptCount=$attemptCount, " +
-                "errorRate=${String.format("%.2f%%", errorRate * 100)}"
+                "errorRate=${String.format("%.2f%%", errorRate * ERROR_RATE_PERCENTAGE_MULTIPLIER)}"
         }
     }
 }
@@ -281,20 +300,20 @@ internal class StubNetworkConnectivityChecker(
     private val estimatedLatency: Long = 20L,
     private val errorRate: Double = 0.0,
 ) : NetworkConnectivityChecker {
-     override fun checkNetworkConnectivity(): NetworkMetrics {
-         return NetworkMetrics(
-             connected = connected,
-             networkType = networkType,
-             estimatedLatencyMs = estimatedLatency,
-             errorRate = errorRate,
-             lastRecoveryTimeMs = if (errorRate > 0.0) 5000L else null,
-             reachabilityCheckTimestamp = Instant.now().toString(),
-         )
-     }
+    override fun checkNetworkConnectivity(): NetworkMetrics {
+        return NetworkMetrics(
+            connected = connected,
+            networkType = networkType,
+            estimatedLatencyMs = estimatedLatency,
+            errorRate = errorRate,
+            lastRecoveryTimeMs = if (errorRate > 0.0) 5000L else null,
+            reachabilityCheckTimestamp = Instant.now().toString(),
+        )
+    }
 
     override fun estimateNetworkLatency(syncLagMs: Long): Long {
-        // Use real calculation logic: approximately half the sync lag with minimum 10ms
-        return maxOf(10L, syncLagMs / 2)
+        // Use real calculation logic: approximately half the sync lag with minimum of MINIMUM_LATENCY_ESTIMATE_MS
+        return maxOf(RealNetworkConnectivityChecker.MINIMUM_LATENCY_ESTIMATE_MS, syncLagMs / 2)
     }
 
     override fun calculateErrorRate(

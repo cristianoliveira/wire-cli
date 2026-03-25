@@ -84,12 +84,14 @@ internal class SdkKaliumConversationRuntime(
                             ?: emptyList()
                     }
 
-                 ConversationStepResult.Success(conversationDetails)
-             } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
-                 ConversationStepResult.Failure(categoryFromThrowable(error))
-             }
-         }
-     }
+                ConversationStepResult.Success(conversationDetails)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
+                ConversationStepResult.Failure(categoryFromThrowable(error))
+            }
+        }
+    }
 
     override fun getConversation(
         session: AuthSession,
@@ -117,13 +119,15 @@ internal class SdkKaliumConversationRuntime(
                 if (result is ObserveConversationDetailsUseCase.Result.Success) {
                     ConversationStepResult.Success(result.conversationDetails)
                 } else {
-                     ConversationStepResult.Failure(ConversationFailureCategory.NOT_FOUND)
-                 }
-             } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
-                 ConversationStepResult.Failure(categoryFromThrowable(error))
-             }
-         }
-     }
+                    ConversationStepResult.Failure(ConversationFailureCategory.NOT_FOUND)
+                }
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
+                ConversationStepResult.Failure(categoryFromThrowable(error))
+            }
+        }
+    }
 
     override fun shutdown() {
         if (coreLogicLazy.isInitialized()) {

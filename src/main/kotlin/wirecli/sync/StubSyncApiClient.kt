@@ -40,29 +40,29 @@ class StubSyncApiClient(
         }
     }
 
-     private val defaultHealthMetrics =
-         HealthMetrics(
-             lagMs = 100L,
-             pendingMessages = 5,
-             mlsPct = 85,
-             timestamp = "2025-03-13T10:30:00Z",
-         )
+    private val defaultHealthMetrics =
+        HealthMetrics(
+            lagMs = 100L,
+            pendingMessages = 5,
+            mlsPct = 85,
+            timestamp = "2025-03-13T10:30:00Z",
+        )
 
-     private val defaultDegradedMetrics =
-         HealthMetrics(
-             lagMs = 5000L,
-             pendingMessages = 250,
-             mlsPct = 45,
-             timestamp = "2025-03-13T10:35:00Z",
-         )
+    private val defaultDegradedMetrics =
+        HealthMetrics(
+            lagMs = 5000L,
+            pendingMessages = 250,
+            mlsPct = 45,
+            timestamp = "2025-03-13T10:35:00Z",
+        )
 
-     private val defaultErrorMetrics =
-         HealthMetrics(
-             lagMs = 30000L,
-             pendingMessages = 1000,
-             mlsPct = 10,
-             timestamp = "2025-03-13T10:40:00Z",
-         )
+    private val defaultErrorMetrics =
+        HealthMetrics(
+            lagMs = 30000L,
+            pendingMessages = 1000,
+            mlsPct = 10,
+            timestamp = "2025-03-13T10:40:00Z",
+        )
 
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
         val mode = environment["WIRE_STUB_MODE"]
@@ -83,12 +83,12 @@ class StubSyncApiClient(
                         SyncStatusView(
                             status = SyncStatus.INITIALIZING,
                             metrics =
-                                 HealthMetrics(
-                                     lagMs = 2000L,
-                                     pendingMessages = 100,
-                                     mlsPct = 20,
-                                     timestamp = "2025-03-13T10:32:00Z",
-                                 ),
+                                HealthMetrics(
+                                    lagMs = 2000L,
+                                    pendingMessages = 100,
+                                    mlsPct = 20,
+                                    timestamp = "2025-03-13T10:32:00Z",
+                                ),
                         ),
                 )
 

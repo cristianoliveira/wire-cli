@@ -14,6 +14,8 @@ import wirecli.commands.SyncCommand
 import wirecli.runtime.KaliumRuntimeBootstrap
 import kotlin.system.exitProcess
 
+private const val MAX_ARG_LOG_LENGTH = 20
+
 fun main(args: Array<String>) {
     // Configure logging system properties BEFORE any logger is created.
     // - WIRECLI_LOG_LEVEL controls file logging and root level.
@@ -30,7 +32,7 @@ fun main(args: Array<String>) {
     val hasJsonOutput = args.contains("--json") || args.contains("--json-lines")
 
     logger.debug { "Starting Wire CLI application" }
-    logger.debug { "Command line arguments: ${args.joinToString(" ") { it.take(20) }}" }
+    logger.debug { "Command line arguments: ${args.joinToString(" ") { it.take(MAX_ARG_LOG_LENGTH) }}" }
     logger.debug { "JSON output mode: $hasJsonOutput" }
 
     val runtime =

@@ -107,15 +107,15 @@ class SyncStatusCommandTest {
 
     @Test
     fun `formatStatusJson returns valid JSON for success`() {
-         val result = SyncStatusResult.Success(healthyView)
+        val result = SyncStatusResult.Success(healthyView)
 
-         val output = SyncOutputFormatter.formatStatusJson(result)
+        val output = SyncOutputFormatter.formatStatusJson(result)
 
-         assertTrue(output.contains("\"status\":"), "Should include status field")
-         assertTrue(output.contains("\"ready\""), "Should include status value")
-         assertTrue(output.contains("\"metrics\""), "Should include metrics object")
-         assertTrue(output.contains("\"lagMs\""), "Should include lagMs field")
-         assertTrue(output.contains("100"), "Should include lag value")
+        assertTrue(output.contains("\"status\":"), "Should include status field")
+        assertTrue(output.contains("\"ready\""), "Should include status value")
+        assertTrue(output.contains("\"metrics\""), "Should include metrics object")
+        assertTrue(output.contains("\"lagMs\""), "Should include lagMs field")
+        assertTrue(output.contains("100"), "Should include lag value")
     }
 
     @Test
@@ -506,10 +506,10 @@ class SyncStatusCommandTest {
                 healthyView.copy(metrics = metricsWithTimestamp),
             )
 
-         val output = SyncOutputFormatter.formatStatusJson(result)
+        val output = SyncOutputFormatter.formatStatusJson(result)
 
-         assertTrue(output.contains("\"lastMessageReceivedMs\""), "Should include lastMessageReceivedMs field")
-         assertTrue(output.contains(currentTimeMs.toString()), "Should include timestamp value")
+        assertTrue(output.contains("\"lastMessageReceivedMs\""), "Should include lastMessageReceivedMs field")
+        assertTrue(output.contains(currentTimeMs.toString()), "Should include timestamp value")
     }
 
     // ==================== Auth and Encryption Status Tests ====================
@@ -582,14 +582,14 @@ class SyncStatusCommandTest {
                 healthyView.copy(metrics = metricsWithAuthEncryption),
             )
 
-         val output = SyncOutputFormatter.formatStatusJson(result)
+        val output = SyncOutputFormatter.formatStatusJson(result)
 
-         assertTrue(output.contains("\"auth\""), "Should include auth field")
-         assertTrue(output.contains("\"encryption\""), "Should include encryption field")
-         assertTrue(output.contains("\"uptimeMs\""), "Should include uptimeMs field")
-         assertTrue(output.contains("\"ok\""), "Should include auth status value")
-         assertTrue(output.contains("\"ready\""), "Should include encryption status value")
-         assertTrue(output.contains("3600000"), "Should include uptime value")
+        assertTrue(output.contains("\"auth\""), "Should include auth field")
+        assertTrue(output.contains("\"encryption\""), "Should include encryption field")
+        assertTrue(output.contains("\"uptimeMs\""), "Should include uptimeMs field")
+        assertTrue(output.contains("\"ok\""), "Should include auth status value")
+        assertTrue(output.contains("\"ready\""), "Should include encryption status value")
+        assertTrue(output.contains("3600000"), "Should include uptime value")
     }
 
     @Test

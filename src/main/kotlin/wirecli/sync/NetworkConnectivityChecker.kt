@@ -73,7 +73,7 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
 
             val errorRate = calculateErrorRate(errorCount, attemptCount)
             logger.debug {
-                "Network error rate: ${String.format("%.2f%%", errorRate * ERROR_RATE_PERCENTAGE_MULTIPLIER)} " +
+                "Network error rate: ${String.format(java.util.Locale.US, "%.2f%%", errorRate * ERROR_RATE_PERCENTAGE_MULTIPLIER)} " +
                     "(errors: $errorCount, attempts: $attemptCount)"
             }
 
@@ -120,6 +120,7 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
             }
         logger.debug {
             "Calculated error rate: $failureCount failures / $totalAttempts attempts = ${String.format(
+                java.util.Locale.US,
                 "%.2f%%",
                 rate * ERROR_RATE_PERCENTAGE_MULTIPLIER,
             )}"
@@ -274,7 +275,7 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
         val errorRate = calculateErrorRate(errorCount, attemptCount)
         logger.warn {
             "Network error recorded: errorCount=$errorCount, attemptCount=$attemptCount, " +
-                "errorRate=${String.format("%.2f%%", errorRate * ERROR_RATE_PERCENTAGE_MULTIPLIER)}"
+                "errorRate=${String.format(java.util.Locale.US, "%.2f%%", errorRate * ERROR_RATE_PERCENTAGE_MULTIPLIER)}"
         }
     }
 
@@ -286,7 +287,7 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
         val errorRate = calculateErrorRate(errorCount, attemptCount)
         logger.debug {
             "Network success recorded: errorCount=$errorCount, attemptCount=$attemptCount, " +
-                "errorRate=${String.format("%.2f%%", errorRate * ERROR_RATE_PERCENTAGE_MULTIPLIER)}"
+                "errorRate=${String.format(java.util.Locale.US, "%.2f%%", errorRate * ERROR_RATE_PERCENTAGE_MULTIPLIER)}"
         }
     }
 }

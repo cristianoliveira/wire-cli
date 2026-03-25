@@ -523,6 +523,7 @@ class RealKaliumDeviceApiClientTest {
         }
 
         override fun shutdown() {
+            // No-op for test stub
         }
     }
 
@@ -570,6 +571,7 @@ class RealKaliumDeviceApiClientTest {
         }
 
         override fun shutdown() {
+            // No-op for test stub
         }
     }
 }

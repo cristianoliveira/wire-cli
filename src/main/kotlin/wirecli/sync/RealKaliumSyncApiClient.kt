@@ -908,53 +908,60 @@ internal class SdkKaliumSyncRuntime(
     ): Check {
         val keyPackageSuccess = keyPackageCountResult as? MLSKeyPackageCountResult.Success
         if (keyPackageSuccess != null) {
-            val status =
-                when {
-                    keyPackageSuccess.count == 0 -> "Fail"
-                    keyPackageSuccess.needsRefill -> "Warn"
-                    else -> "Pass"
-                }
-            val details =
-                when {
-                    keyPackageSuccess.count == 0 ->
-                        "Critical: No key packages available for current client ${keyPackageSuccess.clientId.value}"
-                    keyPackageSuccess.needsRefill ->
-                        "Warning: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value} (refill recommended)"
-                    else ->
-                        "OK: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value}"
-                }
-
-            return Check(name = "Key Packages", status = status, details = details)
+            return buildActualKeyPackagesCheck(keyPackageSuccess)
         }
+        return buildEstimatedKeyPackagesCheck(syncState)
+    }
 
-        val estimatedKeyPackageCount =
-            when (syncState) {
-                is SyncState.Live -> 50
-                is SyncState.SlowSync -> 0
-                is SyncState.GatheringPendingEvents -> 30
-                is SyncState.Waiting -> 5
-                is SyncState.Failed -> 0
-                null -> 0
-            }
-
+    private fun buildActualKeyPackagesCheck(keyPackageSuccess: MLSKeyPackageCountResult.Success): Check {
         val status =
             when {
-                estimatedKeyPackageCount < 10 -> "Fail"
-                estimatedKeyPackageCount < 20 -> "Warn"
+                keyPackageSuccess.count == 0 -> "Fail"
+                keyPackageSuccess.needsRefill -> "Warn"
                 else -> "Pass"
             }
-
         val details =
             when {
-                estimatedKeyPackageCount < 10 ->
-                    "Critical: Only $estimatedKeyPackageCount key packages available"
-                estimatedKeyPackageCount < 20 ->
-                    "Warning: Only $estimatedKeyPackageCount key packages available (refresh recommended)"
-                else -> "OK: $estimatedKeyPackageCount key packages available"
+                keyPackageSuccess.count == 0 ->
+                    "Critical: No key packages available for current client ${keyPackageSuccess.clientId.value}"
+                keyPackageSuccess.needsRefill ->
+                    "Warning: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value} (refill recommended)"
+                else ->
+                    "OK: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value}"
             }
-
         return Check(name = "Key Packages", status = status, details = details)
     }
+
+    private fun buildEstimatedKeyPackagesCheck(syncState: SyncState?): Check {
+        val estimatedKeyPackageCount = estimateKeyPackageCount(syncState)
+        val status = determineKeyPackageStatus(estimatedKeyPackageCount)
+        val details = buildKeyPackageDetails(estimatedKeyPackageCount)
+        return Check(name = "Key Packages", status = status, details = details)
+    }
+
+    private fun estimateKeyPackageCount(syncState: SyncState?): Int =
+        when (syncState) {
+            is SyncState.Live -> 50
+            is SyncState.SlowSync -> 0
+            is SyncState.GatheringPendingEvents -> 30
+            is SyncState.Waiting -> 5
+            is SyncState.Failed -> 0
+            null -> 0
+        }
+
+    private fun determineKeyPackageStatus(count: Int): String =
+        when {
+            count < 10 -> "Fail"
+            count < 20 -> "Warn"
+            else -> "Pass"
+        }
+
+    private fun buildKeyPackageDetails(count: Int): String =
+        when {
+            count < 10 -> "Critical: Only $count key packages available"
+            count < 20 -> "Warning: Only $count key packages available (refresh recommended)"
+            else -> "OK: $count key packages available"
+        }
 
     private fun buildNetworkConnectivityCheck(syncState: SyncState?): Check {
         val networkMetrics = networkConnectivityChecker.checkNetworkConnectivity()

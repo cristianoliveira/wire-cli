@@ -9,9 +9,8 @@ import com.wire.kalium.logic.feature.client.SelfClientsResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
-import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
-import wirecli.auth.ExitCodes
+import wirecli.domains.device.DeviceFailureMapper
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 
@@ -898,105 +897,21 @@ private fun String.toQualifiedIdOrNull(): UserId? {
 }
 
 private fun DeviceStepResult.Failure.toDeviceFailure(): DeviceListResult.Failure {
-    val message =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
-            DeviceFailureCategory.SERVER -> DeviceMessages.SERVER_FAILURE
-            DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> DeviceMessages.UNKNOWN_FAILURE
-        }
-
-    val exitCode =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-            DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-        }
-
+    val (message, exitCode) = DeviceFailureMapper.toListFailureInfo(category)
     return DeviceListResult.Failure(message = message, exitCode = exitCode)
 }
 
 private fun DeviceStepResult.Failure.toDeviceDetailFailure(): DeviceDetailResult.Failure {
-    val message =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
-            DeviceFailureCategory.SERVER -> DeviceMessages.SERVER_FAILURE
-            DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> DeviceMessages.UNKNOWN_FAILURE
-        }
-
-    val exitCode =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-            DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-        }
-
+    val (message, exitCode) = DeviceFailureMapper.toDetailFailureInfo(category)
     return DeviceDetailResult.Failure(message = message, exitCode = exitCode)
 }
 
 private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult.Failure {
-    val message =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> DeviceMessages.DELETE_NETWORK_FAILURE
-            DeviceFailureCategory.SERVER -> DeviceMessages.DELETE_SERVER_FAILURE
-            DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> DeviceMessages.DELETE_UNKNOWN_FAILURE
-        }
-
-    val exitCode =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-            DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-        }
-
+    val (message, exitCode) = DeviceFailureMapper.toDeleteFailureInfo(category)
     return DeviceDeleteResult.Failure(message = message, exitCode = exitCode)
 }
 
 private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): DeviceVerifyResult.Failure {
-    val message =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> DeviceMessages.VERIFY_NETWORK_FAILURE
-            DeviceFailureCategory.SERVER -> DeviceMessages.VERIFY_SERVER_FAILURE
-            DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> DeviceMessages.VERIFY_UNKNOWN_FAILURE
-        }
-
-    val exitCode =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-            DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-        }
-
+    val (message, exitCode) = DeviceFailureMapper.toVerifyFailureInfo(category)
     return DeviceVerifyResult.Failure(message = message, exitCode = exitCode)
 }

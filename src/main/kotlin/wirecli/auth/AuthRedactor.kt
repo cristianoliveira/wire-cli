@@ -27,11 +27,14 @@ object AuthRedactor {
         return value
             .replace(bearerTokenRegex) { "${it.groupValues[BEARER_GROUP]} $REDACTED" }
             .replace(jwtRegex, REDACTED)
-            .replace(urlCredentialRegex) { "${it.groupValues[URL_SCHEME_GROUP]}$REDACTED${it.groupValues[URL_DELIMITER_GROUP]}" }
+            .replace(urlCredentialRegex) {
+                "${it.groupValues[URL_SCHEME_GROUP]}$REDACTED${it.groupValues[URL_DELIMITER_GROUP]}"
+            }
             .replace(keyValueRegex) {
                 val leadingQuote = it.groupValues[LEADING_QUOTE_GROUP]
                 val trailingQuote = it.groupValues[TRAILING_QUOTE_GROUP]
-                "${it.groupValues[KEY_NAME_GROUP]}${it.groupValues[KEY_SEPARATOR_GROUP]}$leadingQuote$REDACTED$trailingQuote"
+                "${it.groupValues[KEY_NAME_GROUP]}" +
+                    "${it.groupValues[KEY_SEPARATOR_GROUP]}$leadingQuote$REDACTED$trailingQuote"
             }
     }
 }

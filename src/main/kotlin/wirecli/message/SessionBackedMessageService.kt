@@ -16,7 +16,9 @@ class SessionBackedMessageService(
         conversationId: String,
         text: String,
     ): SendMessageResult {
-        logger.debug { "Service operation: sendMessage(conversationId=$conversationId, textLength=${text.length}) started" }
+        logger.debug {
+            "Service operation: sendMessage(conversationId=$conversationId, textLength=${text.length}) started"
+        }
 
         val session =
             sessionStore.readActiveSession()
@@ -80,7 +82,9 @@ class SessionBackedMessageService(
             )
         }
 
-        logger.debug { "Service operation: sendTypingStatus(conversationId=$conversationId, status=$status) started" }
+        logger.debug {
+            "Service operation: sendTypingStatus(conversationId=$conversationId, status=$status) started"
+        }
 
         val session =
             sessionStore.readActiveSession()

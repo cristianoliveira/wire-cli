@@ -27,7 +27,9 @@ class SessionBackedSyncService(
         return apiClient.forceSyncAndWait(session).also { result ->
             when (result) {
                 is SyncStatusResult.Success ->
-                    logger.info { "Force sync completed: status=${result.view.status}, lag=${result.view.metrics.lagMs}ms" }
+                    logger.info {
+                        "Force sync completed: status=${result.view.status}, lag=${result.view.metrics.lagMs}ms"
+                    }
                 is SyncStatusResult.Failure ->
                     logger.warn { "Force sync failed: ${result.message} (exit code: ${result.exitCode})" }
             }
@@ -50,7 +52,9 @@ class SessionBackedSyncService(
         return apiClient.getSyncStatus(session).also { result ->
             when (result) {
                 is SyncStatusResult.Success ->
-                    logger.info { "Sync status fetched successfully: status=${result.view.status}, lag=${result.view.metrics.lagMs}ms" }
+                    logger.info {
+                        "Sync status fetched successfully: status=${result.view.status}, lag=${result.view.metrics.lagMs}ms"
+                    }
                 is SyncStatusResult.Failure ->
                     logger.warn { "Failed to fetch sync status: ${result.message} (exit code: ${result.exitCode})" }
             }
@@ -77,7 +81,9 @@ class SessionBackedSyncService(
                     val passed = checks.count { it.status == "Pass" }
                     val failed = checks.count { it.status == "Fail" }
                     val warned = checks.count { it.status == "Warn" }
-                    logger.info { "Diagnostics fetched successfully: $passed passed, $failed failed, $warned warned checks" }
+                    logger.info {
+                        "Diagnostics fetched successfully: $passed passed, $failed failed, $warned warned checks"
+                    }
                 }
                 is DiagnosticsResult.Failure -> {
                     logger.warn { "Failed to fetch diagnostics: ${result.message} (exit code: ${result.exitCode})" }
@@ -169,10 +175,15 @@ class SessionBackedSyncService(
         return apiClient.resetSync(session, force).also { result ->
             when (result) {
                 is ResetResult.Success -> {
-                    logger.info { "Sync reset completed successfully for user: ${session.userId} (force=$force)" }
+                    logger.info {
+                        "Sync reset completed successfully for user: ${session.userId} (force=$force)"
+                    }
                 }
                 is ResetResult.Failure -> {
-                    logger.error { "Failed to reset sync for user ${session.userId}: ${result.message} (exit code: ${result.exitCode})" }
+                    logger.error {
+                        "Failed to reset sync for user ${session.userId}: " +
+                            "${result.message} (exit code: ${result.exitCode})"
+                    }
                 }
             }
         }

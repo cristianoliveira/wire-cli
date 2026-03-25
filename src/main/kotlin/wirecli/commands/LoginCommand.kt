@@ -73,7 +73,9 @@ class LoginCommand(
         val resolvedPassword =
             when {
                 password != null -> {
-                    logger.warn { "Using deprecated --password option; consider interactive prompt or --password-stdin" }
+                    logger.warn {
+                        "Using deprecated --password option; consider interactive prompt or --password-stdin"
+                    }
                     echo(
                         "Warning: --password is deprecated and may expose secrets in process args. " +
                             "Prefer prompt input or --password-stdin.",

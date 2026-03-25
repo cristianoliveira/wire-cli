@@ -103,7 +103,8 @@ class AuthSessionServiceImpl(
 
         val inventory = sessionStore.readSessionInventory()
         logger.debug {
-            "Session inventory: active=${inventory.activeSession != null}, valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
+            "Session inventory: active=${inventory.activeSession != null}, " +
+                "valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
         }
 
         return if (inventory.activeSession == null) {

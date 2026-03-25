@@ -22,13 +22,21 @@ object AuthMessages {
 
     fun passwordRequired(): String = "Password confirmation required."
 
-    fun networkFailure(action: String): String = "$action failed: network is unreachable. Check your connection and retry."
+    fun networkFailure(action: String): String {
+        return "$action failed: network is unreachable. Check your connection and retry."
+    }
 
-    fun authServiceUnavailable(): String = "Authentication service is unavailable. Retry later or check server settings."
+    fun authServiceUnavailable(): String {
+        return "Authentication service is unavailable. Retry later or check server settings."
+    }
 
-    fun unauthorizedAction(action: String): String = "$action failed: account is unauthorized or session expired. $RELOGIN_GUIDANCE"
+    fun unauthorizedAction(action: String): String {
+        return "$action failed: account is unauthorized or session expired. $RELOGIN_GUIDANCE"
+    }
 
-    fun localSessionPersistenceFailed(): String = "Authentication succeeded, but account state could not be persisted. Retry login."
+    fun localSessionPersistenceFailed(): String {
+        return "Authentication succeeded, but account state could not be persisted. Retry login."
+    }
 
     fun sessionBootstrapFailed(): String = "Authentication succeeded, but session bootstrap failed. Retry login."
 

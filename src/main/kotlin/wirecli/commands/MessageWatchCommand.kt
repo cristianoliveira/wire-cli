@@ -97,7 +97,8 @@ class MessageWatchCommand(
         val newFailureCount = failureCount + 1
         val delayMs = calculateRetryDelayMs(newFailureCount)
         logger.warn {
-            "Transient message watch fetch failure for conversationId=$conversationId; retrying in ${delayMs}ms: ${result.message}"
+            "Transient message watch fetch failure for conversationId=$conversationId; " +
+                "retrying in ${delayMs}ms: ${result.message}"
         }
         echo("${result.message}; retrying in ${delayMs}ms", err = true)
         sleep(delayMs)

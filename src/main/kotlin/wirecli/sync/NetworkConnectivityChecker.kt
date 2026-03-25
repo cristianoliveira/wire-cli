@@ -85,7 +85,7 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
 
             logger.info { "Network connectivity check completed: connected=$isConnected, type=$networkType, latency=${latency}ms" }
             metrics
-        } catch (e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             logger.error(e) { "Failed to check network connectivity" }
             null
         }
@@ -122,15 +122,15 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
     private fun isNetworkConnected(): Boolean {
         return try {
             logger.debug { "Checking network connectivity by resolving DNS (8.8.8.8)" }
-            val address = java.net.InetAddress.getByName("8.8.8.8")
-            val connected = address.hostAddress != null
-            logger.debug { "DNS resolution result: ${address.hostAddress} (connected: $connected)" }
-            connected
-        } catch (e: Exception) {
-            logger.warn(e) { "DNS resolution failed - network may be unavailable" }
-            false
-        }
-    }
+             val address = java.net.InetAddress.getByName("8.8.8.8")
+             val connected = address.hostAddress != null
+             logger.debug { "DNS resolution result: ${address.hostAddress} (connected: $connected)" }
+             connected
+         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+             logger.warn(e) { "DNS resolution failed - network may be unavailable" }
+             false
+         }
+     }
 
     /**
      * Detect the network type by checking system properties and network interfaces.
@@ -164,13 +164,13 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
                         NetworkType.UNKNOWN
                     }
                 }
-            logger.debug { "Detected network type: $type" }
-            type
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to detect network type - defaulting to UNKNOWN" }
-            NetworkType.UNKNOWN
-        }
-    }
+             logger.debug { "Detected network type: $type" }
+             type
+         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+             logger.warn(e) { "Failed to detect network type - defaulting to UNKNOWN" }
+             NetworkType.UNKNOWN
+         }
+     }
 
     /**
      * Check if WiFi is the active network connection.
@@ -201,14 +201,14 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
                     logger.debug { "WiFi detection not supported on this OS" }
                     false
                 }
-            }
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to check WiFi connection status" }
-            false
-        }
-    }
+             }
+         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+             logger.warn(e) { "Failed to check WiFi connection status" }
+             false
+         }
+     }
 
-    /**
+     /**
      * Estimate system latency based on typical ping results.
      */
     private fun estimateLatencyBasedOnSystemMetrics(): Long {
@@ -224,15 +224,15 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
             if (exitCode == 0) {
                 logger.debug { "Ping successful: ${duration}ms" }
                 duration.coerceIn(1L, 5000L)
-            } else {
-                logger.debug { "Ping failed with exit code $exitCode - using default latency estimate" }
-                100L // Default estimate if ping fails
-            }
-        } catch (e: Exception) {
-            logger.debug(e) { "Unable to ping for latency estimation - using default estimate" }
-            50L // Default estimate if unable to ping
-        }
-    }
+             } else {
+                 logger.debug { "Ping failed with exit code $exitCode - using default latency estimate" }
+                 100L // Default estimate if ping fails
+             }
+         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+             logger.debug(e) { "Unable to ping for latency estimation - using default estimate" }
+             50L // Default estimate if unable to ping
+         }
+     }
 
     /**
      * Calculate the time since the last error recovery.

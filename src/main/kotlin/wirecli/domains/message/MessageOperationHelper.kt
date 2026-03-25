@@ -44,7 +44,7 @@ internal object MessageOperationHelper {
                 "message-send preflight sync end: conversationId=$conversationId, elapsedMs=$preflightElapsedMs"
             }
             null // Success
-        } catch (error: TimeoutCancellationException) {
+        } catch (@Suppress("SwallowedException") error: TimeoutCancellationException) {
             logger.warn {
                 "message-send preflight sync timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
             }
@@ -89,7 +89,7 @@ internal object MessageOperationHelper {
                 "message-send sendTextMessage end: conversationId=$conversationId, elapsedMs=$sendElapsedMs"
             }
             Pair(result, null)
-        } catch (error: TimeoutCancellationException) {
+        } catch (@Suppress("SwallowedException") error: TimeoutCancellationException) {
             logger.warn {
                 "message-send sendTextMessage timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
             }
@@ -120,7 +120,7 @@ internal object MessageOperationHelper {
                 "message-fetch getRecentMessages end: conversationId=$conversationId, elapsedMs=$fetchElapsedMs"
             }
             Pair(result, null)
-        } catch (error: TimeoutCancellationException) {
+        } catch (@Suppress("SwallowedException") error: TimeoutCancellationException) {
             logger.warn {
                 "message-fetch getRecentMessages timeout: conversationId=$conversationId timeoutMs=$timeoutMs"
             }

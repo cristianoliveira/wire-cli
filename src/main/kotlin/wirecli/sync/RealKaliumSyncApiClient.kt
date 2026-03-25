@@ -357,7 +357,7 @@ internal class SdkKaliumSyncRuntime(
                     val view = SyncStatusView(status = status, metrics = metrics)
                     logger.info { "Sync status retrieved successfully: status=$status, lag=${lagMs}ms" }
                     SyncStatusResult.Success(view)
-                } catch (error: Throwable) {
+                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                     logger.error(error) { "Failed to get sync status for user: $qualifiedId" }
                     SyncStatusResult.Failure(
                         message = categoryFromThrowableSync(error).getMessage(),
@@ -444,7 +444,7 @@ internal class SdkKaliumSyncRuntime(
                             metrics = metrics,
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                     logger.error(error) { "Failed to force sync and wait for user: $qualifiedId" }
                     SyncStatusResult.Failure(
                         message = categoryFromThrowableSync(error).getMessage(),
@@ -534,7 +534,7 @@ internal class SdkKaliumSyncRuntime(
                             recoveryHints = generateRecoveryHints(checks),
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                     logger.error(error) { "Failed to get diagnostics for user: $qualifiedId" }
                     DiagnosticsResult.Failure(
                         message = categoryFromThrowableSync(error).getDiagnosticsMessage(),
@@ -604,7 +604,7 @@ internal class SdkKaliumSyncRuntime(
                     val view = buildConversationSyncStatusView(conversationId, syncState)
                     logger.info { "Conversation sync status retrieved: conversation=$conversationId, status=${view.status}" }
                     ConversationSyncStatusResult.Success(view)
-                } catch (error: Throwable) {
+                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                     logger.error(error) { "Failed to get conversation sync status for conversation: $conversationId" }
                     ConversationSyncStatusResult.Failure(
                         message = categoryFromThrowableSync(error).getConversationMessage(),
@@ -688,7 +688,7 @@ internal class SdkKaliumSyncRuntime(
                             recoveryHints = generateConversationRecoveryHints(checks, conversationId),
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                     logger.error(error) { "Failed to get conversation diagnostics for conversation: $conversationId" }
                     PerConversationDiagnosticsResult.Failure(
                         message = categoryFromThrowableSync(error).getConversationMessage(),
@@ -734,7 +734,7 @@ internal class SdkKaliumSyncRuntime(
                 ResetResult.Success(
                     message = "Sync reset successful",
                 )
-            } catch (error: Throwable) {
+            } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                 logger.error(error) { "Failed to reset sync for user: $qualifiedId" }
                 ResetResult.Failure(
                     message = categoryFromThrowableSync(error).getMessage(),

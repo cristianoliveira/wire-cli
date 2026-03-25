@@ -84,12 +84,12 @@ internal class SdkKaliumConversationRuntime(
                             ?: emptyList()
                     }
 
-                ConversationStepResult.Success(conversationDetails)
-            } catch (error: Throwable) {
-                ConversationStepResult.Failure(categoryFromThrowable(error))
-            }
-        }
-    }
+                 ConversationStepResult.Success(conversationDetails)
+             } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
+                 ConversationStepResult.Failure(categoryFromThrowable(error))
+             }
+         }
+     }
 
     override fun getConversation(
         session: AuthSession,
@@ -117,13 +117,13 @@ internal class SdkKaliumConversationRuntime(
                 if (result is ObserveConversationDetailsUseCase.Result.Success) {
                     ConversationStepResult.Success(result.conversationDetails)
                 } else {
-                    ConversationStepResult.Failure(ConversationFailureCategory.NOT_FOUND)
-                }
-            } catch (error: Throwable) {
-                ConversationStepResult.Failure(categoryFromThrowable(error))
-            }
-        }
-    }
+                     ConversationStepResult.Failure(ConversationFailureCategory.NOT_FOUND)
+                 }
+             } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
+                 ConversationStepResult.Failure(categoryFromThrowable(error))
+             }
+         }
+     }
 
     override fun shutdown() {
         if (coreLogicLazy.isInitialized()) {
@@ -133,8 +133,8 @@ internal class SdkKaliumConversationRuntime(
                         coreLogic.sessionScope(userId) {
                             // Clear the session
                         }
-                    } catch (e: Exception) {
-                        // Ignore errors during shutdown
+                    } catch (@Suppress("SwallowedException", "TooGenericExceptionCaught") e: Exception) {
+                        // Ignore errors during shutdown - shutdown-phase exception handling
                     }
                 }
             }

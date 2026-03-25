@@ -157,7 +157,7 @@ internal class SdkKaliumPresenceRuntime(
                         server = session.server,
                     ),
                 )
-            } catch (error: Throwable) {
+            } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                 logger.error(error) { "Failed to resolve presence session scope for user: ${session.userId}" }
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }
@@ -192,7 +192,7 @@ internal class SdkKaliumPresenceRuntime(
                 }
                 logger.debug { "Self availability status retrieved successfully: $status" }
                 PresenceStepResult.Success(status)
-            } catch (error: Throwable) {
+            } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                 logger.error(error) { "Failed to get self availability status for: $qualifiedId" }
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }
@@ -218,7 +218,7 @@ internal class SdkKaliumPresenceRuntime(
                 }
                 logger.debug { "Self availability status updated successfully" }
                 PresenceStepResult.Success(Unit)
-            } catch (error: Throwable) {
+            } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                 logger.error(error) { "Failed to set self availability status for: $qualifiedId" }
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }

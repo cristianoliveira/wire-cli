@@ -17,9 +17,9 @@ import kotlin.test.assertTrue
 class SyncStatusCommandTest {
     private val healthyMetrics =
         HealthMetrics(
-            lag_ms = 100L,
-            pending_messages = 5,
-            mls_pct = 85,
+            lagMs = 100L,
+            pendingMessages = 5,
+            mlsPct = 85,
             timestamp = "2025-03-13T10:30:00Z",
         )
 
@@ -31,9 +31,9 @@ class SyncStatusCommandTest {
 
     private val degradedMetrics =
         HealthMetrics(
-            lag_ms = 5000L,
-            pending_messages = 250,
-            mls_pct = 45,
+            lagMs = 5000L,
+            pendingMessages = 250,
+            mlsPct = 45,
             timestamp = "2025-03-13T10:35:00Z",
         )
 
@@ -87,7 +87,7 @@ class SyncStatusCommandTest {
 
     @Test
     fun `formatStatusVerbose for high lag includes warning`() {
-        val highLagMetrics = healthyMetrics.copy(lag_ms = 6000L)
+        val highLagMetrics = healthyMetrics.copy(lagMs = 6000L)
         val result = SyncStatusResult.Success(healthyView.copy(metrics = highLagMetrics))
 
         val output = SyncOutputFormatter.formatStatusVerbose(result)
@@ -97,7 +97,7 @@ class SyncStatusCommandTest {
 
     @Test
     fun `formatStatusVerbose for high pending includes warning`() {
-        val highPendingMetrics = healthyMetrics.copy(pending_messages = 150)
+        val highPendingMetrics = healthyMetrics.copy(pendingMessages = 150)
         val result = SyncStatusResult.Success(healthyView.copy(metrics = highPendingMetrics))
 
         val output = SyncOutputFormatter.formatStatusVerbose(result)
@@ -107,15 +107,15 @@ class SyncStatusCommandTest {
 
     @Test
     fun `formatStatusJson returns valid JSON for success`() {
-        val result = SyncStatusResult.Success(healthyView)
+         val result = SyncStatusResult.Success(healthyView)
 
-        val output = SyncOutputFormatter.formatStatusJson(result)
+         val output = SyncOutputFormatter.formatStatusJson(result)
 
-        assertTrue(output.contains("\"status\":"), "Should include status field")
-        assertTrue(output.contains("\"ready\""), "Should include status value")
-        assertTrue(output.contains("\"metrics\""), "Should include metrics object")
-        assertTrue(output.contains("\"lag_ms\""), "Should include lag_ms field")
-        assertTrue(output.contains("100"), "Should include lag value")
+         assertTrue(output.contains("\"status\":"), "Should include status field")
+         assertTrue(output.contains("\"ready\""), "Should include status value")
+         assertTrue(output.contains("\"metrics\""), "Should include metrics object")
+         assertTrue(output.contains("\"lagMs\""), "Should include lagMs field")
+         assertTrue(output.contains("100"), "Should include lag value")
     }
 
     @Test
@@ -367,7 +367,7 @@ class SyncStatusCommandTest {
         val currentTimeMs = System.currentTimeMillis()
         val lastReceivedMs = currentTimeMs - 15000 // 15 seconds ago
         val metricsWithTimestamp =
-            healthyMetrics.copy(last_message_received_ms = lastReceivedMs)
+            healthyMetrics.copy(lastMessageReceivedMs = lastReceivedMs)
         val result =
             SyncStatusResult.Success(
                 healthyView.copy(metrics = metricsWithTimestamp),
@@ -383,17 +383,17 @@ class SyncStatusCommandTest {
     fun `formatStatusVerbose formats MLS with estimated time remaining`() {
         val mlsMetrics =
             MLSMetrics(
-                enrollment_pct = 85,
-                key_package_available = 150,
-                key_package_exhausted = false,
-                key_package_generation_enabled = true,
-                key_package_refresh_required = false,
-                mls_group_updates_failed_count = 0,
-                mls_enrollment_failures_count = 0,
-                mls_error_rate = 0.0,
-                last_key_package_refresh_timestamp = null,
+                enrollmentPct = 85,
+                keyPackageAvailable = 150,
+                keyPackageExhausted = false,
+                keyPackageGenerationEnabled = true,
+                keyPackageRefreshRequired = false,
+                mlsGroupUpdatesFailedCount = 0,
+                mlsEnrollmentFailuresCount = 0,
+                mlsErrorRate = 0.0,
+                lastKeyPackageRefreshTimestamp = null,
                 timestamp = "2025-03-13T10:30:00Z",
-                estimated_remaining_ms = 10000, // 10 seconds
+                estimatedRemainingMs = 10000, // 10 seconds
             )
         val metricsWithMls =
             healthyMetrics.copy(mls = mlsMetrics)
@@ -412,18 +412,18 @@ class SyncStatusCommandTest {
     fun `formatStatusVerbose formats key packages with device name and fill status`() {
         val mlsMetrics =
             MLSMetrics(
-                enrollment_pct = 85,
-                key_package_available = 150,
-                key_package_exhausted = false,
-                key_package_generation_enabled = true,
-                key_package_refresh_required = false,
-                mls_group_updates_failed_count = 0,
-                mls_enrollment_failures_count = 0,
-                mls_error_rate = 0.0,
-                last_key_package_refresh_timestamp = null,
+                enrollmentPct = 85,
+                keyPackageAvailable = 150,
+                keyPackageExhausted = false,
+                keyPackageGenerationEnabled = true,
+                keyPackageRefreshRequired = false,
+                mlsGroupUpdatesFailedCount = 0,
+                mlsEnrollmentFailuresCount = 0,
+                mlsErrorRate = 0.0,
+                lastKeyPackageRefreshTimestamp = null,
                 timestamp = "2025-03-13T10:30:00Z",
-                device_name = "Laptop",
-                key_package_total = 300,
+                deviceName = "Laptop",
+                keyPackageTotal = 300,
             )
         val metricsWithMls =
             healthyMetrics.copy(mls = mlsMetrics)
@@ -442,18 +442,18 @@ class SyncStatusCommandTest {
     fun `formatStatusVerbose shows low key package status`() {
         val mlsMetrics =
             MLSMetrics(
-                enrollment_pct = 85,
-                key_package_available = 30, // Low count
-                key_package_exhausted = false,
-                key_package_generation_enabled = true,
-                key_package_refresh_required = true,
-                mls_group_updates_failed_count = 0,
-                mls_enrollment_failures_count = 0,
-                mls_error_rate = 0.0,
-                last_key_package_refresh_timestamp = null,
+                enrollmentPct = 85,
+                keyPackageAvailable = 30, // Low count
+                keyPackageExhausted = false,
+                keyPackageGenerationEnabled = true,
+                keyPackageRefreshRequired = true,
+                mlsGroupUpdatesFailedCount = 0,
+                mlsEnrollmentFailuresCount = 0,
+                mlsErrorRate = 0.0,
+                lastKeyPackageRefreshTimestamp = null,
                 timestamp = "2025-03-13T10:30:00Z",
-                device_name = "Phone",
-                key_package_total = 300,
+                deviceName = "Phone",
+                keyPackageTotal = 300,
             )
         val metricsWithMls =
             healthyMetrics.copy(mls = mlsMetrics)
@@ -471,18 +471,18 @@ class SyncStatusCommandTest {
     fun `formatStatusVerbose shows exhausted key package status`() {
         val mlsMetrics =
             MLSMetrics(
-                enrollment_pct = 85,
-                key_package_available = 0, // Exhausted
-                key_package_exhausted = true,
-                key_package_generation_enabled = true,
-                key_package_refresh_required = true,
-                mls_group_updates_failed_count = 0,
-                mls_enrollment_failures_count = 0,
-                mls_error_rate = 0.0,
-                last_key_package_refresh_timestamp = null,
+                enrollmentPct = 85,
+                keyPackageAvailable = 0, // Exhausted
+                keyPackageExhausted = true,
+                keyPackageGenerationEnabled = true,
+                keyPackageRefreshRequired = true,
+                mlsGroupUpdatesFailedCount = 0,
+                mlsEnrollmentFailuresCount = 0,
+                mlsErrorRate = 0.0,
+                lastKeyPackageRefreshTimestamp = null,
                 timestamp = "2025-03-13T10:30:00Z",
-                device_name = "Tablet",
-                key_package_total = 300,
+                deviceName = "Tablet",
+                keyPackageTotal = 300,
             )
         val metricsWithMls =
             healthyMetrics.copy(mls = mlsMetrics)
@@ -500,23 +500,23 @@ class SyncStatusCommandTest {
     fun `formatStatusJson includes last message received timestamp`() {
         val currentTimeMs = System.currentTimeMillis()
         val metricsWithTimestamp =
-            healthyMetrics.copy(last_message_received_ms = currentTimeMs)
+            healthyMetrics.copy(lastMessageReceivedMs = currentTimeMs)
         val result =
             SyncStatusResult.Success(
                 healthyView.copy(metrics = metricsWithTimestamp),
             )
 
-        val output = SyncOutputFormatter.formatStatusJson(result)
+         val output = SyncOutputFormatter.formatStatusJson(result)
 
-        assertTrue(output.contains("\"last_message_received_ms\""), "Should include last_message_received_ms field")
-        assertTrue(output.contains(currentTimeMs.toString()), "Should include timestamp value")
+         assertTrue(output.contains("\"lastMessageReceivedMs\""), "Should include lastMessageReceivedMs field")
+         assertTrue(output.contains(currentTimeMs.toString()), "Should include timestamp value")
     }
 
     // ==================== Auth and Encryption Status Tests ====================
 
     @Test
     fun `formatStatusHuman includes auth status connected`() {
-        val metricsWithAuth = healthyMetrics.copy(auth_status = "ok")
+        val metricsWithAuth = healthyMetrics.copy(authStatus = "ok")
         val result =
             SyncStatusResult.Success(
                 healthyView.copy(metrics = metricsWithAuth),
@@ -529,7 +529,7 @@ class SyncStatusCommandTest {
 
     @Test
     fun `formatStatusHuman shows auth status not authenticated`() {
-        val metricsWithAuth = healthyMetrics.copy(auth_status = "not_authenticated")
+        val metricsWithAuth = healthyMetrics.copy(authStatus = "not_authenticated")
         val result =
             SyncStatusResult.Success(
                 healthyView.copy(metrics = metricsWithAuth),
@@ -542,7 +542,7 @@ class SyncStatusCommandTest {
 
     @Test
     fun `formatStatusHuman includes encryption status ready`() {
-        val metricsWithEncryption = healthyMetrics.copy(encryption_status = "ready", mls_pct = 100)
+        val metricsWithEncryption = healthyMetrics.copy(encryptionStatus = "ready", mlsPct = 100)
         val result =
             SyncStatusResult.Success(
                 healthyView.copy(metrics = metricsWithEncryption),
@@ -555,7 +555,7 @@ class SyncStatusCommandTest {
 
     @Test
     fun `formatStatusHuman shows encryption status pending with percentage`() {
-        val metricsWithEncryption = healthyMetrics.copy(encryption_status = "pending", mls_pct = 75)
+        val metricsWithEncryption = healthyMetrics.copy(encryptionStatus = "pending", mlsPct = 75)
         val result =
             SyncStatusResult.Success(
                 healthyView.copy(metrics = metricsWithEncryption),
@@ -573,23 +573,23 @@ class SyncStatusCommandTest {
     fun `formatStatusJson includes auth and encryption fields`() {
         val metricsWithAuthEncryption =
             healthyMetrics.copy(
-                auth_status = "ok",
-                encryption_status = "ready",
-                uptime_ms = 3600000L,
+                authStatus = "ok",
+                encryptionStatus = "ready",
+                uptimeMs = 3600000L,
             )
         val result =
             SyncStatusResult.Success(
                 healthyView.copy(metrics = metricsWithAuthEncryption),
             )
 
-        val output = SyncOutputFormatter.formatStatusJson(result)
+         val output = SyncOutputFormatter.formatStatusJson(result)
 
-        assertTrue(output.contains("\"auth\""), "Should include auth field")
-        assertTrue(output.contains("\"encryption\""), "Should include encryption field")
-        assertTrue(output.contains("\"uptime_ms\""), "Should include uptime_ms field")
-        assertTrue(output.contains("\"ok\""), "Should include auth status value")
-        assertTrue(output.contains("\"ready\""), "Should include encryption status value")
-        assertTrue(output.contains("3600000"), "Should include uptime value")
+         assertTrue(output.contains("\"auth\""), "Should include auth field")
+         assertTrue(output.contains("\"encryption\""), "Should include encryption field")
+         assertTrue(output.contains("\"uptimeMs\""), "Should include uptimeMs field")
+         assertTrue(output.contains("\"ok\""), "Should include auth status value")
+         assertTrue(output.contains("\"ready\""), "Should include encryption status value")
+         assertTrue(output.contains("3600000"), "Should include uptime value")
     }
 
     @Test

@@ -27,7 +27,7 @@ class SessionBackedSyncService(
         return apiClient.forceSyncAndWait(session).also { result ->
             when (result) {
                 is SyncStatusResult.Success ->
-                    logger.info { "Force sync completed: status=${result.view.status}, lag=${result.view.metrics.lag_ms}ms" }
+                    logger.info { "Force sync completed: status=${result.view.status}, lag=${result.view.metrics.lagMs}ms" }
                 is SyncStatusResult.Failure ->
                     logger.warn { "Force sync failed: ${result.message} (exit code: ${result.exitCode})" }
             }
@@ -50,7 +50,7 @@ class SessionBackedSyncService(
         return apiClient.getSyncStatus(session).also { result ->
             when (result) {
                 is SyncStatusResult.Success ->
-                    logger.info { "Sync status fetched successfully: status=${result.view.status}, lag=${result.view.metrics.lag_ms}ms" }
+                    logger.info { "Sync status fetched successfully: status=${result.view.status}, lag=${result.view.metrics.lagMs}ms" }
                 is SyncStatusResult.Failure ->
                     logger.warn { "Failed to fetch sync status: ${result.message} (exit code: ${result.exitCode})" }
             }
@@ -106,7 +106,7 @@ class SessionBackedSyncService(
                 is ConversationSyncStatusResult.Success ->
                     logger.info {
                         "Conversation sync status fetched: conversationId=$conversationId, " +
-                            "status=${result.status.status}, lag=${result.status.metrics.lag_ms}ms"
+                            "status=${result.status.status}, lag=${result.status.metrics.lagMs}ms"
                     }
                 is ConversationSyncStatusResult.Failure ->
                     logger.warn {

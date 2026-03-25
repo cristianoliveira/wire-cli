@@ -29,7 +29,7 @@ class PerConversationSyncDiagnosticsTest {
         val syncState = SyncState.Live
         val metrics = generator.generateConversationMetrics(conversationId, syncState)
 
-        assertEquals(conversationId, metrics.conversation_id, "Conversation ID should be preserved")
+        assertEquals(conversationId, metrics.conversationId, "Conversation ID should be preserved")
     }
 
     @Test
@@ -314,12 +314,12 @@ class PerConversationSyncDiagnosticsTest {
         val conversationId = "test-conv-456"
         val report =
             PerConversationDiagnosticsReport(
-                conversation_id = conversationId,
+                conversationId = conversationId,
                 checks = listOf(Check("Test", "Pass", "OK")),
                 summary = "All good",
             )
 
-        assertEquals(conversationId, report.conversation_id)
+        assertEquals(conversationId, report.conversationId)
     }
 
     @Test
@@ -328,7 +328,7 @@ class PerConversationSyncDiagnosticsTest {
         val hints = listOf(RecoveryHint("Issue", "Fix it"))
         val report =
             PerConversationDiagnosticsReport(
-                conversation_id = "test-conv",
+                conversationId = "test-conv",
                 checks = checks,
                 summary = "All good",
                 recoveryHints = hints,
@@ -343,7 +343,7 @@ class PerConversationSyncDiagnosticsTest {
     fun `per-conversation report recovery hints are optional`() {
         val report =
             PerConversationDiagnosticsReport(
-                conversation_id = "test-conv",
+                conversationId = "test-conv",
                 checks = emptyList(),
                 summary = "No checks",
             )
@@ -413,7 +413,7 @@ class PerConversationSyncDiagnosticsTest {
 
         val report = PerConversationDiagnosticsReport(conversationId, checks, summary, hints)
 
-        assertEquals(conversationId, report.conversation_id)
+        assertEquals(conversationId, report.conversationId)
         assertEquals("Conversation is fully synced and healthy.", report.summary)
         assertEquals(0, report.recoveryHints.size)
     }
@@ -428,7 +428,7 @@ class PerConversationSyncDiagnosticsTest {
 
         val report = PerConversationDiagnosticsReport(conversationId, checks, summary, hints)
 
-        assertEquals(conversationId, report.conversation_id)
+        assertEquals(conversationId, report.conversationId)
         assertEquals("Conversation sync has failed. Recovery actions may help.", report.summary)
         assertTrue(report.recoveryHints.isNotEmpty(), "Should generate recovery hints for failed state")
     }
@@ -442,7 +442,7 @@ class PerConversationSyncDiagnosticsTest {
 
         val report = PerConversationDiagnosticsReport(conversationId, checks, summary, hints)
 
-        assertEquals(conversationId, report.conversation_id)
+        assertEquals(conversationId, report.conversationId)
         assertEquals("Conversation sync is in progress. Check back soon.", report.summary)
     }
 
@@ -459,10 +459,10 @@ class PerConversationSyncDiagnosticsTest {
         ): ConversationMetrics {
             return withRuntime { runtime ->
                 ConversationMetrics(
-                    conversation_id = conversationId,
-                    lag_ms = calculateConversationLagMs(runtime, syncState),
-                    pending_messages = calculateConversationPendingMessages(runtime, syncState),
-                    sync_completeness_pct = calculateSyncCompletenessPercentage(runtime, syncState),
+                    conversationId = conversationId,
+                    lagMs = calculateConversationLagMs(runtime, syncState),
+                    pendingMessages = calculateConversationPendingMessages(runtime, syncState),
+                    syncCompletenessPct = calculateSyncCompletenessPercentage(runtime, syncState),
                     timestamp = "2025-03-13T10:30:00Z",
                 )
             }

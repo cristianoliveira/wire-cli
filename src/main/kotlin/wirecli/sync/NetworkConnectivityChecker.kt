@@ -76,11 +76,11 @@ internal class RealNetworkConnectivityChecker : NetworkConnectivityChecker {
             val metrics =
                 NetworkMetrics(
                     connected = isConnected,
-                    network_type = networkType,
-                    estimated_latency_ms = latency,
-                    error_rate = errorRate,
-                    last_recovery_time_ms = lastRecovery,
-                    reachability_check_timestamp = Instant.now().toString(),
+                    networkType = networkType,
+                    estimatedLatencyMs = latency,
+                    errorRate = errorRate,
+                    lastRecoveryTimeMs = lastRecovery,
+                    reachabilityCheckTimestamp = Instant.now().toString(),
                 )
 
             logger.info { "Network connectivity check completed: connected=$isConnected, type=$networkType, latency=${latency}ms" }
@@ -281,16 +281,16 @@ internal class StubNetworkConnectivityChecker(
     private val estimatedLatency: Long = 20L,
     private val errorRate: Double = 0.0,
 ) : NetworkConnectivityChecker {
-    override fun checkNetworkConnectivity(): NetworkMetrics {
-        return NetworkMetrics(
-            connected = connected,
-            network_type = networkType,
-            estimated_latency_ms = estimatedLatency,
-            error_rate = errorRate,
-            last_recovery_time_ms = if (errorRate > 0.0) 5000L else null,
-            reachability_check_timestamp = Instant.now().toString(),
-        )
-    }
+     override fun checkNetworkConnectivity(): NetworkMetrics {
+         return NetworkMetrics(
+             connected = connected,
+             networkType = networkType,
+             estimatedLatencyMs = estimatedLatency,
+             errorRate = errorRate,
+             lastRecoveryTimeMs = if (errorRate > 0.0) 5000L else null,
+             reachabilityCheckTimestamp = Instant.now().toString(),
+         )
+     }
 
     override fun estimateNetworkLatency(syncLagMs: Long): Long {
         // Use real calculation logic: approximately half the sync lag with minimum 10ms

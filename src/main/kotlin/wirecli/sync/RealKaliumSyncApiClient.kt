@@ -110,11 +110,11 @@ internal class RealKaliumSyncApiClient(
         }
         val result = runtime.getConversationSyncStatus(session, conversationId)
         when (result) {
-            is ConversationSyncStatusResult.Success -> {
-                check(result.status.conversation_id == conversationId) {
-                    "Conversation sync status success must preserve the requested conversation ID."
-                }
-            }
+             is ConversationSyncStatusResult.Success -> {
+                 check(result.status.conversationId == conversationId) {
+                     "Conversation sync status success must preserve the requested conversation ID."
+                 }
+             }
 
             is ConversationSyncStatusResult.Failure -> {
                 check(result.exitCode > 0) {
@@ -144,11 +144,11 @@ internal class RealKaliumSyncApiClient(
         }
         val result = runtime.getPerConversationDiagnostics(session, conversationId)
         when (result) {
-            is PerConversationDiagnosticsResult.Success -> {
-                check(result.report.conversation_id == conversationId) {
-                    "Per-conversation diagnostics success must preserve the requested conversation ID."
-                }
-            }
+             is PerConversationDiagnosticsResult.Success -> {
+                 check(result.report.conversationId == conversationId) {
+                     "Per-conversation diagnostics success must preserve the requested conversation ID."
+                 }
+             }
 
             is PerConversationDiagnosticsResult.Failure -> {
                 check(result.exitCode > 0) {
@@ -334,25 +334,25 @@ internal class SdkKaliumSyncRuntime(
                     logger.debug { "Calculated sync lag: ${lagMs}ms" }
 
                     logger.debug { "Checking network connectivity" }
-                    val networkMetrics =
-                        networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                            estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
-                        )
+                     val networkMetrics =
+                         networkConnectivityChecker.checkNetworkConnectivity()?.copy(
+                             estimatedLatencyMs = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                         )
 
-                    val metrics =
-                        HealthMetrics(
-                            lag_ms = lagMs,
-                            pending_messages = calculatePendingMessages(syncState),
-                            mls_pct = calculateMlsPercentage(syncState),
-                            timestamp = Instant.now().toString(),
-                            network = networkMetrics,
-                            mls = buildMlsMetrics(syncState, keyPackageCountResult),
-                        )
+                     val metrics =
+                         HealthMetrics(
+                             lagMs = lagMs,
+                             pendingMessages = calculatePendingMessages(syncState),
+                             mlsPct = calculateMlsPercentage(syncState),
+                             timestamp = Instant.now().toString(),
+                             network = networkMetrics,
+                             mls = buildMlsMetrics(syncState, keyPackageCountResult),
+                         )
 
-                    logger.debug {
-                        "Health metrics calculated: lag=${metrics.lag_ms}ms, " +
-                            "pending=${metrics.pending_messages}, mls=${metrics.mls_pct}%"
-                    }
+                     logger.debug {
+                         "Health metrics calculated: lag=${metrics.lagMs}ms, " +
+                             "pending=${metrics.pendingMessages}, mls=${metrics.mlsPct}%"
+                     }
 
                     val view = SyncStatusView(status = status, metrics = metrics)
                     logger.info { "Sync status retrieved successfully: status=$status, lag=${lagMs}ms" }
@@ -370,7 +370,7 @@ internal class SdkKaliumSyncRuntime(
             "Sync status lookup must track active session user IDs for shutdown."
         }
         if (result is SyncStatusResult.Success) {
-            check(result.view.metrics.lag_ms >= 0) {
+            check(result.view.metrics.lagMs >= 0) {
                 "Sync status success must include a non-negative lag metric."
             }
         }
@@ -426,17 +426,17 @@ internal class SdkKaliumSyncRuntime(
                     val lagMs = calculateLagMs(syncState)
                     val networkMetrics =
                         networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                            estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                            estimatedLatencyMs = networkConnectivityChecker.estimateNetworkLatency(lagMs),
                         )
-                    val metrics =
-                        HealthMetrics(
-                            lag_ms = lagMs,
-                            pending_messages = calculatePendingMessages(syncState),
-                            mls_pct = calculateMlsPercentage(syncState),
-                            timestamp = Instant.now().toString(),
-                            network = networkMetrics,
-                            mls = buildMlsMetrics(syncState, keyPackageCountResult),
-                        )
+                     val metrics =
+                         HealthMetrics(
+                             lagMs = lagMs,
+                             pendingMessages = calculatePendingMessages(syncState),
+                             mlsPct = calculateMlsPercentage(syncState),
+                             timestamp = Instant.now().toString(),
+                             network = networkMetrics,
+                             mls = buildMlsMetrics(syncState, keyPackageCountResult),
+                         )
 
                     SyncStatusResult.Success(
                         SyncStatusView(
@@ -616,11 +616,11 @@ internal class SdkKaliumSyncRuntime(
         check(activeSessionUserIds.contains(qualifiedId)) {
             "Conversation sync lookup must track active session user IDs for shutdown."
         }
-        if (result is ConversationSyncStatusResult.Success) {
-            check(result.status.conversation_id == conversationId) {
-                "Conversation sync success must preserve the requested conversation ID."
-            }
-        }
+         if (result is ConversationSyncStatusResult.Success) {
+             check(result.status.conversationId == conversationId) {
+                 "Conversation sync success must preserve the requested conversation ID."
+             }
+         }
         return result
     }
 
@@ -680,14 +680,14 @@ internal class SdkKaliumSyncRuntime(
                     val summary = buildConversationSummary(checks)
                     logger.debug { "Conversation diagnostics summary: $summary" }
 
-                    PerConversationDiagnosticsResult.Success(
-                        PerConversationDiagnosticsReport(
-                            conversation_id = conversationId,
-                            checks = checks,
-                            summary = summary,
-                            recoveryHints = generateConversationRecoveryHints(checks, conversationId),
-                        ),
-                    )
+                     PerConversationDiagnosticsResult.Success(
+                         PerConversationDiagnosticsReport(
+                             conversationId = conversationId,
+                             checks = checks,
+                             summary = summary,
+                             recoveryHints = generateConversationRecoveryHints(checks, conversationId),
+                         ),
+                     )
                 } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                     logger.error(error) { "Failed to get conversation diagnostics for conversation: $conversationId" }
                     PerConversationDiagnosticsResult.Failure(
@@ -700,11 +700,11 @@ internal class SdkKaliumSyncRuntime(
         check(activeSessionUserIds.contains(qualifiedId)) {
             "Per-conversation diagnostics must track active session user IDs for shutdown."
         }
-        if (result is PerConversationDiagnosticsResult.Success) {
-            check(result.report.conversation_id == conversationId) {
-                "Per-conversation diagnostics success must preserve the requested conversation ID."
-            }
-        }
+         if (result is PerConversationDiagnosticsResult.Success) {
+             check(result.report.conversationId == conversationId) {
+                 "Per-conversation diagnostics success must preserve the requested conversation ID."
+             }
+         }
         return result
     }
 
@@ -799,25 +799,25 @@ internal class SdkKaliumSyncRuntime(
         return syncMetricsCalculator.calculateMlsPercentage(syncState)
     }
 
-    private fun buildMlsMetrics(
-        syncState: SyncState,
-        keyPackageCountResult: MLSKeyPackageCountResult,
-    ): MLSMetrics? {
-        val keyPackageSuccess = keyPackageCountResult as? MLSKeyPackageCountResult.Success ?: return null
-        return MLSMetrics(
-            enrollment_pct = calculateMlsPercentage(syncState),
-            key_package_available = keyPackageSuccess.count,
-            key_package_exhausted = keyPackageSuccess.count == 0,
-            key_package_generation_enabled = syncState is SyncState.Live,
-            key_package_refresh_required = keyPackageSuccess.needsRefill,
-            mls_group_updates_failed_count = if (syncState is SyncState.Failed) 1 else 0,
-            mls_enrollment_failures_count = if (syncState is SyncState.Failed) 1 else 0,
-            mls_error_rate = if (syncState is SyncState.Failed) 0.10 else 0.0,
-            last_key_package_refresh_timestamp = if (syncState is SyncState.Live) Instant.now().toString() else null,
-            timestamp = Instant.now().toString(),
-            device_name = keyPackageSuccess.clientId.value,
-        )
-    }
+     private fun buildMlsMetrics(
+         syncState: SyncState,
+         keyPackageCountResult: MLSKeyPackageCountResult,
+     ): MLSMetrics? {
+         val keyPackageSuccess = keyPackageCountResult as? MLSKeyPackageCountResult.Success ?: return null
+         return MLSMetrics(
+             enrollmentPct = calculateMlsPercentage(syncState),
+             keyPackageAvailable = keyPackageSuccess.count,
+             keyPackageExhausted = keyPackageSuccess.count == 0,
+             keyPackageGenerationEnabled = syncState is SyncState.Live,
+             keyPackageRefreshRequired = keyPackageSuccess.needsRefill,
+             mlsGroupUpdatesFailedCount = if (syncState is SyncState.Failed) 1 else 0,
+             mlsEnrollmentFailuresCount = if (syncState is SyncState.Failed) 1 else 0,
+             mlsErrorRate = if (syncState is SyncState.Failed) 0.10 else 0.0,
+             lastKeyPackageRefreshTimestamp = if (syncState is SyncState.Live) Instant.now().toString() else null,
+             timestamp = Instant.now().toString(),
+             deviceName = keyPackageSuccess.clientId.value,
+         )
+     }
 
     private fun buildConversationSyncStatusView(
         conversationId: String,
@@ -826,25 +826,25 @@ internal class SdkKaliumSyncRuntime(
         val status = mapSyncStateToStatus(syncState)
         val lagMs = calculateConversationLagMs(syncState)
         val networkMetrics =
-            networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
-            )
-        val metrics =
-            ConversationMetrics(
-                conversation_id = conversationId,
-                lag_ms = lagMs,
-                pending_messages = calculateConversationPendingMessages(syncState),
-                sync_completeness_pct = calculateSyncCompletenessPercentage(syncState),
-                timestamp = Instant.now().toString(),
-                network = networkMetrics,
-            )
+                        networkConnectivityChecker.checkNetworkConnectivity()?.copy(
+                            estimatedLatencyMs = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                        )
+         val metrics =
+             ConversationMetrics(
+                 conversationId = conversationId,
+                 lagMs = lagMs,
+                 pendingMessages = calculateConversationPendingMessages(syncState),
+                 syncCompletenessPct = calculateSyncCompletenessPercentage(syncState),
+                 timestamp = Instant.now().toString(),
+                 network = networkMetrics,
+             )
 
-        return ConversationSyncStatus(
-            conversation_id = conversationId,
-            status = status,
-            metrics = metrics,
-            last_sync_timestamp = Instant.now().toString(),
-        )
+         return ConversationSyncStatus(
+             conversationId = conversationId,
+             status = status,
+             metrics = metrics,
+             lastSyncTimestamp = Instant.now().toString(),
+         )
     }
 
     private fun buildAuthenticationCheck(): Check {
@@ -972,23 +972,23 @@ internal class SdkKaliumSyncRuntime(
             when {
                 networkMetrics != null && !networkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                networkMetrics != null && networkMetrics.error_rate > 0.3 -> "Warn"
+                networkMetrics != null && networkMetrics.errorRate > 0.3 -> "Warn"
                 else -> "Pass"
             }
 
-        val details =
-            buildString {
-                if (networkMetrics != null) {
-                    append("Network: ${networkMetrics.network_type}, ")
-                    append("Latency: ${estimatedLatency}ms, ")
-                    append("Error Rate: ${String.format("%.1f%%", networkMetrics.error_rate * 100)}")
-                    if (networkMetrics.last_recovery_time_ms != null) {
-                        append(", Last Recovery: ${networkMetrics.last_recovery_time_ms}ms ago")
-                    }
-                } else {
-                    append("Network connectivity status unavailable")
-                }
-            }
+         val details =
+             buildString {
+                 if (networkMetrics != null) {
+                     append("Network: ${networkMetrics.networkType}, ")
+                     append("Latency: ${estimatedLatency}ms, ")
+                     append("Error Rate: ${String.format("%.1f%%", networkMetrics.errorRate * 100)}")
+                     if (networkMetrics.lastRecoveryTimeMs != null) {
+                         append(", Last Recovery: ${networkMetrics.lastRecoveryTimeMs}ms ago")
+                     }
+                 } else {
+                     append("Network connectivity status unavailable")
+                 }
+             }
 
         return Check(name = "Network Connectivity", status = status, details = details)
     }
@@ -1054,20 +1054,20 @@ internal class SdkKaliumSyncRuntime(
             when {
                 convNetworkMetrics != null && !convNetworkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                convNetworkMetrics != null && convNetworkMetrics.error_rate > 0.3 -> "Warn"
-                else -> "Pass"
-            }
+                 convNetworkMetrics != null && convNetworkMetrics.errorRate > 0.3 -> "Warn"
+                 else -> "Pass"
+             }
 
-        val details =
-            buildString {
-                if (convNetworkMetrics != null) {
-                    append("Type: ${convNetworkMetrics.network_type}, ")
-                    append("Latency: ${convEstimatedLatency}ms, ")
-                    append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
-                } else {
-                    append("Conversation connectivity status unavailable")
-                }
-            }
+         val details =
+             buildString {
+                 if (convNetworkMetrics != null) {
+                     append("Type: ${convNetworkMetrics.networkType}, ")
+                     append("Latency: ${convEstimatedLatency}ms, ")
+                     append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
+                 } else {
+                     append("Conversation connectivity status unavailable")
+                 }
+             }
 
         return Check(name = "Conversation Connectivity", status = status, details = details)
     }

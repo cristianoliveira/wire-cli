@@ -44,19 +44,19 @@ enum class KeyPackageAvailabilityStatus(val value: String) {
  * - Error rates specific to MLS operations
  */
 data class MLSMetrics(
-    val enrollment_pct: Int,
-    val key_package_available: Int,
-    val key_package_exhausted: Boolean,
-    val key_package_generation_enabled: Boolean,
-    val key_package_refresh_required: Boolean,
-    val mls_group_updates_failed_count: Int,
-    val mls_enrollment_failures_count: Int,
-    val mls_error_rate: Double,
-    val last_key_package_refresh_timestamp: String?,
+    val enrollmentPct: Int,
+    val keyPackageAvailable: Int,
+    val keyPackageExhausted: Boolean,
+    val keyPackageGenerationEnabled: Boolean,
+    val keyPackageRefreshRequired: Boolean,
+    val mlsGroupUpdatesFailedCount: Int,
+    val mlsEnrollmentFailuresCount: Int,
+    val mlsErrorRate: Double,
+    val lastKeyPackageRefreshTimestamp: String?,
     val timestamp: String,
-    val estimated_remaining_ms: Long? = null,
-    val device_name: String? = null,
-    val key_package_total: Int? = null,
+    val estimatedRemainingMs: Long? = null,
+    val deviceName: String? = null,
+    val keyPackageTotal: Int? = null,
 )
 
 /**
@@ -70,11 +70,11 @@ data class MLSMetrics(
  */
 data class NetworkMetrics(
     val connected: Boolean,
-    val network_type: NetworkType,
-    val estimated_latency_ms: Long,
-    val error_rate: Double,
-    val last_recovery_time_ms: Long?,
-    val reachability_check_timestamp: String,
+    val networkType: NetworkType,
+    val estimatedLatencyMs: Long,
+    val errorRate: Double,
+    val lastRecoveryTimeMs: Long?,
+    val reachabilityCheckTimestamp: String,
 )
 
 enum class SyncStatus(val value: String) {
@@ -88,16 +88,16 @@ enum class SyncStatus(val value: String) {
 }
 
 data class HealthMetrics(
-    val lag_ms: Long,
-    val pending_messages: Int,
-    val mls_pct: Int,
+    val lagMs: Long,
+    val pendingMessages: Int,
+    val mlsPct: Int,
     val timestamp: String,
     val network: NetworkMetrics? = null,
     val mls: MLSMetrics? = null,
-    val last_message_received_ms: Long? = null,
-    val auth_status: String = "ok",
-    val encryption_status: String = "ready",
-    val uptime_ms: Long? = null,
+    val lastMessageReceivedMs: Long? = null,
+    val authStatus: String = "ok",
+    val encryptionStatus: String = "ready",
+    val uptimeMs: Long? = null,
 )
 
 data class Check(
@@ -187,24 +187,24 @@ interface SyncApiClient : SyncStatusApiClient, SyncDiagnosticsApiClient, SyncCon
 // ==================== PER-CONVERSATION SYNC DIAGNOSTICS ====================
 
 data class ConversationMetrics(
-    val conversation_id: String,
-    val lag_ms: Long,
-    val pending_messages: Int,
-    val sync_completeness_pct: Int,
+    val conversationId: String,
+    val lagMs: Long,
+    val pendingMessages: Int,
+    val syncCompletenessPct: Int,
     val timestamp: String,
     val network: NetworkMetrics? = null,
     val mls: MLSMetrics? = null,
 )
 
 data class ConversationSyncStatus(
-    val conversation_id: String,
+    val conversationId: String,
     val status: SyncStatus,
     val metrics: ConversationMetrics,
-    val last_sync_timestamp: String,
+    val lastSyncTimestamp: String,
 )
 
 data class PerConversationDiagnosticsReport(
-    val conversation_id: String,
+    val conversationId: String,
     val checks: List<Check>,
     val summary: String,
     val recoveryHints: List<RecoveryHint> = emptyList(),

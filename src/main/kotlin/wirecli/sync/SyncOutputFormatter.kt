@@ -29,17 +29,17 @@ object SyncOutputFormatter {
                 json.encodeToString(
                     StatusJsonOutput.Success(
                         status = result.view.status.value,
-                        auth = result.view.metrics.auth_status,
-                        encryption = result.view.metrics.encryption_status,
+                        auth = result.view.metrics.authStatus,
+                        encryption = result.view.metrics.encryptionStatus,
                         metrics =
                             MetricsJson(
-                                lag_ms = result.view.metrics.lag_ms,
-                                pending_messages = result.view.metrics.pending_messages,
-                                mls_pct = result.view.metrics.mls_pct,
+                                lagMs = result.view.metrics.lagMs,
+                                pendingMessages = result.view.metrics.pendingMessages,
+                                mlsPct = result.view.metrics.mlsPct,
                                 timestamp = result.view.metrics.timestamp,
-                                last_message_received_ms = result.view.metrics.last_message_received_ms,
+                                lastMessageReceivedMs = result.view.metrics.lastMessageReceivedMs,
                             ),
-                        uptime_ms = result.view.metrics.uptime_ms,
+                        uptimeMs = result.view.metrics.uptimeMs,
                     ),
                 )
             is SyncStatusResult.Failure ->
@@ -95,12 +95,12 @@ object SyncOutputFormatter {
             val statusIcon = getStatusIcon(view.status.value)
             appendLine("$statusIcon Account Health: ${view.status}")
             appendLine("")
-            appendLine("  Auth: ${formatAuthStatus(view.metrics.auth_status)}")
-            appendLine("  Encryption: ${formatEncryptionStatus(view.metrics.encryption_status, view.metrics.mls_pct)}")
+            appendLine("  Auth: ${formatAuthStatus(view.metrics.authStatus)}")
+            appendLine("  Encryption: ${formatEncryptionStatus(view.metrics.encryptionStatus, view.metrics.mlsPct)}")
             appendLine("")
-            appendLine("  Lag: ${view.metrics.lag_ms}ms")
-            appendLine("  Pending: ${view.metrics.pending_messages} messages")
-            appendLine("  MLS: ${view.metrics.mls_pct}%")
+            appendLine("  Lag: ${view.metrics.lagMs}ms")
+            appendLine("  Pending: ${view.metrics.pendingMessages} messages")
+            appendLine("  MLS: ${view.metrics.mlsPct}%")
             appendLine("  Last sync: ${view.metrics.timestamp}")
         }
 
@@ -118,14 +118,14 @@ object SyncOutputFormatter {
 
     private fun StringBuilder.appendHealthMetrics(metrics: HealthMetrics) {
         appendLine("Health Metrics:")
-        appendLine("  • Event Queue Lag: ${metrics.lag_ms}ms")
-        if (metrics.last_message_received_ms != null) {
-            val secondsAgo = (System.currentTimeMillis() - metrics.last_message_received_ms) / 1000
-            appendLine("  • Messages: ${metrics.pending_messages} pending (last received ${secondsAgo}s ago)")
+        appendLine("  • Event Queue Lag: ${metrics.lagMs}ms")
+        if (metrics.lastMessageReceivedMs != null) {
+            val secondsAgo = (System.currentTimeMillis() - metrics.lastMessageReceivedMs) / 1000
+            appendLine("  • Messages: ${metrics.pendingMessages} pending (last received ${secondsAgo}s ago)")
         } else {
-            appendLine("  • Pending Messages: ${metrics.pending_messages}")
+            appendLine("  • Pending Messages: ${metrics.pendingMessages}")
         }
-        appendLine("  • MLS Migration: ${metrics.mls_pct}% complete")
+        appendLine("  • MLS Migration: ${metrics.mlsPct}% complete")
         appendLine("  • Last Sync: ${metrics.timestamp}")
     }
 
@@ -134,19 +134,19 @@ object SyncOutputFormatter {
         appendLine("")
         val keyPackageStatus =
             when {
-                mlsMetrics.key_package_exhausted -> "exhausted, refresh needed"
-                mlsMetrics.key_package_available < 50 -> "low, refilling"
-                else -> "${mlsMetrics.key_package_available} available"
+                mlsMetrics.keyPackageExhausted -> "exhausted, refresh needed"
+                mlsMetrics.keyPackageAvailable < 50 -> "low, refilling"
+                else -> "${mlsMetrics.keyPackageAvailable} available"
             }
-        if (mlsMetrics.device_name != null && mlsMetrics.key_package_total != null) {
+        if (mlsMetrics.deviceName != null && mlsMetrics.keyPackageTotal != null) {
             val keyPkgInfo =
-                "  • ${mlsMetrics.device_name}: ${mlsMetrics.key_package_available}/${mlsMetrics.key_package_total} ($keyPackageStatus)"
+                "  • ${mlsMetrics.deviceName}: ${mlsMetrics.keyPackageAvailable}/${mlsMetrics.keyPackageTotal} ($keyPackageStatus)"
             appendLine(keyPkgInfo)
         } else {
             appendLine("  • Key Packages: $keyPackageStatus")
         }
-        if (mlsMetrics.estimated_remaining_ms != null) {
-            val secondsRemaining = mlsMetrics.estimated_remaining_ms / 1000
+        if (mlsMetrics.estimatedRemainingMs != null) {
+            val secondsRemaining = mlsMetrics.estimatedRemainingMs / 1000
             appendLine("  • estimated: ${secondsRemaining}s remaining")
         }
     }
@@ -164,9 +164,9 @@ object SyncOutputFormatter {
 
     private fun buildInterpretation(metrics: HealthMetrics): String =
         when {
-            metrics.lag_ms > 5000 -> "⚠ High lag detected. Sync may be slow."
-            metrics.pending_messages > 100 -> "⚠ Large message backlog detected."
-            metrics.mls_pct < 50 -> "⚠ MLS migration is still in progress."
+            metrics.lagMs > 5000 -> "⚠ High lag detected. Sync may be slow."
+            metrics.pendingMessages > 100 -> "⚠ Large message backlog detected."
+            metrics.mlsPct < 50 -> "⚠ MLS migration is still in progress."
             else -> "✓ All metrics are healthy."
         }
 
@@ -243,7 +243,7 @@ sealed class StatusJsonOutput {
         val auth: String,
         val encryption: String,
         val metrics: MetricsJson,
-        val uptime_ms: Long? = null,
+        val uptimeMs: Long? = null,
     ) : StatusJsonOutput()
 
     @Serializable
@@ -255,11 +255,11 @@ sealed class StatusJsonOutput {
 
 @Serializable
 data class MetricsJson(
-    val lag_ms: Long,
-    val pending_messages: Int,
-    val mls_pct: Int,
+    val lagMs: Long,
+    val pendingMessages: Int,
+    val mlsPct: Int,
     val timestamp: String,
-    val last_message_received_ms: Long? = null,
+    val lastMessageReceivedMs: Long? = null,
 )
 
 @Serializable

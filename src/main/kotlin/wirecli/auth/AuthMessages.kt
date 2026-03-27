@@ -2,6 +2,17 @@ package wirecli.auth
 
 object AuthMessages {
     private const val RELOGIN_GUIDANCE = "Run wire login to re-authenticate."
+    const val LEGACY_SESSION_MIGRATION_FAILED =
+        "Stored session format is outdated and migration failed. Run wire login to recreate local credentials."
+    const val INVALID_CREDENTIALS = "Invalid email or password. Verify credentials and try again."
+    const val PASSWORD_REQUIRED = "Password confirmation required."
+    const val AUTH_SERVICE_UNAVAILABLE =
+        "Authentication service is unavailable. Retry later or check server settings."
+    const val LOCAL_SESSION_PERSISTENCE_FAILED =
+        "Authentication succeeded, but account state could not be persisted. Retry login."
+    const val SESSION_BOOTSTRAP_FAILED = "Authentication succeeded, but session bootstrap failed. Retry login."
+    const val CLIENT_REGISTRATION_FAILED =
+        "Authentication succeeded, but client registration failed. Retry login."
 
     fun noActiveSession(): String = "No active session. $RELOGIN_GUIDANCE"
 
@@ -13,32 +24,13 @@ object AuthMessages {
     fun unsupportedSessionSchema(version: String): String =
         "Stored session format version '$version' is unsupported. Run wire login to recreate local credentials."
 
-    fun legacySessionMigrationFailed(): String =
-        "Stored session format is outdated and migration failed. Run wire login to recreate local credentials."
-
     fun invalidOrExpiredSession(): String = "Session is invalid or expired. $RELOGIN_GUIDANCE"
-
-    fun invalidCredentials(): String = "Invalid email or password. Verify credentials and try again."
-
-    fun passwordRequired(): String = "Password confirmation required."
 
     fun networkFailure(action: String): String {
         return "$action failed: network is unreachable. Check your connection and retry."
     }
 
-    fun authServiceUnavailable(): String {
-        return "Authentication service is unavailable. Retry later or check server settings."
-    }
-
     fun unauthorizedAction(action: String): String {
         return "$action failed: account is unauthorized or session expired. $RELOGIN_GUIDANCE"
     }
-
-    fun localSessionPersistenceFailed(): String {
-        return "Authentication succeeded, but account state could not be persisted. Retry login."
-    }
-
-    fun sessionBootstrapFailed(): String = "Authentication succeeded, but session bootstrap failed. Retry login."
-
-    fun clientRegistrationFailed(): String = "Authentication succeeded, but client registration failed. Retry login."
 }

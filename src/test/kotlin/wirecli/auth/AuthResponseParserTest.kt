@@ -56,7 +56,7 @@ class AuthResponseParserTest {
         val result = parser.parseFailure(failure, action = "Authentication")
 
         assertIs<AuthApiResult.Failure>(result)
-        assertEquals(AuthMessages.invalidCredentials(), result.message)
+        assertEquals(AuthMessages.INVALID_CREDENTIALS, result.message)
         assertEquals(ExitCodes.AUTH_FAILED, result.exitCode)
     }
 
@@ -67,7 +67,7 @@ class AuthResponseParserTest {
         val result = parser.parseFailure(failure, action = "Authentication")
 
         assertIs<AuthApiResult.Failure>(result)
-        assertEquals(AuthMessages.passwordRequired(), result.message)
+        assertEquals(AuthMessages.PASSWORD_REQUIRED, result.message)
         assertEquals(ExitCodes.PASSWORD_REQUIRED, result.exitCode)
     }
 
@@ -89,7 +89,7 @@ class AuthResponseParserTest {
         val result = parser.parseFailure(failure, action = "Authentication")
 
         assertIs<AuthApiResult.Failure>(result)
-        assertEquals(AuthMessages.authServiceUnavailable(), result.message)
+        assertEquals(AuthMessages.AUTH_SERVICE_UNAVAILABLE, result.message)
         assertEquals(ExitCodes.SERVER_ERROR, result.exitCode)
     }
 

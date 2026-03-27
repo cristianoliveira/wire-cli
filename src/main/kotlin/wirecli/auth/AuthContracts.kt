@@ -1,5 +1,5 @@
 package wirecli.auth
-// FIXME: Consider unifying AuthResult and AuthApiResult into a generic Result<T> to reduce duplication.
+// Follow-up: Consider unifying AuthResult and AuthApiResult into a generic Result<T> to reduce duplication.
 
 data class LoginInput(
     val email: String,
@@ -58,7 +58,7 @@ interface AuthSessionService {
     fun requireActiveSession(): AuthResult
 }
 
-// TODO: Consider converting ExitCodes to enum class for better type safety.
+// Follow-up: Consider converting ExitCodes to enum class for better type safety.
 object ExitCodes {
     const val OK = 0
     const val AUTH_FAILED = 10

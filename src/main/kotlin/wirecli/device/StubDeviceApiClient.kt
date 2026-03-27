@@ -7,7 +7,7 @@ import wirecli.auth.ExitCodes
 class StubDeviceApiClient(
     private val environment: Map<String, String>,
 ) : DeviceApiClient {
-    // FIXME: Duplicate failure mode handling across methods; consider extracting common mapping
+    // Follow-up: Duplicate failure mode handling across methods; consider extracting common mapping
     private val defaultDevices =
         listOf(
             Device(

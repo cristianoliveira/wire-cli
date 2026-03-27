@@ -192,7 +192,7 @@ internal class StandardAuthenticationOrchestrator(
                 parser.parseFailure(
                     failure = persistence,
                     action = "Authentication",
-                    defaultMessage = AuthMessages.localSessionPersistenceFailed(),
+                    defaultMessage = AuthMessages.LOCAL_SESSION_PERSISTENCE_FAILED,
                 )
         }
     }
@@ -222,7 +222,7 @@ internal class StandardAuthenticationOrchestrator(
                     return parser.parseFailure(
                         failure = sessionResult,
                         action = "Authentication",
-                        defaultMessage = AuthMessages.sessionBootstrapFailed(),
+                        defaultMessage = AuthMessages.SESSION_BOOTSTRAP_FAILED,
                     )
                 }
             }
@@ -241,7 +241,7 @@ internal class StandardAuthenticationOrchestrator(
                         if (clientResult.category == AuthFailureCategory.PASSWORD_REQUIRED) {
                             null // Let PASSWORD_REQUIRED use its own message
                         } else {
-                            AuthMessages.clientRegistrationFailed()
+                            AuthMessages.CLIENT_REGISTRATION_FAILED
                         },
                 )
         }

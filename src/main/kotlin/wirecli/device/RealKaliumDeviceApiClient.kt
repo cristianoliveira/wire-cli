@@ -846,9 +846,7 @@ internal class SdkKaliumDeviceRuntime(
             @Suppress("TooGenericExceptionCaught")
             e: Exception,
         ) {
-            // Reflection failure is intentionally caught with safe fallback.
-            // This occurs when the underlying SDK changes its data model.
-            // Reason: Fallback to "unknown" is acceptable for display purposes.
+            logger.debug(e) { "Failed to read device lastActive via reflection; using fallback value." }
             "unknown"
         }
     }

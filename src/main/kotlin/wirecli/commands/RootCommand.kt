@@ -54,9 +54,7 @@ class RootCommand : NoOpCliktCommand(
             @Suppress("TooGenericExceptionCaught")
             e: Exception,
         ) {
-            // Logging configuration failure is intentionally caught and ignored.
-            // This is non-critical to CLI operation - the application continues with default settings.
-            // Reason: Logback may not be fully configured in all environments; this is acceptable.
+            logger.warn(e) { "Failed to configure log level '$effectiveLevel'; using existing logger configuration." }
         }
 
         // Set log directory from option or default

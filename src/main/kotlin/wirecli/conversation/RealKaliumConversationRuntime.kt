@@ -6,12 +6,15 @@ import com.wire.kalium.logic.data.conversation.ConversationFilter
 import com.wire.kalium.logic.data.id.ConversationId
 import com.wire.kalium.logic.data.user.UserId
 import com.wire.kalium.logic.feature.conversation.ObserveConversationDetailsUseCase
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthSession
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 import java.nio.file.Paths
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Runtime abstraction for Kalium conversation operations
@@ -141,9 +144,7 @@ internal class SdkKaliumConversationRuntime(
                         @Suppress("TooGenericExceptionCaught")
                         e: Exception,
                     ) {
-                        // Exceptions during shutdown cleanup are intentionally caught and suppressed.
-                        // This is normal during application termination when resources may be partially unavailable.
-                        // Reason: Errors during cleanup should not prevent the application from shutting down.
+                        logger.debug(e) { "Ignoring conversation shutdown cleanup failure for userId=$userId" }
                     }
                 }
             }

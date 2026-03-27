@@ -167,7 +167,7 @@ internal class SdkKaliumProfileRuntime(
                     coreLogic.sessionScope(qualifiedId) {
                         users.getSelfUser()
                     }
-                        ?: throw IllegalStateException(
+                        ?: error(
                             "Self user data is unavailable - this indicates a failure to fetch profile information.",
                         )
                 logger.debug { "Self user data retrieved successfully: name=${selfUser.name}, handle=${selfUser.handle}" }

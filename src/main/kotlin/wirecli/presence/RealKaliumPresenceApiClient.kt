@@ -181,17 +181,15 @@ internal class SdkKaliumPresenceRuntime(
                     coreLogic.sessionScope(qualifiedId) {
                         users.getSelfUser()
                     }
-                        ?: throw IllegalStateException(
+                        ?: error(
                             "Self user data is unavailable - this indicates a failure to fetch presence information.",
                         )
                 // Explicitly fail if availability status is null instead of returning it
-                val status = selfUser.availabilityStatus
-                if (status == null) {
-                    throw IllegalStateException(
+                val status =
+                    checkNotNull(selfUser.availabilityStatus) {
                         "Availability status is null - cannot determine presence state. " +
-                            "This indicates a failure to fetch user availability data.",
-                    )
-                }
+                            "This indicates a failure to fetch user availability data."
+                    }
                 logger.debug { "Self availability status retrieved successfully: $status" }
                 PresenceStepResult.Success(status)
             } catch (

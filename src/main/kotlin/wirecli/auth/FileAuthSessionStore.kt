@@ -215,7 +215,7 @@ class FileAuthSessionStore(
         if (sessionFile.exists()) {
             if (!sessionFile.delete()) {
                 logger.error { "Failed to delete session file: ${sessionFile.absolutePath}" }
-                throw IllegalStateException("Failed to clear active session file: ${sessionFile.absolutePath}")
+                error("Failed to clear active session file: ${sessionFile.absolutePath}")
             }
             logger.info { "Session file deleted successfully" }
         } else {

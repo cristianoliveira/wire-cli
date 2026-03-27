@@ -50,10 +50,15 @@ class RootCommand : NoOpCliktCommand(
             val rootLogger = logbackContext.getLogger(Logger.ROOT_LOGGER_NAME)
             rootLogger.level = Level.valueOf(effectiveLevel)
             System.setProperty("WIRECLI_LOG_LEVEL", effectiveLevel)
-        } catch (
-            @Suppress("TooGenericExceptionCaught")
-            e: Exception,
-        ) {
+        } catch (e: ClassCastException) {
+            // Logging configuration failure is intentionally caught and ignored.
+            // This is non-critical to CLI operation - the application continues with default settings.
+            // Reason: Logback may not be fully configured in all environments; this is acceptable.
+        } catch (e: IllegalArgumentException) {
+            // Logging configuration failure is intentionally caught and ignored.
+            // This is non-critical to CLI operation - the application continues with default settings.
+            // Reason: Logback may not be fully configured in all environments; this is acceptable.
+        } catch (e: SecurityException) {
             // Logging configuration failure is intentionally caught and ignored.
             // This is non-critical to CLI operation - the application continues with default settings.
             // Reason: Logback may not be fully configured in all environments; this is acceptable.
@@ -68,10 +73,7 @@ class RootCommand : NoOpCliktCommand(
         // Create log directory if it doesn't exist
         try {
             File(logDirPath).mkdirs()
-        } catch (
-            @Suppress("TooGenericExceptionCaught")
-            e: Exception,
-        ) {
+        } catch (e: SecurityException) {
             // Directory creation failure is intentionally caught and logged to stderr.
             // This is non-critical - logging will still function with system defaults.
             // Reason: Permission issues or filesystem errors should not block CLI startup.

@@ -2,7 +2,7 @@ package wirecli.device
 
 import wirecli.auth.AuthSession
 
-// TODO: Consider unifying DeviceListResult, DeviceDetailResult, DeviceDeleteResult into a generic DeviceResult<T> to reduce duplication
+// Follow-up: consider unifying DeviceListResult, DeviceDetailResult, DeviceDeleteResult into a generic DeviceResult<T> to reduce duplication
 enum class DeviceType(val value: String) {
     DESKTOP("desktop"),
     MOBILE("mobile"),

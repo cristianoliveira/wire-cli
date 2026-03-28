@@ -241,7 +241,7 @@ internal class SdkKaliumPresenceRuntime(
         logger.debug { "SdkKaliumPresenceRuntime: Presence runtime shutdown complete" }
     }
 
-    // TODO: Consider more robust error categorization (e.g., using exception types)
+    // Follow-up: consider more robust error categorization (e.g., using exception types)
     private fun categoryFromThrowable(error: Throwable): PresenceFailureCategory {
         val message = error.message.orEmpty()
         return when {

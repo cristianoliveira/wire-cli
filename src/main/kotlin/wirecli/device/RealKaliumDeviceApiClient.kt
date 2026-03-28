@@ -842,11 +842,15 @@ internal class SdkKaliumDeviceRuntime(
             field.isAccessible = true
             val lastActive = field.get(client)
             lastActive?.toString() ?: "unknown"
-        } catch (
-            @Suppress("TooGenericExceptionCaught")
-            e: Exception,
-        ) {
-            logger.debug(e) { "Failed to read device lastActive via reflection; using fallback value." }
+        } catch (e: ReflectiveOperationException) {
+            // Reflection failure is intentionally caught with safe fallback.
+            // This occurs when the underlying SDK changes its data model.
+            // Reason: Fallback to "unknown" is acceptable for display purposes.
+            "unknown"
+        } catch (e: SecurityException) {
+            // Reflection failure is intentionally caught with safe fallback.
+            // This occurs when the underlying SDK changes its data model.
+            // Reason: Fallback to "unknown" is acceptable for display purposes.
             "unknown"
         }
     }

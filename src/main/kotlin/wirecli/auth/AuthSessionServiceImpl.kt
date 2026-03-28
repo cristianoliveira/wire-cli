@@ -148,7 +148,7 @@ class StubAuthApiClient(
 
             "login_invalid" ->
                 AuthApiResult.Failure(
-                    message = AuthMessages.invalidCredentials(),
+                    message = AuthMessages.INVALID_CREDENTIALS,
                     exitCode = ExitCodes.AUTH_FAILED,
                 )
 
@@ -166,7 +166,7 @@ class StubAuthApiClient(
 
             else ->
                 AuthApiResult.Failure(
-                    message = AuthMessages.authServiceUnavailable(),
+                    message = AuthMessages.AUTH_SERVICE_UNAVAILABLE,
                     exitCode = ExitCodes.SERVER_ERROR,
                 )
         }

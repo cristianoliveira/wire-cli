@@ -143,7 +143,7 @@ class FileAuthSessionStore(
             if (migrated.isFailure) {
                 logger.warn { "Legacy session migration failed: ${migrated.exceptionOrNull()?.message}" }
                 return parsedData.inventory.copy(
-                    diagnosticMessage = AuthMessages.legacySessionMigrationFailed(),
+                    diagnosticMessage = AuthMessages.LEGACY_SESSION_MIGRATION_FAILED,
                 )
             }
         }

@@ -132,10 +132,10 @@ internal class StandardAuthResponseParser : AuthResponseParser {
         action: String,
     ): String =
         when (failure.category) {
-            AuthFailureCategory.INVALID_CREDENTIALS -> AuthMessages.invalidCredentials()
-            AuthFailureCategory.PASSWORD_REQUIRED -> AuthMessages.passwordRequired()
+            AuthFailureCategory.INVALID_CREDENTIALS -> AuthMessages.INVALID_CREDENTIALS
+            AuthFailureCategory.PASSWORD_REQUIRED -> AuthMessages.PASSWORD_REQUIRED
             AuthFailureCategory.NETWORK -> AuthMessages.networkFailure(action)
-            AuthFailureCategory.SERVER -> AuthMessages.authServiceUnavailable()
+            AuthFailureCategory.SERVER -> AuthMessages.AUTH_SERVICE_UNAVAILABLE
             AuthFailureCategory.UNAUTHORIZED -> AuthMessages.unauthorizedAction(action)
             AuthFailureCategory.NOMAD_SINGLE_USER_VIOLATION ->
                 "Nomad single user mode violation: cannot add additional users."

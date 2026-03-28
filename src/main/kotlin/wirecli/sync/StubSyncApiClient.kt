@@ -64,6 +64,7 @@ class StubSyncApiClient(
             timestamp = "2025-03-13T10:40:00Z",
         )
 
+    @Suppress("LongMethod")
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
         val mode = environment["WIRE_STUB_MODE"]
 
@@ -139,6 +140,7 @@ class StubSyncApiClient(
         }
     }
 
+    @Suppress("LongMethod")
     override fun getDiagnostics(session: AuthSession): DiagnosticsResult {
         val mode = environment["WIRE_STUB_MODE"]
 
@@ -378,6 +380,7 @@ class StubSyncApiClient(
         }
     }
 
+    @Suppress("LongMethod")
     override fun getConversationSyncStatus(
         session: AuthSession,
         conversationId: String,
@@ -478,6 +481,7 @@ class StubSyncApiClient(
         }
     }
 
+    @Suppress("LongMethod")
     override fun getPerConversationDiagnostics(
         session: AuthSession,
         conversationId: String,

@@ -116,6 +116,7 @@ internal class SdkKaliumMessageRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
+    @Suppress("LongMethod")
     override fun sendMessage(
         session: AuthSession,
         conversationId: String,
@@ -214,6 +215,7 @@ internal class SdkKaliumMessageRuntime(
         }
     }
 
+    @Suppress("LongMethod")
     override fun fetchMessages(
         session: AuthSession,
         conversationId: String,

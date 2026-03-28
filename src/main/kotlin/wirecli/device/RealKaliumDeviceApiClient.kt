@@ -666,37 +666,38 @@ internal class SdkKaliumDeviceRuntime(
         ) { "List devices for user requires a non-blank session scope user ID." }
         require(userId.isNotBlank()) { "List devices for user requires a non-blank target user ID." }
 
-        val sessionUserId =
-            sessionScope.userId.toQualifiedIdOrNull()
-                ?: return DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
+        val sessionUserId = sessionScope.userId.toQualifiedIdOrNull()
+        val targetUserId = userId.toQualifiedIdOrNull()
 
-        val targetUserId =
-            userId.toQualifiedIdOrNull()
-                ?: return DeviceStepResult.Failure(DeviceFailureCategory.DEVICE_NOT_FOUND)
+        return when {
+            sessionUserId == null -> DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
+            targetUserId == null -> DeviceStepResult.Failure(DeviceFailureCategory.DEVICE_NOT_FOUND)
+            else -> {
+                val result =
+                    runBlocking {
+                        try {
+                            // This feature requires proper Flow collection from Kalium SDK
+                            // Currently unsupported - explicitly fail rather than return empty list
+                            throw UnsupportedOperationException(
+                                "Fetching devices for other users is not yet implemented. " +
+                                    "This requires proper Flow-based device collection from Kalium SDK.",
+                            )
+                        } catch (
+                            @Suppress("TooGenericExceptionCaught") error: Throwable,
+                        ) {
+                            DeviceStepResult.Failure(categoryFromThrowable(error))
+                        }
+                    }
 
-        val result =
-            runBlocking {
-                try {
-                    // This feature requires proper Flow collection from Kalium SDK
-                    // Currently unsupported - explicitly fail rather than return empty list
-                    throw UnsupportedOperationException(
-                        "Fetching devices for other users is not yet implemented. " +
-                            "This requires proper Flow-based device collection from Kalium SDK.",
-                    )
-                } catch (
-                    @Suppress("TooGenericExceptionCaught") error: Throwable,
-                ) {
-                    DeviceStepResult.Failure(categoryFromThrowable(error))
+                check(sessionUserId == sessionScope.userId.toQualifiedIdOrNull()) {
+                    "List devices for user must keep a stable authenticated session user ID."
                 }
+                check(targetUserId == userId.toQualifiedIdOrNull()) {
+                    "List devices for user must keep a stable target user ID."
+                }
+                result
             }
-
-        check(sessionUserId == sessionScope.userId.toQualifiedIdOrNull()) {
-            "List devices for user must keep a stable authenticated session user ID."
         }
-        check(targetUserId == userId.toQualifiedIdOrNull()) {
-            "List devices for user must keep a stable target user ID."
-        }
-        return result
     }
 
     override fun getDeviceDetail(

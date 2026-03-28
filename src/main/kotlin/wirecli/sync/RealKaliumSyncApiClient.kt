@@ -588,66 +588,74 @@ internal class SdkKaliumSyncRuntime(
         logger.info {
             "SdkKaliumSyncRuntime: Getting conversation sync status for user: ${session.userId}, conversation: $conversationId"
         }
-        val qualifiedId =
-            session.userId.toQualifiedIdOrNull()
-                ?: run {
-                    logger.warn { "Invalid user ID format for conversation sync status: ${session.userId}" }
-                    return ConversationSyncStatusResult.Failure(
-                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
-                    )
-                }
-        activeSessionUserIds += qualifiedId
-
-        if (conversationId.isBlank()) {
-            logger.warn { "Empty conversation ID provided" }
-            return ConversationSyncStatusResult.Failure(
-                message = SyncExitMessages.CONVERSATION_NOT_FOUND,
-                exitCode = SyncExitCodes.DEGRADED,
-            )
+        val qualifiedId = session.userId.toQualifiedIdOrNull()
+        if (qualifiedId != null) {
+            activeSessionUserIds += qualifiedId
         }
 
-        val result =
-            runBlocking {
-                try {
-                    logger.debug { "Observing sync state for conversation: $conversationId" }
-                    val syncState: SyncState? =
-                        coreLogic.sessionScope(qualifiedId) {
-                            observeSyncState().firstOrNull()
-                        }
+        return when {
+            qualifiedId == null -> {
+                logger.warn { "Invalid user ID format for conversation sync status: ${session.userId}" }
+                ConversationSyncStatusResult.Failure(
+                    message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                    exitCode = SyncExitCodes.UNAUTHORIZED,
+                )
+            }
 
-                    if (syncState == null) {
-                        logger.error { "Sync state is null for conversation $conversationId" }
-                        throw IllegalStateException(
-                            "Unable to observe sync state for conversation $conversationId - " +
-                                "the sync engine failed to provide state. This may indicate a session initialization failure.",
-                        )
+            conversationId.isBlank() -> {
+                logger.warn { "Empty conversation ID provided" }
+                ConversationSyncStatusResult.Failure(
+                    message = SyncExitMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+            }
+
+            else -> {
+                val result =
+                    runBlocking {
+                        try {
+                            logger.debug { "Observing sync state for conversation: $conversationId" }
+                            val syncState: SyncState? =
+                                coreLogic.sessionScope(qualifiedId) {
+                                    observeSyncState().firstOrNull()
+                                }
+
+                            if (syncState == null) {
+                                logger.error { "Sync state is null for conversation $conversationId" }
+                                throw IllegalStateException(
+                                    "Unable to observe sync state for conversation $conversationId - " +
+                                        "the sync engine failed to provide state. This may indicate a session initialization failure.",
+                                )
+                            }
+
+                            logger.debug { "Sync state for conversation: ${syncState::class.simpleName}" }
+                            val view = buildConversationSyncStatusView(conversationId, syncState)
+                            logger.info { "Conversation sync status retrieved: conversation=$conversationId, status=${view.status}" }
+                            ConversationSyncStatusResult.Success(view)
+                        } catch (
+                            @Suppress("TooGenericExceptionCaught") error: Throwable,
+                        ) {
+                            logger.error(error) {
+                                "Failed to get conversation sync status for conversation: $conversationId"
+                            }
+                            ConversationSyncStatusResult.Failure(
+                                message = categoryFromThrowableSync(error).getConversationMessage(),
+                                exitCode = categoryFromThrowableSync(error).getExitCode(),
+                            )
+                        }
                     }
 
-                    logger.debug { "Sync state for conversation: ${syncState::class.simpleName}" }
-                    val view = buildConversationSyncStatusView(conversationId, syncState)
-                    logger.info { "Conversation sync status retrieved: conversation=$conversationId, status=${view.status}" }
-                    ConversationSyncStatusResult.Success(view)
-                } catch (
-                    @Suppress("TooGenericExceptionCaught") error: Throwable,
-                ) {
-                    logger.error(error) { "Failed to get conversation sync status for conversation: $conversationId" }
-                    ConversationSyncStatusResult.Failure(
-                        message = categoryFromThrowableSync(error).getConversationMessage(),
-                        exitCode = categoryFromThrowableSync(error).getExitCode(),
-                    )
+                check(activeSessionUserIds.contains(qualifiedId)) {
+                    "Conversation sync lookup must track active session user IDs for shutdown."
                 }
-            }
-
-        check(activeSessionUserIds.contains(qualifiedId)) {
-            "Conversation sync lookup must track active session user IDs for shutdown."
-        }
-        if (result is ConversationSyncStatusResult.Success) {
-            check(result.status.conversationId == conversationId) {
-                "Conversation sync success must preserve the requested conversation ID."
+                if (result is ConversationSyncStatusResult.Success) {
+                    check(result.status.conversationId == conversationId) {
+                        "Conversation sync success must preserve the requested conversation ID."
+                    }
+                }
+                result
             }
         }
-        return result
     }
 
     override fun getPerConversationDiagnostics(
@@ -661,79 +669,87 @@ internal class SdkKaliumSyncRuntime(
             "SdkKaliumSyncRuntime: Getting per-conversation diagnostics for user: " +
                 "${session.userId}, conversation: $conversationId"
         }
-        val qualifiedId =
-            session.userId.toQualifiedIdOrNull()
-                ?: run {
-                    logger.warn { "Invalid user ID format for conversation diagnostics: ${session.userId}" }
-                    return PerConversationDiagnosticsResult.Failure(
-                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
-                    )
-                }
-        activeSessionUserIds += qualifiedId
-
-        if (conversationId.isBlank()) {
-            logger.warn { "Empty conversation ID provided for diagnostics" }
-            return PerConversationDiagnosticsResult.Failure(
-                message = SyncExitMessages.CONVERSATION_NOT_FOUND,
-                exitCode = SyncExitCodes.DEGRADED,
-            )
+        val qualifiedId = session.userId.toQualifiedIdOrNull()
+        if (qualifiedId != null) {
+            activeSessionUserIds += qualifiedId
         }
 
-        val result =
-            runBlocking {
-                try {
-                    logger.debug { "Observing sync state for conversation diagnostics: $conversationId" }
-                    val syncState: SyncState? =
-                        coreLogic.sessionScope(qualifiedId) {
-                            observeSyncState().firstOrNull()
-                        }
+        return when {
+            qualifiedId == null -> {
+                logger.warn { "Invalid user ID format for conversation diagnostics: ${session.userId}" }
+                PerConversationDiagnosticsResult.Failure(
+                    message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                    exitCode = SyncExitCodes.UNAUTHORIZED,
+                )
+            }
 
-                    if (syncState == null) {
-                        logger.warn { "Sync state is null for conversation diagnostics - checks will reflect unknown state" }
-                    } else {
-                        logger.debug { "Sync state for conversation diagnostics: ${syncState::class.simpleName}" }
+            conversationId.isBlank() -> {
+                logger.warn { "Empty conversation ID provided for diagnostics" }
+                PerConversationDiagnosticsResult.Failure(
+                    message = SyncExitMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+            }
+
+            else -> {
+                val result =
+                    runBlocking {
+                        try {
+                            logger.debug { "Observing sync state for conversation diagnostics: $conversationId" }
+                            val syncState: SyncState? =
+                                coreLogic.sessionScope(qualifiedId) {
+                                    observeSyncState().firstOrNull()
+                                }
+
+                            if (syncState == null) {
+                                logger.warn { "Sync state is null for conversation diagnostics - checks will reflect unknown state" }
+                            } else {
+                                logger.debug { "Sync state for conversation diagnostics: ${syncState::class.simpleName}" }
+                            }
+
+                            logger.debug { "Building conversation diagnostic checks" }
+                            val checks = mutableListOf<Check>()
+                            checks.add(buildConversationStateCheck(conversationId))
+                            checks.add(buildMessageSyncCheck(syncState))
+                            checks.add(buildCompletenessCheck(syncState))
+                            checks.add(buildConversationNetworkCheck(syncState))
+
+                            logger.debug { "Built ${checks.size} conversation diagnostic checks" }
+                            val summary = buildConversationSummary(checks)
+                            logger.debug { "Conversation diagnostics summary: $summary" }
+
+                            PerConversationDiagnosticsResult.Success(
+                                PerConversationDiagnosticsReport(
+                                    conversationId = conversationId,
+                                    checks = checks,
+                                    summary = summary,
+                                    recoveryHints = generateConversationRecoveryHints(checks, conversationId),
+                                ),
+                            )
+                        } catch (
+                            @Suppress("TooGenericExceptionCaught") error: Throwable,
+                        ) {
+                            logger.error(error) {
+                                "Failed to get conversation diagnostics for conversation: $conversationId"
+                            }
+                            PerConversationDiagnosticsResult.Failure(
+                                message = categoryFromThrowableSync(error).getConversationMessage(),
+                                exitCode = categoryFromThrowableSync(error).getExitCode(),
+                            )
+                        }
                     }
 
-                    logger.debug { "Building conversation diagnostic checks" }
-                    val checks = mutableListOf<Check>()
-                    checks.add(buildConversationStateCheck(conversationId))
-                    checks.add(buildMessageSyncCheck(syncState))
-                    checks.add(buildCompletenessCheck(syncState))
-                    checks.add(buildConversationNetworkCheck(syncState))
-
-                    logger.debug { "Built ${checks.size} conversation diagnostic checks" }
-                    val summary = buildConversationSummary(checks)
-                    logger.debug { "Conversation diagnostics summary: $summary" }
-
-                    PerConversationDiagnosticsResult.Success(
-                        PerConversationDiagnosticsReport(
-                            conversationId = conversationId,
-                            checks = checks,
-                            summary = summary,
-                            recoveryHints = generateConversationRecoveryHints(checks, conversationId),
-                        ),
-                    )
-                } catch (
-                    @Suppress("TooGenericExceptionCaught") error: Throwable,
-                ) {
-                    logger.error(error) { "Failed to get conversation diagnostics for conversation: $conversationId" }
-                    PerConversationDiagnosticsResult.Failure(
-                        message = categoryFromThrowableSync(error).getConversationMessage(),
-                        exitCode = categoryFromThrowableSync(error).getExitCode(),
-                    )
+                check(activeSessionUserIds.contains(qualifiedId)) {
+                    "Per-conversation diagnostics must track active session user IDs for shutdown."
                 }
-            }
-
-        check(activeSessionUserIds.contains(qualifiedId)) {
-            "Per-conversation diagnostics must track active session user IDs for shutdown."
-        }
-        if (result is PerConversationDiagnosticsResult.Success) {
-            check(result.report.conversationId == conversationId) {
-                "Per-conversation diagnostics success must preserve the requested conversation ID."
+                if (result is PerConversationDiagnosticsResult.Success) {
+                    check(result.report.conversationId == conversationId) {
+                        "Per-conversation diagnostics success must preserve the requested conversation ID."
+                    }
+                }
+                result
             }
         }
-        return result
     }
 
     override fun resetSync(
@@ -1013,7 +1029,9 @@ internal class SdkKaliumSyncRuntime(
                 if (networkMetrics != null) {
                     append("Network: ${networkMetrics.networkType}, ")
                     append("Latency: ${estimatedLatency}ms, ")
-                    append("Error Rate: ${String.format(java.util.Locale.US, "%.1f%%", networkMetrics.errorRate * 100)}")
+                    append(
+                        "Error Rate: ${String.format(java.util.Locale.US, "%.1f%%", networkMetrics.errorRate * 100)}",
+                    )
                     if (networkMetrics.lastRecoveryTimeMs != null) {
                         append(", Last Recovery: ${networkMetrics.lastRecoveryTimeMs}ms ago")
                     }

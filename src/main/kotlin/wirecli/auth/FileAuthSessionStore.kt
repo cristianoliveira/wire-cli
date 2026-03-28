@@ -71,15 +71,18 @@ class FileAuthSessionStore(
         check(sessionFile.path.isNotBlank()) { "Session inventory file path must not be blank." }
         logger.debug { "Reading session inventory from: ${sessionFile.absolutePath}" }
 
-        if (!sessionFile.exists()) {
-            logger.debug { "Session file does not exist: ${sessionFile.absolutePath}" }
-            return SessionInventory(activeSession = null, validSessions = 0, invalidSessions = 0)
-        }
-
-        val parsedData = parseSessionFile() ?: return emptyInventoryWithError()
-
-        val inventory = handleLegacyFormatMigration(parsedData)
-        validateInventory(inventory)
+        val inventory =
+            if (!sessionFile.exists()) {
+                logger.debug { "Session file does not exist: ${sessionFile.absolutePath}" }
+                SessionInventory(activeSession = null, validSessions = 0, invalidSessions = 0)
+            } else {
+                val parsedData = parseSessionFile()
+                if (parsedData == null) {
+                    emptyInventoryWithError()
+                } else {
+                    handleLegacyFormatMigration(parsedData).also(::validateInventory)
+                }
+            }
 
         logger.debug {
             "Session inventory loaded: " +
@@ -356,15 +359,10 @@ class FileAuthSessionStore(
 
 private fun defaultSessionFile(): File {
     val explicitFile = System.getenv("WIRE_SESSION_FILE")
-    if (!explicitFile.isNullOrBlank()) {
-        return File(explicitFile)
-    }
-
     val xdgConfigHome = System.getenv("XDG_CONFIG_HOME")
-    if (!xdgConfigHome.isNullOrBlank()) {
-        return File(xdgConfigHome, "wire/session")
+    return when {
+        !explicitFile.isNullOrBlank() -> File(explicitFile)
+        !xdgConfigHome.isNullOrBlank() -> File(xdgConfigHome, "wire/session")
+        else -> File(System.getenv("HOME") ?: ".", ".config/wire/session")
     }
-
-    val home = System.getenv("HOME") ?: "."
-    return File(home, ".config/wire/session")
 }

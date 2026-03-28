@@ -843,14 +843,10 @@ internal class SdkKaliumDeviceRuntime(
             val lastActive = field.get(client)
             lastActive?.toString() ?: "unknown"
         } catch (e: ReflectiveOperationException) {
-            // Reflection failure is intentionally caught with safe fallback.
-            // This occurs when the underlying SDK changes its data model.
-            // Reason: Fallback to "unknown" is acceptable for display purposes.
+            logger.debug(e) { "Unable to read client lastActive via reflection; using fallback value." }
             "unknown"
         } catch (e: SecurityException) {
-            // Reflection failure is intentionally caught with safe fallback.
-            // This occurs when the underlying SDK changes its data model.
-            // Reason: Fallback to "unknown" is acceptable for display purposes.
+            logger.debug(e) { "Reflection access blocked for client lastActive; using fallback value." }
             "unknown"
         }
     }

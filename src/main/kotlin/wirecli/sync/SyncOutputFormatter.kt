@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
  * Formatter for sync status and diagnostics output.
  * Supports human-readable and JSON output modes.
  */
+@Suppress("TooManyFunctions")
 object SyncOutputFormatter {
     private const val HIGH_LAG_THRESHOLD_MS = 5000
     private const val LARGE_BACKLOG_THRESHOLD = 100

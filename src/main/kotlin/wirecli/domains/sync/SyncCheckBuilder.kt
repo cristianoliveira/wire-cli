@@ -16,6 +16,7 @@ import wirecli.sync.SyncMetricsCalculator
  *
  * Recovery hints generation is delegated to [SyncRecoveryHintBuilder].
  */
+@Suppress("TooManyFunctions")
 internal class SyncCheckBuilder(
     private val networkConnectivityChecker: NetworkConnectivityChecker,
     private val syncMetricsCalculator: SyncMetricsCalculator,

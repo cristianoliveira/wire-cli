@@ -169,8 +169,6 @@ internal class SdkKaliumMessageRuntime(
 
                             val (result, timeoutFailure) =
                                 MessageOperationHelper.executeSendWithTimeout(
-                                    coreLogic,
-                                    qualifiedId,
                                     conversationId,
                                     sendTimeoutMs,
                                 ) {

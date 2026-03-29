@@ -4,6 +4,7 @@ import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 
+@Suppress("LargeClass")
 class StubSyncApiClient(
     private val environment: Map<String, String>,
 ) : SyncApiClient {

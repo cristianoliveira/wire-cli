@@ -262,6 +262,7 @@ internal interface RealKaliumSyncRuntime {
  * This class provides the real integration with the Kalium SDK for retrieving
  * sync health information and diagnostics via the CoreLogic API.
  */
+@Suppress("TooManyFunctions")
 internal class SdkKaliumSyncRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),

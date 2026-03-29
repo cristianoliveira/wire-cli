@@ -11,7 +11,7 @@ class SessionBackedPresenceService(
     private val sessionStore: SessionProvider,
     private val apiClient: PresenceApiClient,
 ) : PresenceService {
-    // TODO: Consider using SessionInventory diagnostics for richer direct errors when not guarded.
+    // Follow-up: consider using SessionInventory diagnostics for richer direct errors when not guarded.
     override fun getCurrentPresence(): PresenceResult {
         logger.debug { "SessionBackedPresenceService: Retrieving current presence" }
         val session =

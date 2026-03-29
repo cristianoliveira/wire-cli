@@ -51,17 +51,11 @@ class RootCommand : NoOpCliktCommand(
             rootLogger.level = Level.valueOf(effectiveLevel)
             System.setProperty("WIRECLI_LOG_LEVEL", effectiveLevel)
         } catch (e: ClassCastException) {
-            // Logging configuration failure is intentionally caught and ignored.
-            // This is non-critical to CLI operation - the application continues with default settings.
-            // Reason: Logback may not be fully configured in all environments; this is acceptable.
+            logger.debug(e) { "Skipping custom log-level setup due to logger backend mismatch." }
         } catch (e: IllegalArgumentException) {
-            // Logging configuration failure is intentionally caught and ignored.
-            // This is non-critical to CLI operation - the application continues with default settings.
-            // Reason: Logback may not be fully configured in all environments; this is acceptable.
+            logger.debug(e) { "Skipping custom log-level setup due to invalid log level value." }
         } catch (e: SecurityException) {
-            // Logging configuration failure is intentionally caught and ignored.
-            // This is non-critical to CLI operation - the application continues with default settings.
-            // Reason: Logback may not be fully configured in all environments; this is acceptable.
+            logger.debug(e) { "Skipping custom log-level setup due to restricted system properties." }
         }
 
         // Set log directory from option or default

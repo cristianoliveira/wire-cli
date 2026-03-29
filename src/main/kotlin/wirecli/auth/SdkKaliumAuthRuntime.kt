@@ -148,6 +148,7 @@ internal interface KaliumAuthScope {
  * @invariant activeSessionUserIds tracks all open sessions for cleanup
  * @invariant All methods return non-null AuthStepResult
  */
+@Suppress("TooManyFunctions")
 internal class SdkKaliumAuthRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),

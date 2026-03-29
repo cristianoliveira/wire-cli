@@ -51,36 +51,58 @@ class MessageWatchCommand(
         var transientFailureCount = 0
 
         while (keepWatching()) {
-            when (val fetchResult = messageService.fetchMessages(validatedConversationId)) {
-                is FetchMessagesResult.Success -> {
-                    if (!hasBaselineSnapshot) {
-                        fetchResult.view.messages.forEach { knownMessageIds += it.id }
-                        hasBaselineSnapshot = true
-                    } else {
-                        val newMessages = fetchResult.view.messages.filter { it.id !in knownMessageIds }
-                        fetchResult.view.messages.forEach { knownMessageIds += it.id }
-                        newMessages.forEach { echo(it.content) }
-                    }
-                    transientFailureCount = 0
-                    sleep(pollIntervalMs)
-                }
+            val result = messageService.fetchMessages(validatedConversationId)
+            when (result) {
+                is FetchMessagesResult.Success ->
+                    transientFailureCount =
+                        handleSuccessfulFetch(result, knownMessageIds, hasBaselineSnapshot)
+                            .also { hasBaselineSnapshot = true }
 
                 is FetchMessagesResult.Failure -> {
-                    if (isRetryableWatchFailure(fetchResult)) {
-                        transientFailureCount += 1
-                        val delayMs = calculateRetryDelayMs(transientFailureCount)
-                        logger.warn {
-                            "Transient message watch fetch failure for conversationId=$validatedConversationId; retrying in ${delayMs}ms: ${fetchResult.message}"
-                        }
-                        echo("${fetchResult.message}; retrying in ${delayMs}ms", err = true)
-                        sleep(delayMs)
+                    val newFailureCount = handleFetchFailure(result, validatedConversationId, transientFailureCount)
+                    if (newFailureCount != null) {
+                        transientFailureCount = newFailureCount
                     } else {
-                        echo(fetchResult.message, err = true)
-                        throw ProgramResult(fetchResult.exitCode)
+                        echo(result.message, err = true)
+                        throw ProgramResult(result.exitCode)
                     }
                 }
             }
         }
+    }
+
+    private fun handleSuccessfulFetch(
+        result: FetchMessagesResult.Success,
+        knownMessageIds: MutableSet<String>,
+        hasBaselineSnapshot: Boolean,
+    ): Int {
+        if (!hasBaselineSnapshot) {
+            result.view.messages.forEach { knownMessageIds += it.id }
+        } else {
+            val newMessages = result.view.messages.filter { it.id !in knownMessageIds }
+            result.view.messages.forEach { knownMessageIds += it.id }
+            newMessages.forEach { echo(it.content) }
+        }
+        sleep(pollIntervalMs)
+        return 0
+    }
+
+    private fun handleFetchFailure(
+        result: FetchMessagesResult.Failure,
+        conversationId: String,
+        failureCount: Int,
+    ): Int? {
+        if (!isRetryableWatchFailure(result)) return null
+
+        val newFailureCount = failureCount + 1
+        val delayMs = calculateRetryDelayMs(newFailureCount)
+        logger.warn {
+            "Transient message watch fetch failure for conversationId=$conversationId; " +
+                "retrying in ${delayMs}ms: ${result.message}"
+        }
+        echo("${result.message}; retrying in ${delayMs}ms", err = true)
+        sleep(delayMs)
+        return newFailureCount
     }
 
     private fun isRetryableWatchFailure(result: FetchMessagesResult.Failure): Boolean {

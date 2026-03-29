@@ -19,8 +19,23 @@ class AuthSessionServiceImpl(
                     sessionStore.writeActiveSession(loginResult.session)
                     logger.info { "Session persisted successfully for email: ${input.email}" }
                     AuthResult.Success("Login successful.")
-                } catch (e: RuntimeException) {
+                } catch (e: IllegalStateException) {
                     logger.error(e) { "Session write failed during login - session data not persisted" }
+                    AuthResult.Failure(
+                        message = "Login succeeded, but local session could not be saved. Try again.",
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    )
+                } catch (e: IllegalArgumentException) {
+                    logger.error(e) { "Session validation failed during write - session data not persisted" }
+                    AuthResult.Failure(
+                        message = "Login succeeded, but local session could not be saved. Try again.",
+                        exitCode = ExitCodes.SERVER_ERROR,
+                    )
+                } catch (
+                    @Suppress("TooGenericExceptionCaught")
+                    e: Exception,
+                ) {
+                    logger.error(e) { "Unexpected error during session write" }
                     AuthResult.Failure(
                         message = "Login succeeded, but local session could not be saved. Try again.",
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -40,7 +55,8 @@ class AuthSessionServiceImpl(
 
         val inventory = sessionStore.readSessionInventory()
         logger.debug {
-            "Session inventory read: active=${inventory.activeSession != null}, valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
+            "Session inventory read: active=${inventory.activeSession != null}, " +
+                "valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
         }
 
         val session =
@@ -61,8 +77,13 @@ class AuthSessionServiceImpl(
                     sessionStore.clearActiveSession()
                     logger.info { "Local session cleared successfully" }
                     AuthResult.Success("Logged out.")
-                } catch (e: RuntimeException) {
-                    logger.error(e) { "Session cleanup failed during logout - remote session cleared but local session remains" }
+                } catch (
+                    @Suppress("TooGenericExceptionCaught")
+                    e: Exception,
+                ) {
+                    logger.error(
+                        e,
+                    ) { "Session cleanup failed during logout - remote session cleared but local session remains" }
                     AuthResult.Failure(
                         message = "Logout completed remotely, but local session cleanup failed.",
                         exitCode = ExitCodes.SERVER_ERROR,
@@ -82,7 +103,8 @@ class AuthSessionServiceImpl(
 
         val inventory = sessionStore.readSessionInventory()
         logger.debug {
-            "Session inventory: active=${inventory.activeSession != null}, valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
+            "Session inventory: active=${inventory.activeSession != null}, " +
+                "valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
         }
 
         return if (inventory.activeSession == null) {
@@ -126,7 +148,7 @@ class StubAuthApiClient(
 
             "login_invalid" ->
                 AuthApiResult.Failure(
-                    message = AuthMessages.invalidCredentials(),
+                    message = AuthMessages.INVALID_CREDENTIALS,
                     exitCode = ExitCodes.AUTH_FAILED,
                 )
 
@@ -144,7 +166,7 @@ class StubAuthApiClient(
 
             else ->
                 AuthApiResult.Failure(
-                    message = AuthMessages.authServiceUnavailable(),
+                    message = AuthMessages.AUTH_SERVICE_UNAVAILABLE,
                     exitCode = ExitCodes.SERVER_ERROR,
                 )
         }

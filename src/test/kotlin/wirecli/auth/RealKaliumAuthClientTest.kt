@@ -16,7 +16,7 @@ class RealKaliumAuthClientTest {
                     loginResult =
                         AuthApiResult.Failure(
                             exitCode = ExitCodes.AUTH_FAILED,
-                            message = AuthMessages.invalidCredentials(),
+                            message = AuthMessages.INVALID_CREDENTIALS,
                         ),
                 ),
             )
@@ -24,7 +24,7 @@ class RealKaliumAuthClientTest {
         val result = client.login(loginInput)
 
         val failure = assertIs<AuthApiResult.Failure>(result)
-        assertEquals(AuthMessages.invalidCredentials(), failure.message)
+        assertEquals(AuthMessages.INVALID_CREDENTIALS, failure.message)
         assertEquals(ExitCodes.AUTH_FAILED, failure.exitCode)
     }
 
@@ -56,7 +56,7 @@ class RealKaliumAuthClientTest {
                     loginResult =
                         AuthApiResult.Failure(
                             exitCode = ExitCodes.UNAUTHORIZED,
-                            message = AuthMessages.clientRegistrationFailed(),
+                            message = AuthMessages.CLIENT_REGISTRATION_FAILED,
                         ),
                 ),
             )
@@ -64,7 +64,7 @@ class RealKaliumAuthClientTest {
         val result = client.login(loginInput)
 
         val failure = assertIs<AuthApiResult.Failure>(result)
-        assertEquals(AuthMessages.clientRegistrationFailed(), failure.message)
+        assertEquals(AuthMessages.CLIENT_REGISTRATION_FAILED, failure.message)
         assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
     }
 
@@ -76,7 +76,7 @@ class RealKaliumAuthClientTest {
                     logoutResult =
                         AuthApiResult.Failure(
                             exitCode = ExitCodes.SERVER_ERROR,
-                            message = AuthMessages.authServiceUnavailable(),
+                            message = AuthMessages.AUTH_SERVICE_UNAVAILABLE,
                         ),
                 ),
             )
@@ -84,7 +84,7 @@ class RealKaliumAuthClientTest {
         val result = client.logout(authSession())
 
         val failure = assertIs<AuthApiResult.Failure>(result)
-        assertEquals(AuthMessages.authServiceUnavailable(), failure.message)
+        assertEquals(AuthMessages.AUTH_SERVICE_UNAVAILABLE, failure.message)
         assertEquals(ExitCodes.SERVER_ERROR, failure.exitCode)
     }
 
@@ -96,7 +96,7 @@ class RealKaliumAuthClientTest {
                     loginResult =
                         AuthApiResult.Failure(
                             exitCode = ExitCodes.PASSWORD_REQUIRED,
-                            message = AuthMessages.passwordRequired(),
+                            message = AuthMessages.PASSWORD_REQUIRED,
                         ),
                 ),
             )
@@ -104,7 +104,7 @@ class RealKaliumAuthClientTest {
         val result = client.login(loginInput)
 
         val failure = assertIs<AuthApiResult.Failure>(result)
-        assertEquals(AuthMessages.passwordRequired(), failure.message)
+        assertEquals(AuthMessages.PASSWORD_REQUIRED, failure.message)
         assertEquals(ExitCodes.PASSWORD_REQUIRED, failure.exitCode)
     }
 

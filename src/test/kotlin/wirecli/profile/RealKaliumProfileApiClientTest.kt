@@ -86,6 +86,7 @@ class RealKaliumProfileApiClientTest {
         override fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser> = selfUserResult
 
         override fun shutdown() {
+            // No-op for test stub
         }
     }
 }

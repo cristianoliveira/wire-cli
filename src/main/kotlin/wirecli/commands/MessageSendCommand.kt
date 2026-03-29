@@ -86,7 +86,8 @@ class MessageSendCommand(
 
             is SendMessageResult.Failure -> {
                 logger.warn {
-                    "message-send outcome=failure conversationId=$validatedConversation exitCode=${result.exitCode} message=${result.message}"
+                    "message-send outcome=failure conversationId=$validatedConversation " +
+                        "exitCode=${result.exitCode} message=${result.message}"
                 }
                 echo(result.message, err = true)
                 throw ProgramResult(result.exitCode)

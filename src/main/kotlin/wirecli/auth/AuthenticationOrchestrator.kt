@@ -51,7 +51,8 @@ internal class StandardAuthenticationOrchestrator(
      * 4. Bootstrap session (register client)
      *
      * @param input Login credentials and server configuration
-     * @return AuthApiResult.Success with authenticated session if successful; AuthApiResult.Failure with error details otherwise
+     * @return AuthApiResult.Success with authenticated session if successful;
+     *   AuthApiResult.Failure with error details otherwise
      * @throws Nothing - All errors are wrapped in AuthApiResult
      *
      * @pre input.email must be non-null and non-empty
@@ -92,7 +93,8 @@ internal class StandardAuthenticationOrchestrator(
      * Logs out the currently authenticated user, invalidating their session.
      *
      * @param session The authenticated session to logout (must be valid and active)
-     * @return AuthApiResult.Success if logout completed successfully; AuthApiResult.Failure with error details otherwise
+     * @return AuthApiResult.Success if logout completed successfully;
+     *   AuthApiResult.Failure with error details otherwise
      * @throws Nothing - All errors are wrapped in AuthApiResult
      *
      * @pre session must be non-null with valid userId and accessToken
@@ -190,7 +192,7 @@ internal class StandardAuthenticationOrchestrator(
                 parser.parseFailure(
                     failure = persistence,
                     action = "Authentication",
-                    defaultMessage = AuthMessages.localSessionPersistenceFailed(),
+                    defaultMessage = AuthMessages.LOCAL_SESSION_PERSISTENCE_FAILED,
                 )
         }
     }
@@ -220,7 +222,7 @@ internal class StandardAuthenticationOrchestrator(
                     return parser.parseFailure(
                         failure = sessionResult,
                         action = "Authentication",
-                        defaultMessage = AuthMessages.sessionBootstrapFailed(),
+                        defaultMessage = AuthMessages.SESSION_BOOTSTRAP_FAILED,
                     )
                 }
             }
@@ -239,7 +241,7 @@ internal class StandardAuthenticationOrchestrator(
                         if (clientResult.category == AuthFailureCategory.PASSWORD_REQUIRED) {
                             null // Let PASSWORD_REQUIRED use its own message
                         } else {
-                            AuthMessages.clientRegistrationFailed()
+                            AuthMessages.CLIENT_REGISTRATION_FAILED
                         },
                 )
         }

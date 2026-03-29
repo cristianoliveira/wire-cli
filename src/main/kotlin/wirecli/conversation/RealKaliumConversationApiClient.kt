@@ -107,83 +107,93 @@ internal class RealKaliumConversationApiClient(
 
     /**
      * Maps Kalium ConversationDetails to domain Conversation model.
-     * Handles 1-on-1 conversations by extracting actual contact names
+     * Delegates to specialized mappers based on conversation type.
+     */
+    private fun mapConversationDetailsToDomain(details: ConversationDetails): Conversation =
+        when (details) {
+            is ConversationDetails.OneOne -> mapOneOnOneConversation(details)
+            is ConversationDetails.Connection -> mapConnectionConversation(details)
+            is ConversationDetails.Group -> mapGroupConversation(details)
+            is ConversationDetails.Team -> mapTeamConversation(details)
+            is ConversationDetails.Self -> mapSelfConversation(details)
+        }
+
+    /**
+     * Maps 1-on-1 conversation details by extracting actual contact names
      * instead of using "[Direct Message]" placeholder.
      */
-    private fun mapConversationDetailsToDomain(details: ConversationDetails): Conversation {
-        return when (details) {
-            // 1-on-1 conversations with actual contact info
-            is ConversationDetails.OneOne -> {
-                Conversation(
-                    id = details.conversation.id.value,
-                    name =
-                        details.otherUser.name
-                            ?: details.otherUser.handle
-                            ?: details.otherUser.id.value, // Fallback: name → handle → user ID
-                    type = ConversationType.ONE_TO_ONE,
-                    status = mapKaliumConversationStatus(details.conversation.archived),
-                    memberCount = 2,
-                    createdAt = mapTimestamp(details.conversation.lastModifiedDate),
-                    updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
-                )
-            }
+    private fun mapOneOnOneConversation(details: ConversationDetails.OneOne): Conversation =
+        Conversation(
+            id = details.conversation.id.value,
+            name =
+                details.otherUser.name
+                    ?: details.otherUser.handle
+                    ?: details.otherUser.id.value, // Fallback: name → handle → user ID
+            type = ConversationType.ONE_TO_ONE,
+            status = mapKaliumConversationStatus(details.conversation.archived),
+            memberCount = 2,
+            createdAt = mapTimestamp(details.conversation.lastModifiedDate),
+            updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
+        )
 
-            // Pending connection requests
-            is ConversationDetails.Connection -> {
-                Conversation(
-                    id = details.conversationId.value,
-                    name =
-                        details.otherUser?.name
-                            ?: details.otherUser?.handle
-                            ?: "[Connection Pending]",
-                    type = ConversationType.ONE_TO_ONE,
-                    status = ConversationStatus.ACTIVE,
-                    memberCount = 2,
-                    createdAt = mapTimestamp(details.lastModifiedDate),
-                    updatedAt = mapTimestamp(details.lastModifiedDate),
-                )
-            }
+    /**
+     * Maps pending connection request details.
+     */
+    private fun mapConnectionConversation(details: ConversationDetails.Connection): Conversation =
+        Conversation(
+            id = details.conversationId.value,
+            name =
+                details.otherUser?.name
+                    ?: details.otherUser?.handle
+                    ?: "[Connection Pending]",
+            type = ConversationType.ONE_TO_ONE,
+            status = ConversationStatus.ACTIVE,
+            memberCount = 2,
+            createdAt = mapTimestamp(details.lastModifiedDate),
+            updatedAt = mapTimestamp(details.lastModifiedDate),
+        )
 
-            // Group conversations with their names
-            is ConversationDetails.Group -> {
-                Conversation(
-                    id = details.conversation.id.value,
-                    name = details.conversation.name ?: "[Group]",
-                    type = mapKaliumConversationType(details.conversation.type),
-                    status = mapKaliumConversationStatus(details.conversation.archived),
-                    memberCount = 0, // Member count not available in ConversationDetails, can be improved later
-                    createdAt = mapTimestamp(details.conversation.lastModifiedDate),
-                    updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
-                )
-            }
+    /**
+     * Maps group conversation details.
+     */
+    private fun mapGroupConversation(details: ConversationDetails.Group): Conversation =
+        Conversation(
+            id = details.conversation.id.value,
+            name = details.conversation.name ?: "[Group]",
+            type = mapKaliumConversationType(details.conversation.type),
+            status = mapKaliumConversationStatus(details.conversation.archived),
+            memberCount = 0, // Member count not available in ConversationDetails, can be improved later
+            createdAt = mapTimestamp(details.conversation.lastModifiedDate),
+            updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
+        )
 
-            // Team conversations
-            is ConversationDetails.Team -> {
-                Conversation(
-                    id = details.conversation.id.value,
-                    name = details.conversation.name ?: "[Team]",
-                    type = mapKaliumConversationType(details.conversation.type),
-                    status = mapKaliumConversationStatus(details.conversation.archived),
-                    memberCount = 0,
-                    createdAt = mapTimestamp(details.conversation.lastModifiedDate),
-                    updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
-                )
-            }
+    /**
+     * Maps team conversation details.
+     */
+    private fun mapTeamConversation(details: ConversationDetails.Team): Conversation =
+        Conversation(
+            id = details.conversation.id.value,
+            name = details.conversation.name ?: "[Team]",
+            type = mapKaliumConversationType(details.conversation.type),
+            status = mapKaliumConversationStatus(details.conversation.archived),
+            memberCount = 0,
+            createdAt = mapTimestamp(details.conversation.lastModifiedDate),
+            updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
+        )
 
-            // Self conversation
-            is ConversationDetails.Self -> {
-                Conversation(
-                    id = details.conversation.id.value,
-                    name = details.conversation.name ?: "[Saved Messages]",
-                    type = mapKaliumConversationType(details.conversation.type),
-                    status = mapKaliumConversationStatus(details.conversation.archived),
-                    memberCount = 1,
-                    createdAt = mapTimestamp(details.conversation.lastModifiedDate),
-                    updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
-                )
-            }
-        }
-    }
+    /**
+     * Maps self conversation (saved messages) details.
+     */
+    private fun mapSelfConversation(details: ConversationDetails.Self): Conversation =
+        Conversation(
+            id = details.conversation.id.value,
+            name = details.conversation.name ?: "[Saved Messages]",
+            type = mapKaliumConversationType(details.conversation.type),
+            status = mapKaliumConversationStatus(details.conversation.archived),
+            memberCount = 1,
+            createdAt = mapTimestamp(details.conversation.lastModifiedDate),
+            updatedAt = mapTimestamp(details.conversation.lastModifiedDate),
+        )
 
     private fun mapTimestamp(instant: Instant?): String {
         return if (instant != null) {

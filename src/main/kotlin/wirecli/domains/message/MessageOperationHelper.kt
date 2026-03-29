@@ -68,8 +68,6 @@ internal object MessageOperationHelper {
      * Executes message send with timeout handling.
      */
     suspend fun <T> executeSendWithTimeout(
-        coreLogic: CoreLogic,
-        qualifiedId: UserId,
         conversationId: String,
         timeoutMs: Long,
         operation: suspend () -> T,

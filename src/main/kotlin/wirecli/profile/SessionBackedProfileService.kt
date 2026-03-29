@@ -16,7 +16,7 @@ class SessionBackedProfileService(
     private val apiClient: ProfileApiClient,
     private val presenceApiClient: PresenceApiClient,
 ) : ProfileService {
-    // TODO: Consider using SessionInventory for more detailed error messages when not guarded by AuthGuardedProfileService.
+    // Follow-up: consider using SessionInventory for more detailed error messages when not guarded by AuthGuardedProfileService.
     override fun getCurrentProfile(): ProfileResult {
         logger.debug { "SessionBackedProfileService: Retrieving current profile" }
         val session =

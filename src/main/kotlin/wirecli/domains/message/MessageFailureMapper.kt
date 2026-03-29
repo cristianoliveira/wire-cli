@@ -12,56 +12,76 @@ private val logger = KotlinLogging.logger {}
  * Separates failure categorization logic from runtime operations.
  */
 internal object MessageFailureMapper {
+    private val unauthorizedClassTokens = listOf("unauthorized", "auth", "legal", "sync")
+    private val unauthorizedMessageTokens = listOf("unauthorized", "legal hold")
+
+    private val notFoundClassTokens = listOf("notfound", "not_found", "conversation")
+    private val notFoundMessageTokens = listOf("not found")
+
+    private val serverClassTokens = listOf("server", "miscommunication", "invalid")
+    private val serverMessageTokens = listOf("server", "miscommunication")
+
+    private val validationClassTokens = listOf("validation")
+    private val validationMessageTokens = listOf("validation", "invalid")
+
+    private val throwableCategoryMatchers =
+        listOf(
+            MessageFailureCategory.UNAUTHORIZED to listOf("unauthorized", "401"),
+            MessageFailureCategory.TIMEOUT to listOf("timeout"),
+            MessageFailureCategory.NETWORK to listOf("network", "connection"),
+            MessageFailureCategory.NOT_FOUND to listOf("404", "not found", "not_found"),
+            MessageFailureCategory.VALIDATION to listOf("validation", "invalid"),
+            MessageFailureCategory.SERVER to listOf("server", "500"),
+        )
+
     /**
      * Maps CoreFailure exceptions to MessageFailureCategory.
      * Uses class name and message patterns for categorization.
      */
     fun categoryFromCoreFailure(failure: CoreFailure): MessageFailureCategory {
-        // Check for network failures first
         if (failure is NetworkFailure) {
             return MessageFailureCategory.NETWORK
         }
 
-        val failureClassName = failure::class.simpleName.orEmpty()
+        val failureClassName = failure::class.simpleName.orEmpty().lowercase()
         val failureMessage = failure.toString().lowercase()
 
         return when {
-            // Network-related failures
-            failureClassName.contains("network", ignoreCase = true) ||
-                failureClassName.contains("connection", ignoreCase = true) ->
+            containsAnyToken(failureClassName, "network", "connection") ->
                 MessageFailureCategory.NETWORK
 
-            // Authorization/MLS/Sync failures
-            failureClassName.contains("unauthorized", ignoreCase = true) ||
-                failureClassName.contains("auth", ignoreCase = true) ||
-                failureClassName.contains("legal", ignoreCase = true) ||
-                failureClassName.contains("sync", ignoreCase = true) ||
-                failureMessage.contains("unauthorized") ||
-                failureMessage.contains("legal hold") ->
+            matchesFailureGroup(
+                className = failureClassName,
+                message = failureMessage,
+                classTokens = unauthorizedClassTokens,
+                messageTokens = unauthorizedMessageTokens,
+            ) ->
                 MessageFailureCategory.UNAUTHORIZED
 
-            // Not found failures
-            failureClassName.contains("notfound", ignoreCase = true) ||
-                failureClassName.contains("not_found", ignoreCase = true) ||
-                failureClassName.contains("conversation", ignoreCase = true) ||
-                failureMessage.contains("not found") ->
+            matchesFailureGroup(
+                className = failureClassName,
+                message = failureMessage,
+                classTokens = notFoundClassTokens,
+                messageTokens = notFoundMessageTokens,
+            ) ->
                 MessageFailureCategory.NOT_FOUND
 
-            // Server-side failures
-            failureClassName.contains("server", ignoreCase = true) ||
-                failureClassName.contains("miscommunication", ignoreCase = true) ||
-                failureClassName.contains("invalid", ignoreCase = true) ||
-                failureMessage.contains("server") ||
-                failureMessage.contains("miscommunication") ->
+            matchesFailureGroup(
+                className = failureClassName,
+                message = failureMessage,
+                classTokens = serverClassTokens,
+                messageTokens = serverMessageTokens,
+            ) ->
                 MessageFailureCategory.SERVER
 
-            // Validation failures
-            failureClassName.contains("validation", ignoreCase = true) ||
-                failureMessage.contains("validation") ||
-                failureMessage.contains("invalid") ->
+            matchesFailureGroup(
+                className = failureClassName,
+                message = failureMessage,
+                classTokens = validationClassTokens,
+                messageTokens = validationMessageTokens,
+            ) ->
                 MessageFailureCategory.VALIDATION
 
-            // Default to unknown
             else -> {
                 logger.debug { "categoryFromCoreFailure: Unmapped CoreFailure type: $failureClassName" }
                 MessageFailureCategory.UNKNOWN
@@ -74,41 +94,41 @@ internal object MessageFailureMapper {
      * Used as fallback when SDK raises unexpected exceptions.
      */
     fun categoryFromThrowable(error: Throwable): MessageFailureCategory {
-        val message = error.message.orEmpty()
+        val message = error.message.orEmpty().lowercase()
 
-        return when {
-            message.contains("Unauthorized", ignoreCase = true) ||
-                message.contains("401") ||
-                message.contains("UNAUTHORIZED") ->
-                MessageFailureCategory.UNAUTHORIZED
-
-            message.contains("timeout", ignoreCase = true) ->
-                MessageFailureCategory.TIMEOUT
-
-            message.contains("Network", ignoreCase = true) ||
-                message.contains("Connection", ignoreCase = true) ||
-                message.contains("NETWORK") ->
-                MessageFailureCategory.NETWORK
-
-            message.contains("404") ||
-                message.contains("Not found", ignoreCase = true) ||
-                message.contains("NOT_FOUND") ->
-                MessageFailureCategory.NOT_FOUND
-
-            message.contains("Validation", ignoreCase = true) ||
-                message.contains("Invalid", ignoreCase = true) ||
-                message.contains("VALIDATION") ->
-                MessageFailureCategory.VALIDATION
-
-            message.contains("Server", ignoreCase = true) ||
-                message.contains("500") ||
-                message.contains("SERVER") ->
-                MessageFailureCategory.SERVER
-
-            else -> {
-                logger.debug { "categoryFromThrowable: Unmapped exception type: ${error::class.simpleName}, message: ${error.message}" }
+        return throwableCategoryMatchers
+            .firstOrNull { (_, tokens) -> containsAnyToken(message, tokens) }
+            ?.first
+            ?: run {
+                logger.debug {
+                    "categoryFromThrowable: Unmapped exception type: " +
+                        "${error::class.simpleName}, message: ${error.message}"
+                }
                 MessageFailureCategory.UNKNOWN
             }
-        }
+    }
+
+    private fun matchesFailureGroup(
+        className: String,
+        message: String,
+        classTokens: List<String>,
+        messageTokens: List<String>,
+    ): Boolean {
+        return containsAnyToken(className, classTokens) ||
+            containsAnyToken(message, messageTokens)
+    }
+
+    private fun containsAnyToken(
+        text: String,
+        tokens: List<String>,
+    ): Boolean {
+        return tokens.any(text::contains)
+    }
+
+    private fun containsAnyToken(
+        text: String,
+        vararg tokens: String,
+    ): Boolean {
+        return containsAnyToken(text, tokens.toList())
     }
 }

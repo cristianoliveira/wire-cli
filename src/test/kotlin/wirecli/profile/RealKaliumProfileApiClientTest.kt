@@ -81,7 +81,7 @@ class RealKaliumProfileApiClientTest {
         private val scopeResult: ProfileStepResult<KaliumProfileSessionScope>,
         private val selfUserResult: ProfileStepResult<KaliumSelfUser>,
     ) : RealKaliumProfileRuntime {
-        override fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope> = scopeResult
+        override fun resolveSessionScope(session: AuthSession) = scopeResult
 
         override fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser> = selfUserResult
 

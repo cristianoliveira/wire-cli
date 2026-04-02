@@ -28,8 +28,7 @@ object PresenceStatusContract {
     val normalizedValues: Set<String> = PresenceState.entries.map { it.value }.toSet()
 
     fun normalize(rawState: String?): PresenceState {
-        val value = rawState?.trim()?.lowercase() ?: return PresenceState.UNKNOWN
-        if (value.isBlank()) return PresenceState.UNKNOWN
+        val value = rawState?.trim()?.lowercase().takeUnless { it.isNullOrBlank() } ?: return PresenceState.UNKNOWN
 
         return when (value) {
             "online" -> PresenceState.ONLINE
@@ -41,8 +40,7 @@ object PresenceStatusContract {
     }
 
     fun parseWritable(rawState: String?): WritablePresenceState? {
-        val value = rawState?.trim()?.lowercase() ?: return null
-        if (value.isBlank()) return null
+        val value = rawState?.trim()?.lowercase().takeUnless { it.isNullOrBlank() } ?: return null
 
         return when (value) {
             "online" -> WritablePresenceState.ONLINE

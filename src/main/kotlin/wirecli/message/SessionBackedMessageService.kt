@@ -75,24 +75,25 @@ class SessionBackedMessageService(
         conversationId: String,
         status: TypingStatus,
     ): SendTypingResult {
-        if (typingApiClient == null) {
-            return SendTypingResult.Failure(
+        return if (typingApiClient == null) {
+            SendTypingResult.Failure(
                 message = MessageUserMessages.TYPING_UNSUPPORTED,
                 exitCode = MessageExitCodes.SERVER_ERROR,
             )
-        }
+        } else {
+            logger.debug {
+                "Service operation: sendTypingStatus(conversationId=$conversationId, status=$status) started"
+            }
 
-        logger.debug {
-            "Service operation: sendTypingStatus(conversationId=$conversationId, status=$status) started"
-        }
-
-        val session =
-            sessionStore.readActiveSession()
-                ?: return SendTypingResult.Failure(
+            val session = sessionStore.readActiveSession()
+            if (session == null) {
+                SendTypingResult.Failure(
                     message = AuthMessages.noActiveSession(),
                     exitCode = ExitCodes.UNAUTHORIZED,
                 ).also { logger.warn { "No active session found for sendTypingStatus($conversationId)" } }
-
-        return typingApiClient.sendTypingStatus(session, conversationId, status)
+            } else {
+                typingApiClient.sendTypingStatus(session, conversationId, status)
+            }
+        }
     }
 }

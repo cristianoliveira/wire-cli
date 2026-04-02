@@ -106,13 +106,10 @@ class MessageWatchCommand(
     }
 
     private fun isRetryableWatchFailure(result: FetchMessagesResult.Failure): Boolean {
-        if (result.exitCode == ExitCodes.UNAUTHORIZED) return false
-        if (result.exitCode == ExitCodes.VALIDATION_ERROR) return false
-
         val normalizedMessage = result.message.lowercase()
-        if (normalizedMessage.contains(MessageUserMessages.CONVERSATION_NOT_FOUND)) return false
-
-        return true
+        return result.exitCode != ExitCodes.UNAUTHORIZED &&
+            result.exitCode != ExitCodes.VALIDATION_ERROR &&
+            !normalizedMessage.contains(MessageUserMessages.CONVERSATION_NOT_FOUND)
     }
 
     private fun calculateRetryDelayMs(transientFailureCount: Int): Long {

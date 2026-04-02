@@ -75,53 +75,34 @@ private data class BackendCounters(
 
 private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFactory {
     return object : RuntimeBackendFactory {
-        override fun create(environment: Map<String, String>): RuntimeBackend {
-            return object : RuntimeBackend {
+        override fun create(environment: Map<String, String>): RuntimeBackend =
+            object : RuntimeBackend {
                 override val authApiClient: AuthApiClient
-                    get() {
-                        counters.authApiClientAccesses += 1
-                        return NoopAuthApiClient
-                    }
+                    get() = NoopAuthApiClient.also { counters.authApiClientAccesses += 1 }
 
                 override val profileApiClient: ProfileApiClient
-                    get() {
-                        counters.profileApiClientAccesses += 1
-                        return NoopProfileApiClient
-                    }
+                    get() = NoopProfileApiClient.also { counters.profileApiClientAccesses += 1 }
 
                 override val presenceApiClient: PresenceApiClient
-                    get() {
-                        counters.presenceApiClientAccesses += 1
-                        return NoopPresenceApiClient
-                    }
+                    get() = NoopPresenceApiClient.also { counters.presenceApiClientAccesses += 1 }
 
                 override val deviceApiClient: DeviceApiClient
-                    get() {
-                        counters.deviceApiClientAccesses += 1
-                        return NoopDeviceApiClient
-                    }
+                    get() = NoopDeviceApiClient.also { counters.deviceApiClientAccesses += 1 }
 
                 override val conversationApiClient: ConversationApiClient by lazy {
                     StubConversationApiClient(environment)
                 }
 
                 override val syncApiClient: SyncApiClient
-                    get() {
-                        counters.syncApiClientAccesses += 1
-                        return NoopSyncApiClient
-                    }
+                    get() = NoopSyncApiClient.also { counters.syncApiClientAccesses += 1 }
 
                 override val messageApiClient: MessageApiClient
-                    get() {
-                        counters.messageApiClientAccesses += 1
-                        return NoopMessageApiClient
-                    }
+                    get() = NoopMessageApiClient.also { counters.messageApiClientAccesses += 1 }
 
                 override fun shutdown() {
                     counters.shutdownCalls += 1
                 }
             }
-        }
     }
 }
 

@@ -599,23 +599,17 @@ internal class SdkKaliumAuthRuntime(
      */
     private suspend fun resolveServerLinks(server: String?): AuthStepResult<ServerConfig.Links> {
         val target = server?.trim().orEmpty()
-        if (target.isEmpty()) {
-            return AuthStepResult.Success(ServerConfig.DEFAULT)
-        }
-
-        if (target.equals("staging", ignoreCase = true)) {
-            return AuthStepResult.Success(ServerConfig.STAGING)
-        }
-
-        if (target.equals("production", ignoreCase = true)) {
-            return AuthStepResult.Success(ServerConfig.PRODUCTION)
-        }
-
-        return when (val result = coreLogic.globalScope { fetchServerConfigFromDeepLink(target) }) {
-            is GetServerConfigResult.Success -> AuthStepResult.Success(result.serverConfigLinks)
-            is GetServerConfigResult.Failure.Generic -> {
-                AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
-            }
+        return when {
+            target.isEmpty() -> AuthStepResult.Success(ServerConfig.DEFAULT)
+            target.equals("staging", ignoreCase = true) -> AuthStepResult.Success(ServerConfig.STAGING)
+            target.equals("production", ignoreCase = true) -> AuthStepResult.Success(ServerConfig.PRODUCTION)
+            else ->
+                when (val result = coreLogic.globalScope { fetchServerConfigFromDeepLink(target) }) {
+                    is GetServerConfigResult.Success -> AuthStepResult.Success(result.serverConfigLinks)
+                    is GetServerConfigResult.Failure.Generic -> {
+                        AuthStepResult.Failure(coreFailureToCategory(result.genericFailure))
+                    }
+                }
         }
     }
 

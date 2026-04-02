@@ -88,17 +88,18 @@ fun main(args: Array<String>) {
 private fun determineConsoleLogLevel(args: Array<String>): String {
     // Keep JSON output clean regardless of other flags.
     val hasJsonOutput = args.contains("--json") || args.contains("--json-lines")
-    if (hasJsonOutput) return "OFF"
-
-    // Explicit CLI flags take priority over environment.
     val hasVerbose = args.contains("--verbose") || args.contains("-v")
-    if (hasVerbose) return "DEBUG"
-
-    // Check explicit log level from CLI, system property, or environment
-    return parseCliLogLevel(args)
-        ?: System.getProperty("WIRECLI_CONSOLE_LOG_LEVEL")?.takeIf { it.isNotBlank() }?.uppercase()
-        ?: System.getenv("WIRECLI_CONSOLE_LOG_LEVEL")?.takeIf { it.isNotBlank() }?.uppercase()
-        ?: "OFF"
+    return when {
+        hasJsonOutput -> "OFF"
+        // Explicit CLI flags take priority over environment.
+        hasVerbose -> "DEBUG"
+        // Check explicit log level from CLI, system property, or environment.
+        else ->
+            parseCliLogLevel(args)
+                ?: System.getProperty("WIRECLI_CONSOLE_LOG_LEVEL")?.takeIf { it.isNotBlank() }?.uppercase()
+                ?: System.getenv("WIRECLI_CONSOLE_LOG_LEVEL")?.takeIf { it.isNotBlank() }?.uppercase()
+                ?: "OFF"
+    }
 }
 
 private fun parseCliLogLevel(args: Array<String>): String? {

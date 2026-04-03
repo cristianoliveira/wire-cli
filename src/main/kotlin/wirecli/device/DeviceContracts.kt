@@ -128,15 +128,19 @@ internal object DeviceMessages {
     const val UNAUTHORIZED_FAILURE = "Your session is invalid or expired. Please log in again."
 
     const val INVALID_CREDENTIALS = "Password incorrect. Device deletion cancelled."
-    const val DELETE_NETWORK_FAILURE = "Device deletion failed: network is unreachable. Check your connection and retry."
+    const val DELETE_NETWORK_FAILURE =
+        "Device deletion failed: network is unreachable. Check your connection and retry."
     const val DELETE_SERVER_FAILURE = "Device deletion could not be completed. Retry later or check server settings."
     const val DELETE_UNKNOWN_FAILURE = "Device deletion failed unexpectedly. Retry and check your setup."
-    const val VERIFY_NETWORK_FAILURE = "Device verification failed: network is unreachable. Check your connection and retry."
-    const val VERIFY_SERVER_FAILURE = "Device verification could not be completed. Retry later or check server settings."
+    const val VERIFY_NETWORK_FAILURE =
+        "Device verification failed: network is unreachable. Check your connection and retry."
+    const val VERIFY_SERVER_FAILURE =
+        "Device verification could not be completed. Retry later or check server settings."
     const val VERIFY_UNKNOWN_FAILURE = "Device verification failed unexpectedly. Retry and check your setup."
     const val PERMISSION_DENIED = "You do not have permission to access this device. Contact your administrator."
     const val INVALID_INPUT = "Invalid device ID or parameters provided."
-    const val PASSWORD_REQUIRED = "Password is required to delete this device. Use --password, --password-stdin, or provide interactively."
+    const val PASSWORD_REQUIRED =
+        "Password is required to delete this device. Use --password, --password-stdin, or provide interactively."
     const val INVALID_PASSWORD = "The password you provided is incorrect. Please try again."
 }
 

@@ -104,7 +104,9 @@ internal class SyncCheckBuilder(
                 if (networkMetrics != null) {
                     append("Network: ${networkMetrics.networkType}, ")
                     append("Latency: ${estimatedLatency}ms, ")
-                    append("Error Rate: ${String.format(java.util.Locale.US, "%.1f%%", networkMetrics.errorRate * 100)}")
+                    append(
+                        "Error Rate: ${String.format(java.util.Locale.US, "%.1f%%", networkMetrics.errorRate * 100)}",
+                    )
                     if (networkMetrics.lastRecoveryTimeMs != null) {
                         append(", Last Recovery: ${networkMetrics.lastRecoveryTimeMs}ms ago")
                     }

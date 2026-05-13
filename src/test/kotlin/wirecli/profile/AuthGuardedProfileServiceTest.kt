@@ -37,6 +37,48 @@ class AuthGuardedProfileServiceTest {
     }
 
     @Test
+    fun `returns auth failure for updateProfile when session is not active`() {
+        val delegate =
+            TrackingProfileService(ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")))
+        val service =
+            AuthGuardedProfileService(
+                authSessionService =
+                    FakeAuthSessionService(
+                        authResult =
+                            AuthResult.Failure(
+                                message = "Session is invalid or expired. Run wire login to re-authenticate.",
+                                exitCode = ExitCodes.UNAUTHORIZED,
+                            ),
+                    ),
+                delegate = delegate,
+            )
+
+        val result = service.updateProfile(ProfileUpdate(name = "New Name"))
+
+        val failure = assertIs<ProfileUpdateResult.Failure>(result)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+        assertTrue(failure.message.contains("Run wire login"))
+        assertFalse(delegate.updateInvoked)
+    }
+
+    @Test
+    fun `delegates profile update when auth check succeeds`() {
+        val delegate =
+            TrackingProfileService(ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")))
+        val service =
+            AuthGuardedProfileService(
+                authSessionService = FakeAuthSessionService(authResult = AuthResult.Success("Active session available.")),
+                delegate = delegate,
+            )
+
+        val result = service.updateProfile(ProfileUpdate(name = "New Name"))
+
+        val success = assertIs<ProfileUpdateResult.Success>(result)
+        assertEquals("New Name", success.profile.name)
+        assertTrue(delegate.updateInvoked)
+    }
+
+    @Test
     fun `delegates profile lookup when auth check succeeds`() {
         val delegate =
             TrackingProfileService(ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")))
@@ -61,12 +103,21 @@ class AuthGuardedProfileServiceTest {
         override fun requireActiveSession(): AuthResult = authResult
     }
 
-    private class TrackingProfileService(private val result: ProfileResult) : ProfileService {
+    private class TrackingProfileService(
+        private val result: ProfileResult,
+        private val updateResult: ProfileUpdateResult = ProfileUpdateResult.Success(ProfileView(name = "New Name", email = "jane@example.com", handle = "newhandle")),
+    ) : ProfileService {
         var invoked: Boolean = false
+        var updateInvoked: Boolean = false
 
         override fun getCurrentProfile(): ProfileResult {
             invoked = true
             return result
+        }
+
+        override fun updateProfile(update: ProfileUpdate): ProfileUpdateResult {
+            updateInvoked = true
+            return updateResult
         }
     }
 }

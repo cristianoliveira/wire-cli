@@ -20,6 +20,8 @@ import wirecli.presence.PresenceResult
 import wirecli.presence.WritablePresenceState
 import wirecli.profile.ProfileApiClient
 import wirecli.profile.ProfileResult
+import wirecli.profile.ProfileUpdate
+import wirecli.profile.ProfileUpdateResult
 import wirecli.sync.ConversationSyncStatusResult
 import wirecli.sync.DiagnosticsResult
 import wirecli.sync.PerConversationDiagnosticsResult
@@ -138,6 +140,10 @@ private object NoopAuthApiClient : AuthApiClient {
 private object NoopProfileApiClient : ProfileApiClient {
     override fun fetchProfile(session: AuthSession): ProfileResult {
         return ProfileResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun updateProfile(session: AuthSession, update: ProfileUpdate): ProfileUpdateResult {
+        return ProfileUpdateResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }
 

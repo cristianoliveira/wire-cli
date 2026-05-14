@@ -295,6 +295,7 @@ internal class SdkKaliumSyncRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
+    @Suppress("LongMethod")
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
         require(session.userId.isNotBlank()) { "Sync status requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Sync status requires a non-blank access token." }
@@ -398,6 +399,7 @@ internal class SdkKaliumSyncRuntime(
         return result
     }
 
+    @Suppress("LongMethod")
     override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
         require(session.userId.isNotBlank()) { "Force sync requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Force sync requires a non-blank access token." }
@@ -487,6 +489,7 @@ internal class SdkKaliumSyncRuntime(
         return result
     }
 
+    @Suppress("LongMethod")
     override fun getDiagnostics(session: AuthSession): DiagnosticsResult {
         require(session.userId.isNotBlank()) { "Diagnostics requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Diagnostics requires a non-blank access token." }
@@ -579,6 +582,7 @@ internal class SdkKaliumSyncRuntime(
         return result
     }
 
+    @Suppress("LongMethod")
     override fun getConversationSyncStatus(
         session: AuthSession,
         conversationId: String,
@@ -659,6 +663,7 @@ internal class SdkKaliumSyncRuntime(
         }
     }
 
+    @Suppress("LongMethod")
     override fun getPerConversationDiagnostics(
         session: AuthSession,
         conversationId: String,

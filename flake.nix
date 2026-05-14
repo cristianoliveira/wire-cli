@@ -230,6 +230,7 @@
             buildInputs = with pkgs; [
               jdk
               gradle
+              kotlin-language-server
 
               # Testing
               bats
@@ -242,14 +243,12 @@
 
             shellHook = ''
               echo "Wire CLI development environment"
-              echo "Java: $(java --version | head -n1)"
-              echo "Gradle: $(gradle --version | grep 'Gradle' | head -n1)"
+              echo "Java: $(java --version 2>/dev/null | head -n1)"
+              echo "Gradle: $(gradle --version 2>/dev/null | rg 'Gradle' | head -n1)"
+              echo "Kotlin LSP: $(kotlin-language-server --version 2>/dev/null || echo '(version check unavailable)')"
               echo ""
               echo "To build: gradle build"
               echo "To run: gradle run"
-              echo ""
-              echo "NOTE: Before building with Nix, generate verification-metadata.xml:"
-              echo "  gradle --refresh-dependencies --write-verification-metadata sha256 --write-locks dependencies"
             '';
           };
         }

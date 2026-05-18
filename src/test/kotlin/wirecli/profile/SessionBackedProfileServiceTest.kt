@@ -172,11 +172,17 @@ class SessionBackedProfileServiceTest {
 
     private class FakeProfileApiClient(
         private val result: ProfileResult,
-        private val updateResult: ProfileUpdateResult = ProfileUpdateResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")),
+        private val updateResult: ProfileUpdateResult =
+            ProfileUpdateResult.Success(
+                ProfileView(name = "Jane", email = "jane@example.com", handle = "jane"),
+            ),
     ) : ProfileApiClient {
         override fun fetchProfile(session: AuthSession): ProfileResult = result
 
-        override fun updateProfile(session: AuthSession, update: ProfileUpdate): ProfileUpdateResult = updateResult
+        override fun updateProfile(
+            session: AuthSession,
+            update: ProfileUpdate,
+        ): ProfileUpdateResult = updateResult
     }
 
     private class FakePresenceApiClient(private val result: PresenceResult) : PresenceApiClient {

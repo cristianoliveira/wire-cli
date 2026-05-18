@@ -105,7 +105,10 @@ class AuthGuardedProfileServiceTest {
 
     private class TrackingProfileService(
         private val result: ProfileResult,
-        private val updateResult: ProfileUpdateResult = ProfileUpdateResult.Success(ProfileView(name = "New Name", email = "jane@example.com", handle = "newhandle")),
+        private val updateResult: ProfileUpdateResult =
+            ProfileUpdateResult.Success(
+                ProfileView(name = "New Name", email = "jane@example.com", handle = "newhandle"),
+            ),
     ) : ProfileService {
         var invoked: Boolean = false
         var updateInvoked: Boolean = false

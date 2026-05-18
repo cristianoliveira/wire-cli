@@ -19,7 +19,10 @@ private val logger = KotlinLogging.logger {}
 internal class RealKaliumProfileApiClient(
     private val runtime: RealKaliumProfileRuntime,
 ) : ProfileApiClient {
-    override fun updateProfile(session: AuthSession, update: ProfileUpdate): ProfileUpdateResult {
+    override fun updateProfile(
+        session: AuthSession,
+        update: ProfileUpdate,
+    ): ProfileUpdateResult {
         logger.debug { "RealKaliumProfileApiClient: Updating profile for user: ${session.userId}" }
         val sessionScope =
             when (val scope = runtime.resolveSessionScope(session)) {

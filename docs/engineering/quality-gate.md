@@ -137,7 +137,6 @@ ktlint-baseline: ktlintGenerateBaseline
 ### Per-Release Validation
 - Run full test suite
 - Verify build artifacts
-- Update version in bd issues
 - Document breaking changes
 
 ## Success Criteria

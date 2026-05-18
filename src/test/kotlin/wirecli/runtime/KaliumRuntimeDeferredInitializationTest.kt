@@ -142,7 +142,10 @@ private object NoopProfileApiClient : ProfileApiClient {
         return ProfileResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 
-    override fun updateProfile(session: AuthSession, update: ProfileUpdate): ProfileUpdateResult {
+    override fun updateProfile(
+        session: AuthSession,
+        update: ProfileUpdate,
+    ): ProfileUpdateResult {
         return ProfileUpdateResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

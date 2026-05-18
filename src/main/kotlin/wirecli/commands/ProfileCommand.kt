@@ -60,7 +60,11 @@ class ProfileUpdateCommand(
         }
 
         logger.info {
-            "Profile update command started: name=${name?.let { AuthRedactor.redact(it) }}, handle=${handle?.let { AuthRedactor.redact(it) }}"
+            "Profile update command started: name=${name?.let {
+                AuthRedactor.redact(
+                    it,
+                )
+            }}, handle=${handle?.let { AuthRedactor.redact(it) }}"
         }
 
         val profileService = profileServiceProvider()

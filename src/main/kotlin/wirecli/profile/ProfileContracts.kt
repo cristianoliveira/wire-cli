@@ -32,7 +32,10 @@ sealed interface ProfileUpdateResult {
 interface ProfileApiClient {
     fun fetchProfile(session: AuthSession): ProfileResult
 
-    fun updateProfile(session: AuthSession, update: ProfileUpdate): ProfileUpdateResult
+    fun updateProfile(
+        session: AuthSession,
+        update: ProfileUpdate,
+    ): ProfileUpdateResult
 }
 
 interface ProfileService {

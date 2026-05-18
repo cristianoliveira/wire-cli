@@ -7,7 +7,10 @@ import wirecli.auth.ExitCodes
 class StubProfileApiClient(
     private val environment: Map<String, String>,
 ) : ProfileApiClient {
-    override fun updateProfile(session: AuthSession, update: ProfileUpdate): ProfileUpdateResult {
+    override fun updateProfile(
+        session: AuthSession,
+        update: ProfileUpdate,
+    ): ProfileUpdateResult {
         val mode = environment["WIRE_STUB_MODE"]
 
         return when (mode) {

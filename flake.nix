@@ -180,6 +180,9 @@
             # does not use centralized repository declaration in settings.gradle.kts
             # See: https://github.com/raphiz/buildGradleApplication#rule-4-centralized-repository
             repositories = [
+              # repo1.maven.org rate-limits Nix's parallel fixed-output fetches (HTTP 429).
+              # repo.maven.apache.org serves the same Maven Central artifacts via a more reliable CDN.
+              "https://repo.maven.apache.org/maven2/"
               "https://repo1.maven.org/maven2/"
               "https://dl.google.com/android/maven2/"
               "https://plugins.gradle.org/m2/"

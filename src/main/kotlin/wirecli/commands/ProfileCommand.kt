@@ -3,6 +3,7 @@ package wirecli.commands
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
+import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.option
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthRedactor
@@ -23,6 +24,7 @@ class ProfileCommand(
     init {
         subcommands(
             ProfileUpdateCommand(profileServiceProvider),
+            ProfileNameCommand(profileServiceProvider),
         )
     }
 
@@ -83,6 +85,37 @@ class ProfileUpdateCommand(
 
             is ProfileUpdateResult.Failure -> {
                 logger.warn { "Failed to update profile: ${AuthRedactor.redact(result.message)}" }
+                echo(AuthRedactor.redact(result.message), err = true)
+                throw ProgramResult(result.exitCode)
+            }
+        }
+    }
+}
+
+class ProfileNameCommand(
+    private val profileServiceProvider: () -> ProfileService,
+) : CliktCommand(name = "name", help = "Update your profile display name.") {
+    private val profileName by argument(name = "NAME", help = "New display name")
+
+    override fun run() {
+        val validatedName =
+            requireValueOrExit(
+                value = profileName,
+                fieldName = "Name",
+                errorMessage = "name required",
+            )
+
+        logger.info { "Profile name command started: name=${AuthRedactor.redact(validatedName)}" }
+
+        when (val result = profileServiceProvider().updateProfile(ProfileUpdate(name = validatedName))) {
+            is ProfileUpdateResult.Success -> {
+                logger.info { "Profile name updated successfully" }
+                echo("Profile name updated successfully.")
+                echo("Name: ${result.profile.name ?: validatedName}")
+            }
+
+            is ProfileUpdateResult.Failure -> {
+                logger.warn { "Failed to update profile name: ${AuthRedactor.redact(result.message)}" }
                 echo(AuthRedactor.redact(result.message), err = true)
                 throw ProgramResult(result.exitCode)
             }

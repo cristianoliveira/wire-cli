@@ -62,6 +62,9 @@ wire logout
 # Profile (includes: Presence: ...)
 wire profile
 
+# Change profile display name
+wire profile name "Jane Doe"
+
 # Read presence
 wire presence get
 

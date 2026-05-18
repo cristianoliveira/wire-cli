@@ -75,19 +75,9 @@ class ProfileUpdateCommand(
         val profileService = profileServiceProvider()
         val update = ProfileUpdate(name = name, handle = handle)
 
-        when (val result = profileService.updateProfile(update)) {
-            is ProfileUpdateResult.Success -> {
-                logger.info { "Profile updated successfully" }
-                echo("Profile updated successfully.")
-                echo("Name: ${result.profile.name ?: "(unchanged)"}")
-                echo("Handle: ${result.profile.handle ?: "(unchanged)"}")
-            }
-
-            is ProfileUpdateResult.Failure -> {
-                logger.warn { "Failed to update profile: ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
-            }
+        handleProfileUpdateResult(profileService.updateProfile(update)) { result ->
+            echo("Name: ${result.profile.name ?: "(unchanged)"}")
+            echo("Handle: ${result.profile.handle ?: "(unchanged)"}")
         }
     }
 }
@@ -107,18 +97,28 @@ class ProfileNameCommand(
 
         logger.info { "Profile name command started: name=${AuthRedactor.redact(validatedName)}" }
 
-        when (val result = profileServiceProvider().updateProfile(ProfileUpdate(name = validatedName))) {
-            is ProfileUpdateResult.Success -> {
-                logger.info { "Profile name updated successfully" }
-                echo("Profile name updated successfully.")
-                echo("Name: ${result.profile.name ?: validatedName}")
-            }
+        val result = profileServiceProvider().updateProfile(ProfileUpdate(name = validatedName))
+        handleProfileUpdateResult(result) { success ->
+            echo("Name: ${success.profile.name ?: validatedName}")
+        }
+    }
+}
 
-            is ProfileUpdateResult.Failure -> {
-                logger.warn { "Failed to update profile name: ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
-            }
+private fun CliktCommand.handleProfileUpdateResult(
+    result: ProfileUpdateResult,
+    onSuccess: CliktCommand.(ProfileUpdateResult.Success) -> Unit,
+) {
+    when (result) {
+        is ProfileUpdateResult.Success -> {
+            logger.info { "Profile updated successfully" }
+            echo("Profile updated successfully.")
+            onSuccess(result)
+        }
+
+        is ProfileUpdateResult.Failure -> {
+            logger.warn { "Failed to update profile: ${AuthRedactor.redact(result.message)}" }
+            echo(AuthRedactor.redact(result.message), err = true)
+            throw ProgramResult(result.exitCode)
         }
     }
 }

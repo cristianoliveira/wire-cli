@@ -19,7 +19,7 @@ class ProfileCommandTest {
         val result = execute(command, listOf("Cristiano Oliveira"))
 
         assertEquals(0, result.exitCode)
-        assertTrue(result.stdout.contains("Profile name updated successfully."))
+        assertTrue(result.stdout.contains("Profile updated successfully."))
         assertTrue(result.stdout.contains("Name: Cristiano Oliveira"))
         assertEquals(ProfileUpdate(name = "Cristiano Oliveira"), service.lastUpdate)
     }
@@ -30,6 +30,18 @@ class ProfileCommandTest {
         val command = ProfileNameCommand { service }
 
         val result = execute(command, listOf("   "))
+
+        assertEquals(14, result.exitCode)
+        assertEquals("validation error: name required", result.stderr.trim())
+        assertEquals(null, service.lastUpdate)
+    }
+
+    @Test
+    fun `name command rejects empty display name`() {
+        val service = StubProfileService()
+        val command = ProfileNameCommand { service }
+
+        val result = execute(command, listOf(""))
 
         assertEquals(14, result.exitCode)
         assertEquals("validation error: name required", result.stderr.trim())

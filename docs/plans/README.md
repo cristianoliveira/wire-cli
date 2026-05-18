@@ -111,12 +111,6 @@ If LLM agent integration is the immediate priority, start with conversations (da
 2. Reference "Minimum Viable Slice" section for scope boundaries
 3. Check "Implementation Readiness" for Kalium unknowns that need spiking
 
-### For Formal Story Creation
-Convert exploration stories to `.beads/issues.jsonl` format:
-- One `.beads` issue per user story
-- Link with `depends-on` relationships (e.g., "Show device" depends on "List devices")
-- Tag with `phase:2-quickwin` for tracking
-
 ---
 
 ## Implementation Checklist
@@ -183,4 +177,4 @@ Two exploration documents totaling ~4,500 words provide:
 - ✅ Implementation readiness assessment (Kalium APIs, unknowns, testing surface)
 - ✅ Recommended execution order (with alternatives)
 
-**Next Step**: Team review → decide execution order → formalize to `.beads` issues → begin implementation.
+**Next Step**: Team review → decide execution order → begin implementation.

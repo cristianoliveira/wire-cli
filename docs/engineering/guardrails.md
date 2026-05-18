@@ -8,7 +8,6 @@ This document defines the engineering guardrails for the wire-cli project, estab
 
 - **Project Type**: Kotlin CLI tool (wire-cli)
 - **Build System**: Gradle with Nix for reproducible builds
-- **Issue Tracking**: bd (beads) - integrated
 - **CI Platform**: GitHub Actions
 - **Code Quality Tools**: ktlint, detekt, Gradle tests
 
@@ -59,16 +58,6 @@ This document defines the engineering guardrails for the wire-cli project, estab
 - **Failure signal**: Build failure or binary not executable
 - **Recovery**: Fix build issues and re-run `nix build`
 
-### 6. Issue Tracking Discipline
-- **Intent**: Maintain traceability and workflow consistency
-- **Operator command(s)**: 
-  - `bd ready` - find available work
-  - `bd update <id> --status=in_progress` - claim work
-  - `bd close <id> --reason="Done"` - complete work
-- **Enforcement**: Project policy and workflow documentation
-- **Failure signal**: Untracked work, missing dependencies
-- **Recovery**: Create proper bd issues and link dependencies
-
 ## CI/CD Workflow
 
 ### Trigger Events
@@ -90,12 +79,6 @@ This document defines the engineering guardrails for the wire-cli project, estab
 - Uploads test results as artifacts
 
 ## Local Development Workflow
-
-### Session Start
-```bash
-bd ready --json  # Find available work
-bd update <id> --status=in_progress  # Claim work
-```
 
 ### Daily Development
 ```bash
@@ -119,10 +102,8 @@ git push
 ```bash
 git status
 git add <files>
-bd sync
 git commit -m "<message>"
-bd sync
-git pull --rebase && bd sync && git push
+git pull --rebase && git push
 git status  # Verify up to date with origin
 ```
 
@@ -149,16 +130,13 @@ ktlint-baseline: ktlintGenerateBaseline  # Generate formatting baseline
 ### ❌ DO NOT
 - Commit unformatted code (will fail pre-commit)
 - Skip running `make all` before pushing
-- Create work outside bd issue tracking
 - Merge PRs with failing CI jobs
 - Modify CI workflows without updating guardrails
 
 ### ✅ DO
 - Run `make format` to auto-format before committing
 - Use `make all` for local quality gate verification
-- Link related work using bd dependencies
 - Keep CI and local checks in sync
-- Document breaking changes in bd issues
 
 ## Recovery Procedures
 

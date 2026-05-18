@@ -2,15 +2,6 @@
 
 ## Development Workflow
 
-### Session Start
-```bash
-# Find available work
-bd ready --json
-
-# Claim work
-bd update <id> --status=in_progress
-```
-
 ### Daily Development
 ```bash
 # Keep branch up to date
@@ -48,17 +39,11 @@ git status
 # Add files
 git add <files>
 
-# Sync bd state
-bd sync
-
 # Commit with message
 git commit -m "<message>"
 
-# Sync again
-bd sync
-
 # Push with rebase
-git pull --rebase && bd sync && git push
+git pull --rebase && git push
 
 # Verify
 git status  # Should show "up to date with origin"
@@ -117,26 +102,6 @@ gh run list
 
 # Re-run failed jobs
 gh run rerun <run-id>
-```
-
-## Issue Tracking
-
-### bd Commands
-```bash
-# Find work
-bd ready
-
-# Claim work
-bd update <id> --status=in_progress
-
-# View issue
-bd show <id>
-
-# Complete work
-bd close <id> --reason="Done"
-
-# Sync with git
-bd sync
 ```
 
 ## Troubleshooting

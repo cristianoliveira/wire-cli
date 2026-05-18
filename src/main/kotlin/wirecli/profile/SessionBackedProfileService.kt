@@ -45,6 +45,28 @@ class SessionBackedProfileService(
         }
     }
 
+    override fun updateProfile(update: ProfileUpdate): ProfileUpdateResult {
+        logger.debug { "SessionBackedProfileService: Updating profile" }
+        val session =
+            sessionStore.readActiveSession()
+                ?: run {
+                    logger.warn { "No active session found for profile update" }
+                    return ProfileUpdateResult.Failure(
+                        message = AuthMessages.noActiveSession(),
+                        exitCode = ExitCodes.UNAUTHORIZED,
+                    )
+                }
+
+        if (!update.hasChanges()) {
+            return ProfileUpdateResult.Failure(
+                message = "At least one of --name or --handle must be provided.",
+                exitCode = ExitCodes.VALIDATION_ERROR,
+            )
+        }
+
+        return apiClient.updateProfile(session, update)
+    }
+
     private fun resolvePresence(session: AuthSession): PresenceState {
         return when (val presenceResult = presenceApiClient.fetchPresence(session)) {
             is PresenceResult.Success -> presenceResult.presence.state

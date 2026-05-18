@@ -15,6 +15,67 @@ import kotlin.test.assertIs
 
 class SessionBackedProfileServiceTest {
     @Test
+    fun `updateProfile returns unauthorized when no session is persisted`() {
+        val service =
+            SessionBackedProfileService(
+                sessionStore = FakeSessionStore(activeSession = null),
+                apiClient =
+                    FakeProfileApiClient(
+                        ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")),
+                    ),
+                presenceApiClient = FakePresenceApiClient(PresenceResult.Success(PresenceView(PresenceState.ONLINE))),
+            )
+
+        val result = service.updateProfile(ProfileUpdate(name = "New Name"))
+
+        val failure = assertIs<ProfileUpdateResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `updateProfile returns validation error when no changes provided`() {
+        val service =
+            SessionBackedProfileService(
+                sessionStore = FakeSessionStore(activeSession = activeSession()),
+                apiClient =
+                    FakeProfileApiClient(
+                        ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")),
+                    ),
+                presenceApiClient = FakePresenceApiClient(PresenceResult.Success(PresenceView(PresenceState.ONLINE))),
+            )
+
+        val result = service.updateProfile(ProfileUpdate())
+
+        val failure = assertIs<ProfileUpdateResult.Failure>(result)
+        assertEquals("At least one of --name or --handle must be provided.", failure.message)
+        assertEquals(ExitCodes.VALIDATION_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `updateProfile delegates to api client when session is active`() {
+        val service =
+            SessionBackedProfileService(
+                sessionStore = FakeSessionStore(activeSession = activeSession()),
+                apiClient =
+                    FakeProfileApiClient(
+                        ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")),
+                        updateResult =
+                            ProfileUpdateResult.Success(
+                                ProfileView(name = "New Name", email = "jane@example.com", handle = "newhandle"),
+                            ),
+                    ),
+                presenceApiClient = FakePresenceApiClient(PresenceResult.Success(PresenceView(PresenceState.ONLINE))),
+            )
+
+        val result = service.updateProfile(ProfileUpdate(name = "New Name", handle = "newhandle"))
+
+        val success = assertIs<ProfileUpdateResult.Success>(result)
+        assertEquals("New Name", success.profile.name)
+        assertEquals("newhandle", success.profile.handle)
+    }
+
+    @Test
     fun `returns unauthorized when no session is persisted`() {
         val service =
             SessionBackedProfileService(
@@ -109,8 +170,19 @@ class SessionBackedProfileServiceTest {
         override fun readActiveSession(): AuthSession? = activeSession
     }
 
-    private class FakeProfileApiClient(private val result: ProfileResult) : ProfileApiClient {
+    private class FakeProfileApiClient(
+        private val result: ProfileResult,
+        private val updateResult: ProfileUpdateResult =
+            ProfileUpdateResult.Success(
+                ProfileView(name = "Jane", email = "jane@example.com", handle = "jane"),
+            ),
+    ) : ProfileApiClient {
         override fun fetchProfile(session: AuthSession): ProfileResult = result
+
+        override fun updateProfile(
+            session: AuthSession,
+            update: ProfileUpdate,
+        ): ProfileUpdateResult = updateResult
     }
 
     private class FakePresenceApiClient(private val result: PresenceResult) : PresenceApiClient {

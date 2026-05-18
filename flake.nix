@@ -180,6 +180,9 @@
             # does not use centralized repository declaration in settings.gradle.kts
             # See: https://github.com/raphiz/buildGradleApplication#rule-4-centralized-repository
             repositories = [
+              # repo1.maven.org rate-limits Nix's parallel fixed-output fetches (HTTP 429).
+              # repo.maven.apache.org serves the same Maven Central artifacts via a more reliable CDN.
+              "https://repo.maven.apache.org/maven2/"
               "https://repo1.maven.org/maven2/"
               "https://dl.google.com/android/maven2/"
               "https://plugins.gradle.org/m2/"
@@ -382,6 +385,7 @@
             buildInputs = with pkgs; [
               jdk
               gradle
+              kotlin-language-server
 
               # Nix build tools
               devenv
@@ -397,14 +401,12 @@
 
             shellHook = ''
               echo "Wire CLI development environment"
-              echo "Java: $(java --version | head -n1)"
-              echo "Gradle: $(gradle --version | grep 'Gradle' | head -n1)"
+              echo "Java: $(java --version 2>/dev/null | head -n1)"
+              echo "Gradle: $(gradle --version 2>/dev/null | rg 'Gradle' | head -n1)"
+              echo "Kotlin LSP: $(kotlin-language-server --version 2>/dev/null || echo '(version check unavailable)')"
               echo ""
               echo "To build: gradle build"
               echo "To run: gradle run"
-              echo ""
-              echo "NOTE: Before building with Nix, generate verification-metadata.xml:"
-              echo "  gradle --refresh-dependencies --write-verification-metadata sha256 --write-locks dependencies"
             '';
           };
         }

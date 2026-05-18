@@ -12,6 +12,7 @@ import wirecli.auth.AuthSessionService
 import wirecli.auth.ExitCodes
 import wirecli.auth.LoginInput
 import wirecli.validation.InputValidator
+import java.io.IOException
 
 private val logger = KotlinLogging.logger {}
 
@@ -72,7 +73,9 @@ class LoginCommand(
         val resolvedPassword =
             when {
                 password != null -> {
-                    logger.warn { "Using deprecated --password option; consider interactive prompt or --password-stdin" }
+                    logger.warn {
+                        "Using deprecated --password option; consider interactive prompt or --password-stdin"
+                    }
                     echo(
                         "Warning: --password is deprecated and may expose secrets in process args. " +
                             "Prefer prompt input or --password-stdin.",
@@ -142,7 +145,7 @@ class LoginCommand(
                 logger.warn { "No password data available from stdin" }
             }
             password
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             logger.error(e) { "Failed to read password from stdin" }
             null
         }
@@ -177,7 +180,9 @@ class LoginCommand(
                 logger.warn { "Console read password returned null" }
                 null
             }
-        } catch (e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
             logger.error(e) { "Error reading password from console" }
             null
         }

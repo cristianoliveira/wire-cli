@@ -157,7 +157,9 @@ internal class SdkKaliumPresenceRuntime(
                         server = session.server,
                     ),
                 )
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 logger.error(error) { "Failed to resolve presence session scope for user: ${session.userId}" }
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }
@@ -179,20 +181,20 @@ internal class SdkKaliumPresenceRuntime(
                     coreLogic.sessionScope(qualifiedId) {
                         users.getSelfUser()
                     }
-                        ?: throw IllegalStateException(
+                        ?: error(
                             "Self user data is unavailable - this indicates a failure to fetch presence information.",
                         )
                 // Explicitly fail if availability status is null instead of returning it
-                val status = selfUser.availabilityStatus
-                if (status == null) {
-                    throw IllegalStateException(
+                val status =
+                    checkNotNull(selfUser.availabilityStatus) {
                         "Availability status is null - cannot determine presence state. " +
-                            "This indicates a failure to fetch user availability data.",
-                    )
-                }
+                            "This indicates a failure to fetch user availability data."
+                    }
                 logger.debug { "Self availability status retrieved successfully: $status" }
                 PresenceStepResult.Success(status)
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 logger.error(error) { "Failed to get self availability status for: $qualifiedId" }
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }
@@ -218,7 +220,9 @@ internal class SdkKaliumPresenceRuntime(
                 }
                 logger.debug { "Self availability status updated successfully" }
                 PresenceStepResult.Success(Unit)
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 logger.error(error) { "Failed to set self availability status for: $qualifiedId" }
                 PresenceStepResult.Failure(categoryFromThrowable(error))
             }
@@ -237,7 +241,7 @@ internal class SdkKaliumPresenceRuntime(
         logger.debug { "SdkKaliumPresenceRuntime: Presence runtime shutdown complete" }
     }
 
-    // TODO: Consider more robust error categorization (e.g., using exception types)
+    // Follow-up: consider more robust error categorization (e.g., using exception types)
     private fun categoryFromThrowable(error: Throwable): PresenceFailureCategory {
         val message = error.message.orEmpty()
         return when {
@@ -277,11 +281,15 @@ private fun WritablePresenceState.toKaliumAvailabilityStatus(): UserAvailability
 private fun String.toQualifiedIdOrNull(): UserId? {
     val trimmed = trim()
     val atIndex = trimmed.lastIndexOf('@')
-    if (atIndex <= 0 || atIndex == trimmed.lastIndex) return null
-    val value = trimmed.substring(0, atIndex)
-    val domain = trimmed.substring(atIndex + 1)
-    if (value.isBlank() || domain.isBlank()) return null
-    return UserId(value = value, domain = domain)
+    val isValidFormat = atIndex > 0 && atIndex < trimmed.lastIndex
+
+    return if (isValidFormat) {
+        val value = trimmed.substring(0, atIndex)
+        val domain = trimmed.substring(atIndex + 1)
+        if (value.isNotBlank() && domain.isNotBlank()) UserId(value = value, domain = domain) else null
+    } else {
+        null
+    }
 }
 
 private fun PresenceStepResult.Failure.toPresenceFailure(): PresenceResult.Failure {

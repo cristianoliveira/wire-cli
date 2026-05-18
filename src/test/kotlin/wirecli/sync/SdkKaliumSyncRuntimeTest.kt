@@ -28,13 +28,6 @@ class SdkKaliumSyncRuntimeTest {
 
     @Test
     fun `SdkKaliumSyncRuntime creates instance with customizable network checker`() {
-        val testSession =
-            AuthSession(
-                userId = "user@example.com",
-                accessToken = "token",
-                server = null,
-            )
-
         val runtime =
             SdkKaliumSyncRuntime(
                 environment = emptyMap(),
@@ -83,10 +76,10 @@ class SdkKaliumSyncRuntimeTest {
                 ): ConversationSyncStatusResult {
                     return ConversationSyncStatusResult.Success(
                         ConversationSyncStatus(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             status = SyncStatus.READY,
                             metrics = ConversationMetrics(conversationId, 100L, 0, 100, "2025-03-13T10:30:00Z"),
-                            last_sync_timestamp = "2025-03-13T10:30:00Z",
+                            lastSyncTimestamp = "2025-03-13T10:30:00Z",
                         ),
                     )
                 }
@@ -97,7 +90,7 @@ class SdkKaliumSyncRuntimeTest {
                 ): PerConversationDiagnosticsResult {
                     return PerConversationDiagnosticsResult.Success(
                         PerConversationDiagnosticsReport(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             checks = emptyList(),
                             summary = "OK",
                         ),
@@ -111,7 +104,9 @@ class SdkKaliumSyncRuntimeTest {
                     return ResetResult.Success("Reset successful (test mode)")
                 }
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumSyncApiClient(runtime)
@@ -172,7 +167,9 @@ class SdkKaliumSyncRuntimeTest {
                     return ResetResult.Failure("failure", SyncExitCodes.DEGRADED)
                 }
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumSyncApiClient(runtime)

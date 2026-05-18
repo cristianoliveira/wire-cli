@@ -24,7 +24,8 @@ class SessionBackedDeviceService(
         logger.debug { "Active session found, calling API client" }
         return apiClient.listDevices(session).also { result ->
             when (result) {
-                is DeviceListResult.Success -> logger.info { "Service: Successfully listed ${result.view.devices.size} device(s)" }
+                is DeviceListResult.Success ->
+                    logger.info { "Service: Successfully listed ${result.view.devices.size} device(s)" }
                 is DeviceListResult.Failure -> logger.warn { "Service: Failed to list devices - ${result.message}" }
             }
         }
@@ -43,7 +44,8 @@ class SessionBackedDeviceService(
         logger.debug { "Active session found, calling API client for user $userId" }
         return apiClient.listDevicesForUser(session, userId).also { result ->
             when (result) {
-                is DeviceListResult.Success -> logger.info { "Service: Successfully listed ${result.view.devices.size} device(s)" }
+                is DeviceListResult.Success ->
+                    logger.info { "Service: Successfully listed ${result.view.devices.size} device(s)" }
                 is DeviceListResult.Failure -> logger.warn { "Service: Failed to list devices for user $userId" }
             }
         }
@@ -62,7 +64,8 @@ class SessionBackedDeviceService(
         logger.debug { "Active session found, calling API client for device $deviceId" }
         return apiClient.getDeviceDetail(session, deviceId).also { result ->
             when (result) {
-                is DeviceDetailResult.Success -> logger.info { "Service: Retrieved detail for device ${result.view.device.id}" }
+                is DeviceDetailResult.Success ->
+                    logger.info { "Service: Retrieved detail for device ${result.view.device.id}" }
                 is DeviceDetailResult.Failure -> logger.warn { "Service: Failed to get detail for device $deviceId" }
             }
         }

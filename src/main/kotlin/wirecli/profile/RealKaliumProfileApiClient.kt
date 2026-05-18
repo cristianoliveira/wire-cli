@@ -173,7 +173,9 @@ internal class SdkKaliumProfileRuntime(
                         server = session.server,
                     ),
                 )
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 logger.error(error) { "Failed to resolve profile session scope for user: ${session.userId}" }
                 ProfileStepResult.Failure(categoryFromThrowable(error))
             }
@@ -207,7 +209,7 @@ internal class SdkKaliumProfileRuntime(
                     coreLogic.sessionScope(qualifiedId) {
                         users.getSelfUser()
                     }
-                        ?: throw IllegalStateException(
+                        ?: error(
                             "Self user data is unavailable - this indicates a failure to fetch profile information.",
                         )
                 logger.debug { "Self user data retrieved successfully: name=${selfUser.name}, handle=${selfUser.handle}" }
@@ -218,7 +220,9 @@ internal class SdkKaliumProfileRuntime(
                         handle = selfUser.handle,
                     ),
                 )
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 logger.error(error) { "Failed to fetch self user for: $qualifiedId" }
                 ProfileStepResult.Failure(categoryFromThrowable(error))
             }
@@ -315,11 +319,15 @@ internal class SdkKaliumProfileRuntime(
 private fun String.toQualifiedIdOrNull(): UserId? {
     val trimmed = trim()
     val atIndex = trimmed.lastIndexOf('@')
-    if (atIndex <= 0 || atIndex == trimmed.lastIndex) return null
-    val value = trimmed.substring(0, atIndex)
-    val domain = trimmed.substring(atIndex + 1)
-    if (value.isBlank() || domain.isBlank()) return null
-    return UserId(value = value, domain = domain)
+    val isValidFormat = atIndex > 0 && atIndex < trimmed.lastIndex
+
+    return if (isValidFormat) {
+        val value = trimmed.substring(0, atIndex)
+        val domain = trimmed.substring(atIndex + 1)
+        if (value.isNotBlank() && domain.isNotBlank()) UserId(value = value, domain = domain) else null
+    } else {
+        null
+    }
 }
 
 private fun ProfileStepResult.Failure.toProfileFailure(): ProfileResult.Failure {

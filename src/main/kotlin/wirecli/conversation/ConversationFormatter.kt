@@ -17,7 +17,17 @@ class ConversationFormatter {
         val sb = StringBuilder()
 
         // Print header with column names and separator
-        sb.append(String.format("%-37s %-24s %-15s %-10s %7s\n", "ID", "NAME", "TYPE", "STATUS", "MEMBERS"))
+        sb.append(
+            String.format(
+                java.util.Locale.US,
+                "%-37s %-24s %-15s %-10s %7s\n",
+                "ID",
+                "NAME",
+                "TYPE",
+                "STATUS",
+                "MEMBERS",
+            ),
+        )
         sb.append("-".repeat(TABLE_WIDTH)).append("\n")
 
         // Print each conversation as a row
@@ -30,6 +40,7 @@ class ConversationFormatter {
 
             sb.append(
                 String.format(
+                    java.util.Locale.US,
                     "%-37s %-24s %-15s %-10s %7s\n",
                     id,
                     name,

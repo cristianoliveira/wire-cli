@@ -19,9 +19,16 @@ class RootCommand : NoOpCliktCommand(
             "Logs are saved to: ~/.cache/wire-cli/logs/\n" +
             "Console logs are off by default; use --verbose or --log-level to enable them.",
 ) {
-    private val verbose by option("--verbose", "-v", help = "Enable console debug logs (also sets file log level to DEBUG)").flag()
+    private val verbose by option(
+        "--verbose",
+        "-v",
+        help = "Enable console debug logs (also sets file log level to DEBUG)",
+    ).flag()
 
-    private val logLevel by option("--log-level", help = "Log level: TRACE, DEBUG, INFO, WARN, ERROR (also enables console logs)")
+    private val logLevel by option(
+        "--log-level",
+        help = "Log level: TRACE, DEBUG, INFO, WARN, ERROR (also enables console logs)",
+    )
 
     private val logDir by option("--log-dir", help = "Custom log directory (default: ~/.cache/wire-cli/logs)")
 
@@ -43,8 +50,12 @@ class RootCommand : NoOpCliktCommand(
             val rootLogger = logbackContext.getLogger(Logger.ROOT_LOGGER_NAME)
             rootLogger.level = Level.valueOf(effectiveLevel)
             System.setProperty("WIRECLI_LOG_LEVEL", effectiveLevel)
-        } catch (e: Exception) {
-            // Silently continue if logging setup fails
+        } catch (e: ClassCastException) {
+            logger.debug(e) { "Skipping custom log-level setup due to logger backend mismatch." }
+        } catch (e: IllegalArgumentException) {
+            logger.debug(e) { "Skipping custom log-level setup due to invalid log level value." }
+        } catch (e: SecurityException) {
+            logger.debug(e) { "Skipping custom log-level setup due to restricted system properties." }
         }
 
         // Set log directory from option or default
@@ -56,7 +67,10 @@ class RootCommand : NoOpCliktCommand(
         // Create log directory if it doesn't exist
         try {
             File(logDirPath).mkdirs()
-        } catch (e: Exception) {
+        } catch (e: SecurityException) {
+            // Directory creation failure is intentionally caught and logged to stderr.
+            // This is non-critical - logging will still function with system defaults.
+            // Reason: Permission issues or filesystem errors should not block CLI startup.
             System.err.println(
                 "Warning: Failed to create log directory at $logDirPath: ${e.message}",
             )

@@ -3,6 +3,7 @@ package wirecli.validation
 object InputValidator {
     private const val MAX_EMAIL_LENGTH = 254
     private const val MAX_DEVICE_ID_LENGTH = 100
+    private const val MIN_PASSWORD_LENGTH = 8
 
     private val emailRegex = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
     private val deviceIdRegex = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$")
@@ -24,7 +25,7 @@ object InputValidator {
 
     fun validatePassword(password: String): String {
         require(password.isNotBlank()) { "Password must not be empty." }
-        require(password.length >= 8) { "Password must be at least 8 characters." }
+        require(password.length >= MIN_PASSWORD_LENGTH) { "Password must be at least $MIN_PASSWORD_LENGTH characters." }
         require(password.any { it.isUpperCase() }) { "Password must contain at least one uppercase letter." }
         require(password.any { it.isDigit() }) { "Password must contain at least one number." }
         return password

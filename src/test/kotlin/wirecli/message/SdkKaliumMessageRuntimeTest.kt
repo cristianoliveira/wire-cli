@@ -224,13 +224,6 @@ class SdkKaliumMessageRuntimeTest {
     fun `categoryFromThrowable maps Unauthorized messages correctly`() {
         val runtime = SdkKaliumMessageRuntime(emptyMap())
 
-        // Test through the failure result mapping
-        val unauthorizedThrowable = Throwable("Unauthorized access denied")
-        val validationThrowable = Throwable("Invalid input format")
-        val networkThrowable = Throwable("Network connection failed")
-        val serverThrowable = Throwable("500 Internal Server Error")
-        val notFoundThrowable = Throwable("404 Not found")
-
         val result1 = runtime.sendMessage(testSession, "conv-123", "Hello")
         val result2 = runtime.sendMessage(testSession, "conv-123", "Test")
 
@@ -293,7 +286,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -319,7 +314,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -346,7 +343,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -373,7 +372,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -400,7 +401,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -427,7 +430,9 @@ class SdkKaliumMessageRuntimeTest {
                     conversationId: String,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                override fun shutdown() {}
+                override fun shutdown() {
+                    // No-op for test stub
+                }
             }
 
         val client = RealKaliumMessageApiClient(stubRuntime)
@@ -466,7 +471,9 @@ class SdkKaliumMessageRuntimeTest {
                         conversationId: String,
                     ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
-                    override fun shutdown() {}
+                    override fun shutdown() {
+                        // No-op for test stub
+                    }
                 }
 
             val client = RealKaliumMessageApiClient(stubRuntime)

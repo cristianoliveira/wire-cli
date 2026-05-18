@@ -20,7 +20,10 @@ class RealKaliumPresenceApiClientTest {
     fun `returns normalized presence from runtime status`() {
         val runtime =
             FakeRuntime(
-                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                sessionScopeResult =
+                    PresenceStepResult.Success(
+                        KaliumPresenceSessionScope(session.userId, session.server),
+                    ),
                 statusResult = PresenceStepResult.Success(UserAvailabilityStatus.AVAILABLE),
             )
         val client = RealKaliumPresenceApiClient(runtime)
@@ -35,7 +38,10 @@ class RealKaliumPresenceApiClientTest {
     fun `maps NONE availability to offline`() {
         val runtime =
             FakeRuntime(
-                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                sessionScopeResult =
+                    PresenceStepResult.Success(
+                        KaliumPresenceSessionScope(session.userId, session.server),
+                    ),
                 statusResult = PresenceStepResult.Success(UserAvailabilityStatus.NONE),
             )
         val client = RealKaliumPresenceApiClient(runtime)
@@ -50,7 +56,10 @@ class RealKaliumPresenceApiClientTest {
     fun `fails explicitly when availability status is null`() {
         val runtime =
             FakeRuntime(
-                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                sessionScopeResult =
+                    PresenceStepResult.Success(
+                        KaliumPresenceSessionScope(session.userId, session.server),
+                    ),
                 statusResult = PresenceStepResult.Failure(PresenceFailureCategory.UNKNOWN),
             )
         val client = RealKaliumPresenceApiClient(runtime)
@@ -82,7 +91,10 @@ class RealKaliumPresenceApiClientTest {
     fun `maps network failure to retry semantics`() {
         val runtime =
             FakeRuntime(
-                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                sessionScopeResult =
+                    PresenceStepResult.Success(
+                        KaliumPresenceSessionScope(session.userId, session.server),
+                    ),
                 statusResult = PresenceStepResult.Failure(PresenceFailureCategory.NETWORK),
             )
         val client = RealKaliumPresenceApiClient(runtime)
@@ -101,7 +113,10 @@ class RealKaliumPresenceApiClientTest {
     fun `maps server failure to server semantics`() {
         val runtime =
             FakeRuntime(
-                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                sessionScopeResult =
+                    PresenceStepResult.Success(
+                        KaliumPresenceSessionScope(session.userId, session.server),
+                    ),
                 statusResult = PresenceStepResult.Failure(PresenceFailureCategory.SERVER),
             )
         val client = RealKaliumPresenceApiClient(runtime)
@@ -120,7 +135,10 @@ class RealKaliumPresenceApiClientTest {
     fun `updates availability status when set succeeds`() {
         val runtime =
             FakeRuntime(
-                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                sessionScopeResult =
+                    PresenceStepResult.Success(
+                        KaliumPresenceSessionScope(session.userId, session.server),
+                    ),
                 statusResult = PresenceStepResult.Success(UserAvailabilityStatus.AWAY),
                 setResult = PresenceStepResult.Success(Unit),
             )
@@ -154,7 +172,10 @@ class RealKaliumPresenceApiClientTest {
     fun `maps network failure for set to retry semantics`() {
         val runtime =
             FakeRuntime(
-                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                sessionScopeResult =
+                    PresenceStepResult.Success(
+                        KaliumPresenceSessionScope(session.userId, session.server),
+                    ),
                 statusResult = PresenceStepResult.Success(UserAvailabilityStatus.AWAY),
                 setResult = PresenceStepResult.Failure(PresenceFailureCategory.NETWORK),
             )
@@ -174,7 +195,10 @@ class RealKaliumPresenceApiClientTest {
     fun `maps server failure for set to server semantics`() {
         val runtime =
             FakeRuntime(
-                sessionScopeResult = PresenceStepResult.Success(KaliumPresenceSessionScope(session.userId, session.server)),
+                sessionScopeResult =
+                    PresenceStepResult.Success(
+                        KaliumPresenceSessionScope(session.userId, session.server),
+                    ),
                 statusResult = PresenceStepResult.Success(UserAvailabilityStatus.AWAY),
                 setResult = PresenceStepResult.Failure(PresenceFailureCategory.SERVER),
             )
@@ -214,6 +238,7 @@ class RealKaliumPresenceApiClientTest {
         }
 
         override fun shutdown() {
+            // No-op for test stub
         }
     }
 }

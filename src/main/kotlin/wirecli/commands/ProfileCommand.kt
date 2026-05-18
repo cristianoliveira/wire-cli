@@ -31,7 +31,10 @@ class ProfileCommand(
         val profileService = profileServiceProvider()
         when (val result = profileService.getCurrentProfile()) {
             is ProfileResult.Success -> {
-                logger.info { "Successfully retrieved profile: name=${result.profile.name}, handle=${result.profile.handle}" }
+                logger.info {
+                    "Successfully retrieved profile: name=${result.profile.name}, " +
+                        "handle=${result.profile.handle}"
+                }
                 echo("Name: ${result.profile.name ?: "-"}")
                 echo("Email: ${result.profile.email ?: "-"}")
                 echo("Handle: ${result.profile.handle ?: "-"}")

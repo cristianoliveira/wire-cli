@@ -110,7 +110,10 @@ class SessionBackedConversationService(
                     val id = result.view.conversation.id
                     logger.info { "Service: Retrieved member count for conversation $id" }
                 }
-                is GetConversationResult.Failure -> logger.warn { "Service: Failed to get member count for conversation $conversationId" }
+                is GetConversationResult.Failure ->
+                    logger.warn {
+                        "Service: Failed to get member count for conversation $conversationId"
+                    }
             }
         }
     }

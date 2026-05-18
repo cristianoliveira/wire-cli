@@ -28,6 +28,24 @@ private val logger = KotlinLogging.logger {}
 internal class RealKaliumSyncApiClient(
     private val runtime: RealKaliumSyncRuntime,
 ) : SyncApiClient {
+    companion object {
+        // Key package thresholds
+        const val LIVE_KEY_PACKAGES = 50
+        const val SLOW_SYNC_KEY_PACKAGES = 0
+        const val GATHERING_KEY_PACKAGES = 30
+        const val WAITING_KEY_PACKAGES = 5
+
+        // Key package status thresholds
+        const val CRITICAL_KEY_PACKAGES_THRESHOLD = 10
+        const val WARNING_KEY_PACKAGES_THRESHOLD = 20
+
+        // Sync completeness percentages
+        const val LIVE_SYNC_COMPLETENESS = 100
+        const val SLOW_SYNC_COMPLETENESS = 10
+        const val GATHERING_SYNC_COMPLETENESS = 70
+        const val WAITING_SYNC_COMPLETENESS = 5
+    }
+
     override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
         require(session.userId.isNotBlank()) { "Force sync requires a non-blank session user ID." }
         require(session.accessToken.isNotBlank()) { "Force sync requires a non-blank session access token." }
@@ -111,7 +129,7 @@ internal class RealKaliumSyncApiClient(
         val result = runtime.getConversationSyncStatus(session, conversationId)
         when (result) {
             is ConversationSyncStatusResult.Success -> {
-                check(result.status.conversation_id == conversationId) {
+                check(result.status.conversationId == conversationId) {
                     "Conversation sync status success must preserve the requested conversation ID."
                 }
             }
@@ -145,7 +163,7 @@ internal class RealKaliumSyncApiClient(
         val result = runtime.getPerConversationDiagnostics(session, conversationId)
         when (result) {
             is PerConversationDiagnosticsResult.Success -> {
-                check(result.report.conversation_id == conversationId) {
+                check(result.report.conversationId == conversationId) {
                     "Per-conversation diagnostics success must preserve the requested conversation ID."
                 }
             }
@@ -244,6 +262,7 @@ internal interface RealKaliumSyncRuntime {
  * This class provides the real integration with the Kalium SDK for retrieving
  * sync health information and diagnostics via the CoreLogic API.
  */
+@Suppress("TooManyFunctions")
 internal class SdkKaliumSyncRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
@@ -276,6 +295,7 @@ internal class SdkKaliumSyncRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
+    @Suppress("LongMethod")
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
         require(session.userId.isNotBlank()) { "Sync status requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Sync status requires a non-blank access token." }
@@ -336,28 +356,30 @@ internal class SdkKaliumSyncRuntime(
                     logger.debug { "Checking network connectivity" }
                     val networkMetrics =
                         networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                            estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                            estimatedLatencyMs = networkConnectivityChecker.estimateNetworkLatency(lagMs),
                         )
 
                     val metrics =
                         HealthMetrics(
-                            lag_ms = lagMs,
-                            pending_messages = calculatePendingMessages(syncState),
-                            mls_pct = calculateMlsPercentage(syncState),
+                            lagMs = lagMs,
+                            pendingMessages = calculatePendingMessages(syncState),
+                            mlsPct = calculateMlsPercentage(syncState),
                             timestamp = Instant.now().toString(),
                             network = networkMetrics,
                             mls = buildMlsMetrics(syncState, keyPackageCountResult),
                         )
 
                     logger.debug {
-                        "Health metrics calculated: lag=${metrics.lag_ms}ms, " +
-                            "pending=${metrics.pending_messages}, mls=${metrics.mls_pct}%"
+                        "Health metrics calculated: lag=${metrics.lagMs}ms, " +
+                            "pending=${metrics.pendingMessages}, mls=${metrics.mlsPct}%"
                     }
 
                     val view = SyncStatusView(status = status, metrics = metrics)
                     logger.info { "Sync status retrieved successfully: status=$status, lag=${lagMs}ms" }
                     SyncStatusResult.Success(view)
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     logger.error(error) { "Failed to get sync status for user: $qualifiedId" }
                     SyncStatusResult.Failure(
                         message = categoryFromThrowableSync(error).getMessage(),
@@ -370,13 +392,14 @@ internal class SdkKaliumSyncRuntime(
             "Sync status lookup must track active session user IDs for shutdown."
         }
         if (result is SyncStatusResult.Success) {
-            check(result.view.metrics.lag_ms >= 0) {
+            check(result.view.metrics.lagMs >= 0) {
                 "Sync status success must include a non-negative lag metric."
             }
         }
         return result
     }
 
+    @Suppress("LongMethod")
     override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
         require(session.userId.isNotBlank()) { "Force sync requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Force sync requires a non-blank access token." }
@@ -426,13 +449,13 @@ internal class SdkKaliumSyncRuntime(
                     val lagMs = calculateLagMs(syncState)
                     val networkMetrics =
                         networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                            estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                            estimatedLatencyMs = networkConnectivityChecker.estimateNetworkLatency(lagMs),
                         )
                     val metrics =
                         HealthMetrics(
-                            lag_ms = lagMs,
-                            pending_messages = calculatePendingMessages(syncState),
-                            mls_pct = calculateMlsPercentage(syncState),
+                            lagMs = lagMs,
+                            pendingMessages = calculatePendingMessages(syncState),
+                            mlsPct = calculateMlsPercentage(syncState),
                             timestamp = Instant.now().toString(),
                             network = networkMetrics,
                             mls = buildMlsMetrics(syncState, keyPackageCountResult),
@@ -444,7 +467,9 @@ internal class SdkKaliumSyncRuntime(
                             metrics = metrics,
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     logger.error(error) { "Failed to force sync and wait for user: $qualifiedId" }
                     SyncStatusResult.Failure(
                         message = categoryFromThrowableSync(error).getMessage(),
@@ -464,6 +489,7 @@ internal class SdkKaliumSyncRuntime(
         return result
     }
 
+    @Suppress("LongMethod")
     override fun getDiagnostics(session: AuthSession): DiagnosticsResult {
         require(session.userId.isNotBlank()) { "Diagnostics requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Diagnostics requires a non-blank access token." }
@@ -534,7 +560,9 @@ internal class SdkKaliumSyncRuntime(
                             recoveryHints = generateRecoveryHints(checks),
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     logger.error(error) { "Failed to get diagnostics for user: $qualifiedId" }
                     DiagnosticsResult.Failure(
                         message = categoryFromThrowableSync(error).getDiagnosticsMessage(),
@@ -554,6 +582,7 @@ internal class SdkKaliumSyncRuntime(
         return result
     }
 
+    @Suppress("LongMethod")
     override fun getConversationSyncStatus(
         session: AuthSession,
         conversationId: String,
@@ -561,67 +590,80 @@ internal class SdkKaliumSyncRuntime(
         require(session.userId.isNotBlank()) { "Conversation sync status requires a non-blank user ID." }
         require(session.accessToken.isNotBlank()) { "Conversation sync status requires a non-blank access token." }
 
-        logger.info { "SdkKaliumSyncRuntime: Getting conversation sync status for user: ${session.userId}, conversation: $conversationId" }
-        val qualifiedId =
-            session.userId.toQualifiedIdOrNull()
-                ?: run {
-                    logger.warn { "Invalid user ID format for conversation sync status: ${session.userId}" }
-                    return ConversationSyncStatusResult.Failure(
-                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
-                    )
-                }
-        activeSessionUserIds += qualifiedId
-
-        if (conversationId.isBlank()) {
-            logger.warn { "Empty conversation ID provided" }
-            return ConversationSyncStatusResult.Failure(
-                message = SyncExitMessages.CONVERSATION_NOT_FOUND,
-                exitCode = SyncExitCodes.DEGRADED,
-            )
+        logger.info {
+            "SdkKaliumSyncRuntime: Getting conversation sync status for user: ${session.userId}, conversation: $conversationId"
+        }
+        val qualifiedId = session.userId.toQualifiedIdOrNull()
+        if (qualifiedId != null) {
+            activeSessionUserIds += qualifiedId
         }
 
-        val result =
-            runBlocking {
-                try {
-                    logger.debug { "Observing sync state for conversation: $conversationId" }
-                    val syncState: SyncState? =
-                        coreLogic.sessionScope(qualifiedId) {
-                            observeSyncState().firstOrNull()
-                        }
+        return when {
+            qualifiedId == null -> {
+                logger.warn { "Invalid user ID format for conversation sync status: ${session.userId}" }
+                ConversationSyncStatusResult.Failure(
+                    message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                    exitCode = SyncExitCodes.UNAUTHORIZED,
+                )
+            }
 
-                    if (syncState == null) {
-                        logger.error { "Sync state is null for conversation $conversationId" }
-                        throw IllegalStateException(
-                            "Unable to observe sync state for conversation $conversationId - " +
-                                "the sync engine failed to provide state. This may indicate a session initialization failure.",
-                        )
+            conversationId.isBlank() -> {
+                logger.warn { "Empty conversation ID provided" }
+                ConversationSyncStatusResult.Failure(
+                    message = SyncExitMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+            }
+
+            else -> {
+                val result =
+                    runBlocking {
+                        try {
+                            logger.debug { "Observing sync state for conversation: $conversationId" }
+                            val syncState: SyncState? =
+                                coreLogic.sessionScope(qualifiedId) {
+                                    observeSyncState().firstOrNull()
+                                }
+
+                            if (syncState == null) {
+                                logger.error { "Sync state is null for conversation $conversationId" }
+                                throw IllegalStateException(
+                                    "Unable to observe sync state for conversation $conversationId - " +
+                                        "the sync engine failed to provide state. This may indicate a session initialization failure.",
+                                )
+                            }
+
+                            logger.debug { "Sync state for conversation: ${syncState::class.simpleName}" }
+                            val view = buildConversationSyncStatusView(conversationId, syncState)
+                            logger.info { "Conversation sync status retrieved: conversation=$conversationId, status=${view.status}" }
+                            ConversationSyncStatusResult.Success(view)
+                        } catch (
+                            @Suppress("TooGenericExceptionCaught") error: Throwable,
+                        ) {
+                            logger.error(error) {
+                                "Failed to get conversation sync status for conversation: $conversationId"
+                            }
+                            ConversationSyncStatusResult.Failure(
+                                message = categoryFromThrowableSync(error).getConversationMessage(),
+                                exitCode = categoryFromThrowableSync(error).getExitCode(),
+                            )
+                        }
                     }
 
-                    logger.debug { "Sync state for conversation: ${syncState::class.simpleName}" }
-                    val view = buildConversationSyncStatusView(conversationId, syncState)
-                    logger.info { "Conversation sync status retrieved: conversation=$conversationId, status=${view.status}" }
-                    ConversationSyncStatusResult.Success(view)
-                } catch (error: Throwable) {
-                    logger.error(error) { "Failed to get conversation sync status for conversation: $conversationId" }
-                    ConversationSyncStatusResult.Failure(
-                        message = categoryFromThrowableSync(error).getConversationMessage(),
-                        exitCode = categoryFromThrowableSync(error).getExitCode(),
-                    )
+                check(activeSessionUserIds.contains(qualifiedId)) {
+                    "Conversation sync lookup must track active session user IDs for shutdown."
                 }
-            }
-
-        check(activeSessionUserIds.contains(qualifiedId)) {
-            "Conversation sync lookup must track active session user IDs for shutdown."
-        }
-        if (result is ConversationSyncStatusResult.Success) {
-            check(result.status.conversation_id == conversationId) {
-                "Conversation sync success must preserve the requested conversation ID."
+                if (result is ConversationSyncStatusResult.Success) {
+                    check(result.status.conversationId == conversationId) {
+                        "Conversation sync success must preserve the requested conversation ID."
+                    }
+                }
+                result
             }
         }
-        return result
     }
 
+    @Suppress("LongMethod")
     override fun getPerConversationDiagnostics(
         session: AuthSession,
         conversationId: String,
@@ -633,77 +675,87 @@ internal class SdkKaliumSyncRuntime(
             "SdkKaliumSyncRuntime: Getting per-conversation diagnostics for user: " +
                 "${session.userId}, conversation: $conversationId"
         }
-        val qualifiedId =
-            session.userId.toQualifiedIdOrNull()
-                ?: run {
-                    logger.warn { "Invalid user ID format for conversation diagnostics: ${session.userId}" }
-                    return PerConversationDiagnosticsResult.Failure(
-                        message = SyncExitMessages.UNAUTHORIZED_FAILURE,
-                        exitCode = SyncExitCodes.UNAUTHORIZED,
-                    )
-                }
-        activeSessionUserIds += qualifiedId
-
-        if (conversationId.isBlank()) {
-            logger.warn { "Empty conversation ID provided for diagnostics" }
-            return PerConversationDiagnosticsResult.Failure(
-                message = SyncExitMessages.CONVERSATION_NOT_FOUND,
-                exitCode = SyncExitCodes.DEGRADED,
-            )
+        val qualifiedId = session.userId.toQualifiedIdOrNull()
+        if (qualifiedId != null) {
+            activeSessionUserIds += qualifiedId
         }
 
-        val result =
-            runBlocking {
-                try {
-                    logger.debug { "Observing sync state for conversation diagnostics: $conversationId" }
-                    val syncState: SyncState? =
-                        coreLogic.sessionScope(qualifiedId) {
-                            observeSyncState().firstOrNull()
-                        }
+        return when {
+            qualifiedId == null -> {
+                logger.warn { "Invalid user ID format for conversation diagnostics: ${session.userId}" }
+                PerConversationDiagnosticsResult.Failure(
+                    message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                    exitCode = SyncExitCodes.UNAUTHORIZED,
+                )
+            }
 
-                    if (syncState == null) {
-                        logger.warn { "Sync state is null for conversation diagnostics - checks will reflect unknown state" }
-                    } else {
-                        logger.debug { "Sync state for conversation diagnostics: ${syncState::class.simpleName}" }
+            conversationId.isBlank() -> {
+                logger.warn { "Empty conversation ID provided for diagnostics" }
+                PerConversationDiagnosticsResult.Failure(
+                    message = SyncExitMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = SyncExitCodes.DEGRADED,
+                )
+            }
+
+            else -> {
+                val result =
+                    runBlocking {
+                        try {
+                            logger.debug { "Observing sync state for conversation diagnostics: $conversationId" }
+                            val syncState: SyncState? =
+                                coreLogic.sessionScope(qualifiedId) {
+                                    observeSyncState().firstOrNull()
+                                }
+
+                            if (syncState == null) {
+                                logger.warn { "Sync state is null for conversation diagnostics - checks will reflect unknown state" }
+                            } else {
+                                logger.debug { "Sync state for conversation diagnostics: ${syncState::class.simpleName}" }
+                            }
+
+                            logger.debug { "Building conversation diagnostic checks" }
+                            val checks = mutableListOf<Check>()
+                            checks.add(buildConversationStateCheck(conversationId))
+                            checks.add(buildMessageSyncCheck(syncState))
+                            checks.add(buildCompletenessCheck(syncState))
+                            checks.add(buildConversationNetworkCheck(syncState))
+
+                            logger.debug { "Built ${checks.size} conversation diagnostic checks" }
+                            val summary = buildConversationSummary(checks)
+                            logger.debug { "Conversation diagnostics summary: $summary" }
+
+                            PerConversationDiagnosticsResult.Success(
+                                PerConversationDiagnosticsReport(
+                                    conversationId = conversationId,
+                                    checks = checks,
+                                    summary = summary,
+                                    recoveryHints = generateConversationRecoveryHints(checks, conversationId),
+                                ),
+                            )
+                        } catch (
+                            @Suppress("TooGenericExceptionCaught") error: Throwable,
+                        ) {
+                            logger.error(error) {
+                                "Failed to get conversation diagnostics for conversation: $conversationId"
+                            }
+                            PerConversationDiagnosticsResult.Failure(
+                                message = categoryFromThrowableSync(error).getConversationMessage(),
+                                exitCode = categoryFromThrowableSync(error).getExitCode(),
+                            )
+                        }
                     }
 
-                    logger.debug { "Building conversation diagnostic checks" }
-                    val checks = mutableListOf<Check>()
-                    checks.add(buildConversationStateCheck(conversationId))
-                    checks.add(buildMessageSyncCheck(syncState))
-                    checks.add(buildCompletenessCheck(syncState))
-                    checks.add(buildConversationNetworkCheck(syncState))
-
-                    logger.debug { "Built ${checks.size} conversation diagnostic checks" }
-                    val summary = buildConversationSummary(checks)
-                    logger.debug { "Conversation diagnostics summary: $summary" }
-
-                    PerConversationDiagnosticsResult.Success(
-                        PerConversationDiagnosticsReport(
-                            conversation_id = conversationId,
-                            checks = checks,
-                            summary = summary,
-                            recoveryHints = generateConversationRecoveryHints(checks, conversationId),
-                        ),
-                    )
-                } catch (error: Throwable) {
-                    logger.error(error) { "Failed to get conversation diagnostics for conversation: $conversationId" }
-                    PerConversationDiagnosticsResult.Failure(
-                        message = categoryFromThrowableSync(error).getConversationMessage(),
-                        exitCode = categoryFromThrowableSync(error).getExitCode(),
-                    )
+                check(activeSessionUserIds.contains(qualifiedId)) {
+                    "Per-conversation diagnostics must track active session user IDs for shutdown."
                 }
-            }
-
-        check(activeSessionUserIds.contains(qualifiedId)) {
-            "Per-conversation diagnostics must track active session user IDs for shutdown."
-        }
-        if (result is PerConversationDiagnosticsResult.Success) {
-            check(result.report.conversation_id == conversationId) {
-                "Per-conversation diagnostics success must preserve the requested conversation ID."
+                if (result is PerConversationDiagnosticsResult.Success) {
+                    check(result.report.conversationId == conversationId) {
+                        "Per-conversation diagnostics success must preserve the requested conversation ID."
+                    }
+                }
+                result
             }
         }
-        return result
     }
 
     override fun resetSync(
@@ -732,7 +784,9 @@ internal class SdkKaliumSyncRuntime(
                 ResetResult.Success(
                     message = "Sync reset successful",
                 )
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 logger.error(error) { "Failed to reset sync for user: $qualifiedId" }
                 ResetResult.Failure(
                     message = categoryFromThrowableSync(error).getMessage(),
@@ -803,71 +857,19 @@ internal class SdkKaliumSyncRuntime(
     ): MLSMetrics? {
         val keyPackageSuccess = keyPackageCountResult as? MLSKeyPackageCountResult.Success ?: return null
         return MLSMetrics(
-            enrollment_pct = calculateMlsPercentage(syncState),
-            key_package_available = keyPackageSuccess.count,
-            key_package_exhausted = keyPackageSuccess.count == 0,
-            key_package_generation_enabled = syncState is SyncState.Live,
-            key_package_refresh_required = keyPackageSuccess.needsRefill,
-            mls_group_updates_failed_count = if (syncState is SyncState.Failed) 1 else 0,
-            mls_enrollment_failures_count = if (syncState is SyncState.Failed) 1 else 0,
-            mls_error_rate = if (syncState is SyncState.Failed) 0.10 else 0.0,
-            last_key_package_refresh_timestamp = if (syncState is SyncState.Live) Instant.now().toString() else null,
+            enrollmentPct = calculateMlsPercentage(syncState),
+            keyPackageAvailable = keyPackageSuccess.count,
+            keyPackageExhausted = keyPackageSuccess.count == 0,
+            keyPackageGenerationEnabled = syncState is SyncState.Live,
+            keyPackageRefreshRequired = keyPackageSuccess.needsRefill,
+            mlsGroupUpdatesFailedCount = if (syncState is SyncState.Failed) 1 else 0,
+            mlsEnrollmentFailuresCount = if (syncState is SyncState.Failed) 1 else 0,
+            mlsErrorRate = if (syncState is SyncState.Failed) 0.10 else 0.0,
+            lastKeyPackageRefreshTimestamp = if (syncState is SyncState.Live) Instant.now().toString() else null,
             timestamp = Instant.now().toString(),
-            device_name = keyPackageSuccess.clientId.value,
+            deviceName = keyPackageSuccess.clientId.value,
         )
     }
-
-    private fun calculateMLSMetrics(syncState: SyncState): MLSMetrics {
-        // Calculate detailed MLS metrics based on sync state
-        // Estimated values derived from sync state indicating MLS health
-        val (enrollmentPct, keyPackageCount, enrollmentFailures, groupUpdateFailures, mlsErrorRate) =
-            when (syncState) {
-                is SyncState.Live -> {
-                    // Live sync: MLS fully operational
-                    Quintuple(100, 50, 0, 0, 0.0)
-                }
-                is SyncState.SlowSync -> {
-                    // Initial sync: MLS not yet enrolled
-                    Quintuple(0, 0, 1, 0, 0.05)
-                }
-                is SyncState.GatheringPendingEvents -> {
-                    // Gathering: partial MLS enrollment in progress
-                    Quintuple(50, 30, 0, 0, 0.02)
-                }
-                is SyncState.Waiting -> {
-                    // Waiting: MLS enrollment pending
-                    Quintuple(10, 5, 0, 0, 0.01)
-                }
-                is SyncState.Failed -> {
-                    // Failed: MLS operations suspended
-                    Quintuple(0, 0, 2, 1, 0.15)
-                }
-            }
-
-        return MLSMetrics(
-            enrollment_pct = enrollmentPct,
-            key_package_available = keyPackageCount,
-            key_package_exhausted = keyPackageCount < 10,
-            key_package_generation_enabled = syncState is SyncState.Live,
-            key_package_refresh_required = keyPackageCount < 20,
-            mls_group_updates_failed_count = groupUpdateFailures,
-            mls_enrollment_failures_count = enrollmentFailures,
-            mls_error_rate = mlsErrorRate,
-            last_key_package_refresh_timestamp = if (syncState is SyncState.Live) Instant.now().toString() else null,
-            timestamp = Instant.now().toString(),
-        )
-    }
-
-    /**
-     * Helper data class for holding multiple return values
-     */
-    private data class Quintuple<A, B, C, D, E>(
-        val first: A,
-        val second: B,
-        val third: C,
-        val fourth: D,
-        val fifth: E,
-    )
 
     private fun buildConversationSyncStatusView(
         conversationId: String,
@@ -877,23 +879,23 @@ internal class SdkKaliumSyncRuntime(
         val lagMs = calculateConversationLagMs(syncState)
         val networkMetrics =
             networkConnectivityChecker.checkNetworkConnectivity()?.copy(
-                estimated_latency_ms = networkConnectivityChecker.estimateNetworkLatency(lagMs),
+                estimatedLatencyMs = networkConnectivityChecker.estimateNetworkLatency(lagMs),
             )
         val metrics =
             ConversationMetrics(
-                conversation_id = conversationId,
-                lag_ms = lagMs,
-                pending_messages = calculateConversationPendingMessages(syncState),
-                sync_completeness_pct = calculateSyncCompletenessPercentage(syncState),
+                conversationId = conversationId,
+                lagMs = lagMs,
+                pendingMessages = calculateConversationPendingMessages(syncState),
+                syncCompletenessPct = calculateSyncCompletenessPercentage(syncState),
                 timestamp = Instant.now().toString(),
                 network = networkMetrics,
             )
 
         return ConversationSyncStatus(
-            conversation_id = conversationId,
+            conversationId = conversationId,
             status = status,
             metrics = metrics,
-            last_sync_timestamp = Instant.now().toString(),
+            lastSyncTimestamp = Instant.now().toString(),
         )
     }
 
@@ -958,53 +960,62 @@ internal class SdkKaliumSyncRuntime(
     ): Check {
         val keyPackageSuccess = keyPackageCountResult as? MLSKeyPackageCountResult.Success
         if (keyPackageSuccess != null) {
-            val status =
-                when {
-                    keyPackageSuccess.count == 0 -> "Fail"
-                    keyPackageSuccess.needsRefill -> "Warn"
-                    else -> "Pass"
-                }
-            val details =
-                when {
-                    keyPackageSuccess.count == 0 ->
-                        "Critical: No key packages available for current client ${keyPackageSuccess.clientId.value}"
-                    keyPackageSuccess.needsRefill ->
-                        "Warning: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value} (refill recommended)"
-                    else ->
-                        "OK: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value}"
-                }
-
-            return Check(name = "Key Packages", status = status, details = details)
+            return buildActualKeyPackagesCheck(keyPackageSuccess)
         }
+        return buildEstimatedKeyPackagesCheck(syncState)
+    }
 
-        val estimatedKeyPackageCount =
-            when (syncState) {
-                is SyncState.Live -> 50
-                is SyncState.SlowSync -> 0
-                is SyncState.GatheringPendingEvents -> 30
-                is SyncState.Waiting -> 5
-                is SyncState.Failed -> 0
-                null -> 0
-            }
-
+    private fun buildActualKeyPackagesCheck(keyPackageSuccess: MLSKeyPackageCountResult.Success): Check {
         val status =
             when {
-                estimatedKeyPackageCount < 10 -> "Fail"
-                estimatedKeyPackageCount < 20 -> "Warn"
+                keyPackageSuccess.count == 0 -> "Fail"
+                keyPackageSuccess.needsRefill -> "Warn"
                 else -> "Pass"
             }
-
         val details =
             when {
-                estimatedKeyPackageCount < 10 ->
-                    "Critical: Only $estimatedKeyPackageCount key packages available"
-                estimatedKeyPackageCount < 20 ->
-                    "Warning: Only $estimatedKeyPackageCount key packages available (refresh recommended)"
-                else -> "OK: $estimatedKeyPackageCount key packages available"
+                keyPackageSuccess.count == 0 ->
+                    "Critical: No key packages available for current client ${keyPackageSuccess.clientId.value}"
+                keyPackageSuccess.needsRefill ->
+                    "Warning: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value} (refill recommended)"
+                else ->
+                    "OK: ${keyPackageSuccess.count} key packages available for current client ${keyPackageSuccess.clientId.value}"
             }
-
         return Check(name = "Key Packages", status = status, details = details)
     }
+
+    private fun buildEstimatedKeyPackagesCheck(syncState: SyncState?): Check {
+        val estimatedKeyPackageCount = estimateKeyPackageCount(syncState)
+        val status = determineKeyPackageStatus(estimatedKeyPackageCount)
+        val details = buildKeyPackageDetails(estimatedKeyPackageCount)
+        return Check(name = "Key Packages", status = status, details = details)
+    }
+
+    private fun estimateKeyPackageCount(syncState: SyncState?): Int =
+        when (syncState) {
+            is SyncState.Live -> RealKaliumSyncApiClient.LIVE_KEY_PACKAGES
+            is SyncState.SlowSync -> RealKaliumSyncApiClient.SLOW_SYNC_KEY_PACKAGES
+            is SyncState.GatheringPendingEvents -> RealKaliumSyncApiClient.GATHERING_KEY_PACKAGES
+            is SyncState.Waiting -> RealKaliumSyncApiClient.WAITING_KEY_PACKAGES
+            is SyncState.Failed -> 0
+            null -> 0
+        }
+
+    private fun determineKeyPackageStatus(count: Int): String =
+        when {
+            count < RealKaliumSyncApiClient.CRITICAL_KEY_PACKAGES_THRESHOLD -> "Fail"
+            count < RealKaliumSyncApiClient.WARNING_KEY_PACKAGES_THRESHOLD -> "Warn"
+            else -> "Pass"
+        }
+
+    private fun buildKeyPackageDetails(count: Int): String =
+        when {
+            count < RealKaliumSyncApiClient.CRITICAL_KEY_PACKAGES_THRESHOLD ->
+                "Critical: Only $count key packages available"
+            count < RealKaliumSyncApiClient.WARNING_KEY_PACKAGES_THRESHOLD ->
+                "Warning: Only $count key packages available (refresh recommended)"
+            else -> "OK: $count key packages available"
+        }
 
     private fun buildNetworkConnectivityCheck(syncState: SyncState?): Check {
         val networkMetrics = networkConnectivityChecker.checkNetworkConnectivity()
@@ -1015,18 +1026,20 @@ internal class SdkKaliumSyncRuntime(
             when {
                 networkMetrics != null && !networkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                networkMetrics != null && networkMetrics.error_rate > 0.3 -> "Warn"
+                networkMetrics != null && networkMetrics.errorRate > 0.3 -> "Warn"
                 else -> "Pass"
             }
 
         val details =
             buildString {
                 if (networkMetrics != null) {
-                    append("Network: ${networkMetrics.network_type}, ")
+                    append("Network: ${networkMetrics.networkType}, ")
                     append("Latency: ${estimatedLatency}ms, ")
-                    append("Error Rate: ${String.format("%.1f%%", networkMetrics.error_rate * 100)}")
-                    if (networkMetrics.last_recovery_time_ms != null) {
-                        append(", Last Recovery: ${networkMetrics.last_recovery_time_ms}ms ago")
+                    append(
+                        "Error Rate: ${String.format(java.util.Locale.US, "%.1f%%", networkMetrics.errorRate * 100)}",
+                    )
+                    if (networkMetrics.lastRecoveryTimeMs != null) {
+                        append(", Last Recovery: ${networkMetrics.lastRecoveryTimeMs}ms ago")
                     }
                 } else {
                     append("Network connectivity status unavailable")
@@ -1097,14 +1110,14 @@ internal class SdkKaliumSyncRuntime(
             when {
                 convNetworkMetrics != null && !convNetworkMetrics.connected -> "Fail"
                 syncState is SyncState.Failed -> "Fail"
-                convNetworkMetrics != null && convNetworkMetrics.error_rate > 0.3 -> "Warn"
+                convNetworkMetrics != null && convNetworkMetrics.errorRate > 0.3 -> "Warn"
                 else -> "Pass"
             }
 
         val details =
             buildString {
                 if (convNetworkMetrics != null) {
-                    append("Type: ${convNetworkMetrics.network_type}, ")
+                    append("Type: ${convNetworkMetrics.networkType}, ")
                     append("Latency: ${convEstimatedLatency}ms, ")
                     append("Reachability: ${if (convNetworkMetrics.connected) "OK" else "FAILED"}")
                 } else {
@@ -1176,10 +1189,10 @@ internal class SdkKaliumSyncRuntime(
         // Calculate sync completeness as a percentage based on the sync state
         // Estimated progress based on sync state indicating completeness
         return when (syncState) {
-            is SyncState.Live -> 100 // All messages synced
-            is SyncState.SlowSync -> 10 // Initial sync just started
-            is SyncState.GatheringPendingEvents -> 70 // Gathering missed messages
-            is SyncState.Waiting -> 5 // About to start sync
+            is SyncState.Live -> RealKaliumSyncApiClient.LIVE_SYNC_COMPLETENESS // All messages synced
+            is SyncState.SlowSync -> RealKaliumSyncApiClient.SLOW_SYNC_COMPLETENESS // Initial sync just started
+            is SyncState.GatheringPendingEvents -> RealKaliumSyncApiClient.GATHERING_SYNC_COMPLETENESS // Gathering missed messages
+            is SyncState.Waiting -> RealKaliumSyncApiClient.WAITING_SYNC_COMPLETENESS // About to start sync
             is SyncState.Failed -> 0 // Sync failed, no progress
             null -> 0 // Unable to determine
         }
@@ -1349,9 +1362,13 @@ private object SyncExitMessages {
 private fun String.toQualifiedIdOrNull(): UserId? {
     val trimmed = trim()
     val atIndex = trimmed.lastIndexOf('@')
-    if (atIndex <= 0 || atIndex == trimmed.lastIndex) return null
-    val value = trimmed.substring(0, atIndex)
-    val domain = trimmed.substring(atIndex + 1)
-    if (value.isBlank() || domain.isBlank()) return null
-    return UserId(value = value, domain = domain)
+    val isValidFormat = atIndex > 0 && atIndex < trimmed.lastIndex
+
+    return if (isValidFormat) {
+        val value = trimmed.substring(0, atIndex)
+        val domain = trimmed.substring(atIndex + 1)
+        if (value.isNotBlank() && domain.isNotBlank()) UserId(value = value, domain = domain) else null
+    } else {
+        null
+    }
 }

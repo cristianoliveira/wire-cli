@@ -6,12 +6,15 @@ import com.wire.kalium.logic.data.conversation.ConversationFilter
 import com.wire.kalium.logic.data.id.ConversationId
 import com.wire.kalium.logic.data.user.UserId
 import com.wire.kalium.logic.feature.conversation.ObserveConversationDetailsUseCase
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthSession
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 import java.nio.file.Paths
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Runtime abstraction for Kalium conversation operations
@@ -85,7 +88,9 @@ internal class SdkKaliumConversationRuntime(
                     }
 
                 ConversationStepResult.Success(conversationDetails)
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 ConversationStepResult.Failure(categoryFromThrowable(error))
             }
         }
@@ -119,7 +124,9 @@ internal class SdkKaliumConversationRuntime(
                 } else {
                     ConversationStepResult.Failure(ConversationFailureCategory.NOT_FOUND)
                 }
-            } catch (error: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
                 ConversationStepResult.Failure(categoryFromThrowable(error))
             }
         }
@@ -133,8 +140,11 @@ internal class SdkKaliumConversationRuntime(
                         coreLogic.sessionScope(userId) {
                             // Clear the session
                         }
-                    } catch (e: Exception) {
-                        // Ignore errors during shutdown
+                    } catch (
+                        @Suppress("TooGenericExceptionCaught")
+                        e: Exception,
+                    ) {
+                        logger.debug(e) { "Ignoring conversation shutdown cleanup failure for userId=$userId" }
                     }
                 }
             }
@@ -171,9 +181,13 @@ internal class SdkKaliumConversationRuntime(
 private fun String.toQualifiedIdOrNull(): UserId? {
     val trimmed = trim()
     val atIndex = trimmed.lastIndexOf('@')
-    if (atIndex <= 0 || atIndex == trimmed.lastIndex) return null
-    val value = trimmed.substring(0, atIndex)
-    val domain = trimmed.substring(atIndex + 1)
-    if (value.isBlank() || domain.isBlank()) return null
-    return UserId(value = value, domain = domain)
+    val isValidFormat = atIndex > 0 && atIndex < trimmed.lastIndex
+
+    return if (isValidFormat) {
+        val value = trimmed.substring(0, atIndex)
+        val domain = trimmed.substring(atIndex + 1)
+        if (value.isNotBlank() && domain.isNotBlank()) UserId(value = value, domain = domain) else null
+    } else {
+        null
+    }
 }

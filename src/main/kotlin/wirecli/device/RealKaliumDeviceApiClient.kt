@@ -9,9 +9,8 @@ import com.wire.kalium.logic.feature.client.SelfClientsResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
-import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
-import wirecli.auth.ExitCodes
+import wirecli.domains.device.DeviceFailureMapper
 import wirecli.runtime.KaliumCliMode
 import wirecli.runtime.kaliumCliConfigs
 
@@ -586,7 +585,9 @@ internal class SdkKaliumDeviceRuntime(
                             server = session.server,
                         ),
                     )
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -633,7 +634,9 @@ internal class SdkKaliumDeviceRuntime(
                         is SelfClientsResult.Failure.Generic ->
                             DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -658,38 +661,43 @@ internal class SdkKaliumDeviceRuntime(
         sessionScope: KaliumDeviceSessionScope,
         userId: String,
     ): DeviceStepResult<List<Device>> {
-        require(sessionScope.userId.isNotBlank()) { "List devices for user requires a non-blank session scope user ID." }
+        require(
+            sessionScope.userId.isNotBlank(),
+        ) { "List devices for user requires a non-blank session scope user ID." }
         require(userId.isNotBlank()) { "List devices for user requires a non-blank target user ID." }
 
-        val sessionUserId =
-            sessionScope.userId.toQualifiedIdOrNull()
-                ?: return DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
+        val sessionUserId = sessionScope.userId.toQualifiedIdOrNull()
+        val targetUserId = userId.toQualifiedIdOrNull()
 
-        val targetUserId =
-            userId.toQualifiedIdOrNull()
-                ?: return DeviceStepResult.Failure(DeviceFailureCategory.DEVICE_NOT_FOUND)
+        return when {
+            sessionUserId == null -> DeviceStepResult.Failure(DeviceFailureCategory.UNAUTHORIZED)
+            targetUserId == null -> DeviceStepResult.Failure(DeviceFailureCategory.DEVICE_NOT_FOUND)
+            else -> {
+                val result =
+                    runBlocking {
+                        try {
+                            // This feature requires proper Flow collection from Kalium SDK
+                            // Currently unsupported - explicitly fail rather than return empty list
+                            throw UnsupportedOperationException(
+                                "Fetching devices for other users is not yet implemented. " +
+                                    "This requires proper Flow-based device collection from Kalium SDK.",
+                            )
+                        } catch (
+                            @Suppress("TooGenericExceptionCaught") error: Throwable,
+                        ) {
+                            DeviceStepResult.Failure(categoryFromThrowable(error))
+                        }
+                    }
 
-        val result =
-            runBlocking {
-                try {
-                    // This feature requires proper Flow collection from Kalium SDK
-                    // Currently unsupported - explicitly fail rather than return empty list
-                    throw UnsupportedOperationException(
-                        "Fetching devices for other users is not yet implemented. " +
-                            "This requires proper Flow-based device collection from Kalium SDK.",
-                    )
-                } catch (error: Throwable) {
-                    DeviceStepResult.Failure(categoryFromThrowable(error))
+                check(sessionUserId == sessionScope.userId.toQualifiedIdOrNull()) {
+                    "List devices for user must keep a stable authenticated session user ID."
                 }
+                check(targetUserId == userId.toQualifiedIdOrNull()) {
+                    "List devices for user must keep a stable target user ID."
+                }
+                result
             }
-
-        check(sessionUserId == sessionScope.userId.toQualifiedIdOrNull()) {
-            "List devices for user must keep a stable authenticated session user ID."
         }
-        check(targetUserId == userId.toQualifiedIdOrNull()) {
-            "List devices for user must keep a stable target user ID."
-        }
-        return result
     }
 
     override fun getDeviceDetail(
@@ -732,7 +740,9 @@ internal class SdkKaliumDeviceRuntime(
                         is SelfClientsResult.Failure.Generic ->
                             DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -789,7 +799,9 @@ internal class SdkKaliumDeviceRuntime(
                         is DeleteClientResult.Failure.Generic ->
                             DeviceStepResult.Failure(categoryFromCoreFailure(result.genericFailure))
                     }
-                } catch (error: Throwable) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") error: Throwable,
+                ) {
                     DeviceStepResult.Failure(categoryFromThrowable(error))
                 }
             }
@@ -831,7 +843,11 @@ internal class SdkKaliumDeviceRuntime(
             field.isAccessible = true
             val lastActive = field.get(client)
             lastActive?.toString() ?: "unknown"
-        } catch (e: Exception) {
+        } catch (e: ReflectiveOperationException) {
+            logger.debug(e) { "Unable to read client lastActive via reflection; using fallback value." }
+            "unknown"
+        } catch (e: SecurityException) {
+            logger.debug(e) { "Reflection access blocked for client lastActive; using fallback value." }
             "unknown"
         }
     }
@@ -884,113 +900,33 @@ internal class SdkKaliumDeviceRuntime(
 private fun String.toQualifiedIdOrNull(): UserId? {
     val trimmed = trim()
     val atIndex = trimmed.lastIndexOf('@')
-    if (atIndex <= 0 || atIndex == trimmed.lastIndex) return null
-    val value = trimmed.substring(0, atIndex)
-    val domain = trimmed.substring(atIndex + 1)
-    if (value.isBlank() || domain.isBlank()) return null
-    return UserId(value = value, domain = domain)
+    val isValidFormat = atIndex > 0 && atIndex < trimmed.lastIndex
+
+    return if (isValidFormat) {
+        val value = trimmed.substring(0, atIndex)
+        val domain = trimmed.substring(atIndex + 1)
+        if (value.isNotBlank() && domain.isNotBlank()) UserId(value = value, domain = domain) else null
+    } else {
+        null
+    }
 }
 
 private fun DeviceStepResult.Failure.toDeviceFailure(): DeviceListResult.Failure {
-    val message =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
-            DeviceFailureCategory.SERVER -> DeviceMessages.SERVER_FAILURE
-            DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> DeviceMessages.UNKNOWN_FAILURE
-        }
-
-    val exitCode =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-            DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-        }
-
+    val (message, exitCode) = DeviceFailureMapper.toListFailureInfo(category)
     return DeviceListResult.Failure(message = message, exitCode = exitCode)
 }
 
 private fun DeviceStepResult.Failure.toDeviceDetailFailure(): DeviceDetailResult.Failure {
-    val message =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> DeviceMessages.NETWORK_FAILURE
-            DeviceFailureCategory.SERVER -> DeviceMessages.SERVER_FAILURE
-            DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> DeviceMessages.UNKNOWN_FAILURE
-        }
-
-    val exitCode =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-            DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-        }
-
+    val (message, exitCode) = DeviceFailureMapper.toDetailFailureInfo(category)
     return DeviceDetailResult.Failure(message = message, exitCode = exitCode)
 }
 
 private fun DeviceStepResult.Failure.toDeviceDeleteFailure(): DeviceDeleteResult.Failure {
-    val message =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> DeviceMessages.DELETE_NETWORK_FAILURE
-            DeviceFailureCategory.SERVER -> DeviceMessages.DELETE_SERVER_FAILURE
-            DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> DeviceMessages.DELETE_UNKNOWN_FAILURE
-        }
-
-    val exitCode =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-            DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-        }
-
+    val (message, exitCode) = DeviceFailureMapper.toDeleteFailureInfo(category)
     return DeviceDeleteResult.Failure(message = message, exitCode = exitCode)
 }
 
 private fun DeviceStepResult.Failure.toDeviceVerifyFailure(): DeviceVerifyResult.Failure {
-    val message =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> DeviceMessages.VERIFY_NETWORK_FAILURE
-            DeviceFailureCategory.SERVER -> DeviceMessages.VERIFY_SERVER_FAILURE
-            DeviceFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceMessages.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> DeviceMessages.INVALID_CREDENTIALS
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceMessages.DEVICE_NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> DeviceMessages.VERIFY_UNKNOWN_FAILURE
-        }
-
-    val exitCode =
-        when (category) {
-            DeviceFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            DeviceFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
-            DeviceFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
-            DeviceFailureCategory.PASSWORD_REQUIRED -> DeviceExitCodes.PASSWORD_REQUIRED
-            DeviceFailureCategory.INVALID_CREDENTIALS -> ExitCodes.AUTH_FAILED
-            DeviceFailureCategory.DEVICE_NOT_FOUND -> DeviceExitCodes.NOT_FOUND
-            DeviceFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
-        }
-
+    val (message, exitCode) = DeviceFailureMapper.toVerifyFailureInfo(category)
     return DeviceVerifyResult.Failure(message = message, exitCode = exitCode)
 }

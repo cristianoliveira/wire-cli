@@ -6,6 +6,8 @@ import wirecli.auth.AuthSessionServiceImpl
 import wirecli.auth.FileAuthSessionStore
 import wirecli.auth.RealKaliumAuthClient
 import wirecli.auth.SdkKaliumAuthRuntime
+import wirecli.auth.StandardAuthResponseParser
+import wirecli.auth.StandardAuthenticationOrchestrator
 import wirecli.auth.StubAuthApiClient
 import wirecli.conversation.AuthGuardedConversationService
 import wirecli.conversation.ConversationApiClient
@@ -260,7 +262,14 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             private val conversationRuntime by conversationRuntimeLazy
             private val messageRuntime by messageRuntimeLazy
 
-            override val authApiClient: AuthApiClient by lazy { RealKaliumAuthClient(authRuntime) }
+            override val authApiClient: AuthApiClient by lazy {
+                val orchestrator =
+                    StandardAuthenticationOrchestrator(
+                        runtime = authRuntime,
+                        parser = StandardAuthResponseParser(),
+                    )
+                RealKaliumAuthClient(orchestrator)
+            }
             override val profileApiClient: ProfileApiClient by lazy { RealKaliumProfileApiClient(profileRuntime) }
             override val presenceApiClient: PresenceApiClient by lazy { RealKaliumPresenceApiClient(presenceRuntime) }
             override val deviceApiClient: DeviceApiClient by lazy { RealKaliumDeviceApiClient(deviceRuntime) }

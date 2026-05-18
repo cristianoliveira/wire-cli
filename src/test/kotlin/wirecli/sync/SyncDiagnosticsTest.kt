@@ -109,7 +109,10 @@ class SyncDiagnosticsTest {
             assertTrue(checks.any { it.name == "Authentication" }, "Authentication check should be present for $state")
             assertTrue(checks.any { it.name == "Sync Engine" }, "Sync Engine check should be present for $state")
             assertTrue(checks.any { it.name == "Event Queue" }, "Event Queue check should be present for $state")
-            assertTrue(checks.any { it.name == "Network Connectivity" }, "Network Connectivity check should be present for $state")
+            assertTrue(
+                checks.any { it.name == "Network Connectivity" },
+                "Network Connectivity check should be present for $state",
+            )
         }
     }
 

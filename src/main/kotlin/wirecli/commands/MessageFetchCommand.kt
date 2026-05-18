@@ -13,7 +13,10 @@ class MessageFetchCommand(
         name = "fetch",
         help = "Fetch messages from a conversation.",
     ) {
-    private val conversationId by argument(name = "CONVERSATION_ID", help = "The conversation ID to fetch messages from")
+    private val conversationId by argument(
+        name = "CONVERSATION_ID",
+        help = "The conversation ID to fetch messages from",
+    )
 
     override fun run() {
         val validatedConversationId =

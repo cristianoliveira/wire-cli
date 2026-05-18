@@ -89,7 +89,7 @@ class SessionBackedSyncServiceTest {
 
         val success = assertIs<SyncStatusResult.Success>(result)
         assertEquals(SyncStatus.READY, success.view.status)
-        assertEquals(100L, success.view.metrics.lag_ms)
+        assertEquals(100L, success.view.metrics.lagMs)
     }
 
     @Test
@@ -259,10 +259,10 @@ class SessionBackedSyncServiceTest {
         ): ConversationSyncStatusResult {
             return ConversationSyncStatusResult.Success(
                 ConversationSyncStatus(
-                    conversation_id = conversationId,
+                    conversationId = conversationId,
                     status = SyncStatus.READY,
                     metrics = ConversationMetrics(conversationId, 100L, 0, 100, "2025-03-13T10:30:00Z"),
-                    last_sync_timestamp = "2025-03-13T10:30:00Z",
+                    lastSyncTimestamp = "2025-03-13T10:30:00Z",
                 ),
             )
         }
@@ -273,7 +273,7 @@ class SessionBackedSyncServiceTest {
         ): PerConversationDiagnosticsResult {
             return PerConversationDiagnosticsResult.Success(
                 PerConversationDiagnosticsReport(
-                    conversation_id = conversationId,
+                    conversationId = conversationId,
                     checks = emptyList(),
                     summary = "Conversation is healthy",
                 ),

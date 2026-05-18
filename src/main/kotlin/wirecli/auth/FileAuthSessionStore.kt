@@ -2,6 +2,7 @@ package wirecli.auth
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
+import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
@@ -70,25 +71,67 @@ class FileAuthSessionStore(
         check(sessionFile.path.isNotBlank()) { "Session inventory file path must not be blank." }
         logger.debug { "Reading session inventory from: ${sessionFile.absolutePath}" }
 
-        if (!sessionFile.exists()) {
-            logger.debug { "Session file does not exist: ${sessionFile.absolutePath}" }
-            return SessionInventory(activeSession = null, validSessions = 0, invalidSessions = 0)
-        }
-
-        logger.debug { "Session file found, parsing contents" }
-        val parsedData =
-            try {
-                parseStoredSessions(sessionFile.readLines())
-            } catch (e: Exception) {
-                logger.error(e) { "Error reading session file: ${sessionFile.absolutePath}" }
-                return SessionInventory(
-                    activeSession = null,
-                    validSessions = 0,
-                    invalidSessions = 0,
-                    diagnosticMessage = "Failed to read session file: ${e.message}",
-                )
+        val inventory =
+            if (!sessionFile.exists()) {
+                logger.debug { "Session file does not exist: ${sessionFile.absolutePath}" }
+                SessionInventory(activeSession = null, validSessions = 0, invalidSessions = 0)
+            } else {
+                val parsedData = parseSessionFile()
+                if (parsedData == null) {
+                    emptyInventoryWithError()
+                } else {
+                    handleLegacyFormatMigration(parsedData).also(::validateInventory)
+                }
             }
 
+        logger.debug {
+            "Session inventory loaded: " +
+                "active=${inventory.activeSession != null}, " +
+                "valid=${inventory.validSessions}, " +
+                "invalid=${inventory.invalidSessions}"
+        }
+
+        return inventory
+    }
+
+    /**
+     * Parses the session file contents, handling read and parse errors gracefully.
+     *
+     * @return ParsedSessionData if successful, null if an error occurred
+     */
+    private fun parseSessionFile(): ParsedSessionData? {
+        logger.debug { "Session file found, parsing contents" }
+        return try {
+            parseStoredSessions(sessionFile.readLines())
+        } catch (e: IOException) {
+            logger.error(e) { "Error reading session file: ${sessionFile.absolutePath}" }
+            null
+        } catch (e: IllegalStateException) {
+            logger.error(e) { "Error parsing session file: ${sessionFile.absolutePath}" }
+            null
+        }
+    }
+
+    /**
+     * Returns an empty session inventory with an error diagnostic message.
+     *
+     * @return Empty SessionInventory with failure diagnostic
+     */
+    private fun emptyInventoryWithError(): SessionInventory =
+        SessionInventory(
+            activeSession = null,
+            validSessions = 0,
+            invalidSessions = 0,
+            diagnosticMessage = "Failed to read or parse session file",
+        )
+
+    /**
+     * Handles migration of legacy session format to versioned format if needed.
+     *
+     * @param parsedData The parsed session data (may be in legacy format)
+     * @return Updated inventory after migration (if any)
+     */
+    private fun handleLegacyFormatMigration(parsedData: ParsedSessionData): SessionInventory {
         logger.debug { "Parsed session format: ${parsedData.format}" }
 
         if (parsedData.format == SessionFileFormat.LEGACY) {
@@ -103,24 +146,30 @@ class FileAuthSessionStore(
             if (migrated.isFailure) {
                 logger.warn { "Legacy session migration failed: ${migrated.exceptionOrNull()?.message}" }
                 return parsedData.inventory.copy(
-                    diagnosticMessage = AuthMessages.legacySessionMigrationFailed(),
+                    diagnosticMessage = AuthMessages.LEGACY_SESSION_MIGRATION_FAILED,
                 )
             }
         }
 
-        logger.debug {
-            "Session inventory loaded: active=${parsedData.inventory.activeSession != null}, valid=${parsedData.inventory.validSessions}, invalid=${parsedData.inventory.invalidSessions}"
-        }
-        check(parsedData.inventory.validSessions >= 0) {
+        return parsedData.inventory
+    }
+
+    /**
+     * Validates the inventory data for consistency.
+     *
+     * @param inventory The session inventory to validate
+     * @throws AssertionError if validation fails
+     */
+    private fun validateInventory(inventory: SessionInventory) {
+        check(inventory.validSessions >= 0) {
             "Session inventory valid session count must be non-negative."
         }
-        check(parsedData.inventory.invalidSessions >= 0) {
+        check(inventory.invalidSessions >= 0) {
             "Session inventory invalid session count must be non-negative."
         }
-        check(parsedData.inventory.activeSession == null || parsedData.inventory.activeSession.userId.isNotBlank()) {
+        check(inventory.activeSession == null || inventory.activeSession.userId.isNotBlank()) {
             "Session inventory active session must include a non-blank user ID."
         }
-        return parsedData.inventory
     }
 
     /**
@@ -146,8 +195,11 @@ class FileAuthSessionStore(
                 "Session file must exist after successful session persistence."
             }
             logger.info { "Session persisted successfully to ${sessionFile.absolutePath}" }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to persist session to ${sessionFile.absolutePath}" }
+        } catch (e: IllegalStateException) {
+            logger.error(e) { "Session write validation failed" }
+            throw e
+        } catch (e: IOException) {
+            logger.error(e) { "Failed to write session atomically to ${sessionFile.absolutePath}" }
             throw e
         }
     }
@@ -166,7 +218,7 @@ class FileAuthSessionStore(
         if (sessionFile.exists()) {
             if (!sessionFile.delete()) {
                 logger.error { "Failed to delete session file: ${sessionFile.absolutePath}" }
-                throw IllegalStateException("Failed to clear active session file: ${sessionFile.absolutePath}")
+                error("Failed to clear active session file: ${sessionFile.absolutePath}")
             }
             logger.info { "Session file deleted successfully" }
         } else {
@@ -231,7 +283,7 @@ class FileAuthSessionStore(
             logger.debug { "Setting final file permissions: 0600" }
             restrictFilePermissions(path)
             logger.info { "Atomic write completed successfully" }
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             logger.error(e) { "Atomic write failed" }
             throw e
         } finally {
@@ -307,15 +359,10 @@ class FileAuthSessionStore(
 
 private fun defaultSessionFile(): File {
     val explicitFile = System.getenv("WIRE_SESSION_FILE")
-    if (!explicitFile.isNullOrBlank()) {
-        return File(explicitFile)
-    }
-
     val xdgConfigHome = System.getenv("XDG_CONFIG_HOME")
-    if (!xdgConfigHome.isNullOrBlank()) {
-        return File(xdgConfigHome, "wire/session")
+    return when {
+        !explicitFile.isNullOrBlank() -> File(explicitFile)
+        !xdgConfigHome.isNullOrBlank() -> File(xdgConfigHome, "wire/session")
+        else -> File(System.getenv("HOME") ?: ".", ".config/wire/session")
     }
-
-    val home = System.getenv("HOME") ?: "."
-    return File(home, ".config/wire/session")
 }

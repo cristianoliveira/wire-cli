@@ -4,6 +4,7 @@ import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 
+@Suppress("LargeClass")
 class StubSyncApiClient(
     private val environment: Map<String, String>,
 ) : SyncApiClient {
@@ -42,28 +43,29 @@ class StubSyncApiClient(
 
     private val defaultHealthMetrics =
         HealthMetrics(
-            lag_ms = 100L,
-            pending_messages = 5,
-            mls_pct = 85,
+            lagMs = 100L,
+            pendingMessages = 5,
+            mlsPct = 85,
             timestamp = "2025-03-13T10:30:00Z",
         )
 
     private val defaultDegradedMetrics =
         HealthMetrics(
-            lag_ms = 5000L,
-            pending_messages = 250,
-            mls_pct = 45,
+            lagMs = 5000L,
+            pendingMessages = 250,
+            mlsPct = 45,
             timestamp = "2025-03-13T10:35:00Z",
         )
 
     private val defaultErrorMetrics =
         HealthMetrics(
-            lag_ms = 30000L,
-            pending_messages = 1000,
-            mls_pct = 10,
+            lagMs = 30000L,
+            pendingMessages = 1000,
+            mlsPct = 10,
             timestamp = "2025-03-13T10:40:00Z",
         )
 
+    @Suppress("LongMethod")
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
         val mode = environment["WIRE_STUB_MODE"]
 
@@ -84,9 +86,9 @@ class StubSyncApiClient(
                             status = SyncStatus.INITIALIZING,
                             metrics =
                                 HealthMetrics(
-                                    lag_ms = 2000L,
-                                    pending_messages = 100,
-                                    mls_pct = 20,
+                                    lagMs = 2000L,
+                                    pendingMessages = 100,
+                                    mlsPct = 20,
                                     timestamp = "2025-03-13T10:32:00Z",
                                 ),
                         ),
@@ -139,6 +141,7 @@ class StubSyncApiClient(
         }
     }
 
+    @Suppress("LongMethod")
     override fun getDiagnostics(session: AuthSession): DiagnosticsResult {
         val mode = environment["WIRE_STUB_MODE"]
 
@@ -378,6 +381,7 @@ class StubSyncApiClient(
         }
     }
 
+    @Suppress("LongMethod")
     override fun getConversationSyncStatus(
         session: AuthSession,
         conversationId: String,
@@ -396,17 +400,17 @@ class StubSyncApiClient(
                 ConversationSyncStatusResult.Success(
                     status =
                         ConversationSyncStatus(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             status = SyncStatus.READY,
                             metrics =
                                 ConversationMetrics(
-                                    conversation_id = conversationId,
-                                    lag_ms = 50L,
-                                    pending_messages = 0,
-                                    sync_completeness_pct = 100,
+                                    conversationId = conversationId,
+                                    lagMs = 50L,
+                                    pendingMessages = 0,
+                                    syncCompletenessPct = 100,
                                     timestamp = "2025-03-13T10:30:00Z",
                                 ),
-                            last_sync_timestamp = "2025-03-13T10:30:00Z",
+                            lastSyncTimestamp = "2025-03-13T10:30:00Z",
                         ),
                 )
 
@@ -414,17 +418,17 @@ class StubSyncApiClient(
                 ConversationSyncStatusResult.Success(
                     status =
                         ConversationSyncStatus(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             status = SyncStatus.INITIALIZING,
                             metrics =
                                 ConversationMetrics(
-                                    conversation_id = conversationId,
-                                    lag_ms = 2000L,
-                                    pending_messages = 15,
-                                    sync_completeness_pct = 65,
+                                    conversationId = conversationId,
+                                    lagMs = 2000L,
+                                    pendingMessages = 15,
+                                    syncCompletenessPct = 65,
                                     timestamp = "2025-03-13T10:32:00Z",
                                 ),
-                            last_sync_timestamp = "2025-03-13T10:32:00Z",
+                            lastSyncTimestamp = "2025-03-13T10:32:00Z",
                         ),
                 )
 
@@ -432,17 +436,17 @@ class StubSyncApiClient(
                 ConversationSyncStatusResult.Success(
                     status =
                         ConversationSyncStatus(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             status = SyncStatus.DEGRADED,
                             metrics =
                                 ConversationMetrics(
-                                    conversation_id = conversationId,
-                                    lag_ms = 5000L,
-                                    pending_messages = 50,
-                                    sync_completeness_pct = 40,
+                                    conversationId = conversationId,
+                                    lagMs = 5000L,
+                                    pendingMessages = 50,
+                                    syncCompletenessPct = 40,
                                     timestamp = "2025-03-13T10:35:00Z",
                                 ),
-                            last_sync_timestamp = "2025-03-13T10:35:00Z",
+                            lastSyncTimestamp = "2025-03-13T10:35:00Z",
                         ),
                 )
 
@@ -462,22 +466,23 @@ class StubSyncApiClient(
                 ConversationSyncStatusResult.Success(
                     status =
                         ConversationSyncStatus(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             status = SyncStatus.READY,
                             metrics =
                                 ConversationMetrics(
-                                    conversation_id = conversationId,
-                                    lag_ms = 50L,
-                                    pending_messages = 0,
-                                    sync_completeness_pct = 100,
+                                    conversationId = conversationId,
+                                    lagMs = 50L,
+                                    pendingMessages = 0,
+                                    syncCompletenessPct = 100,
                                     timestamp = "2025-03-13T10:30:00Z",
                                 ),
-                            last_sync_timestamp = "2025-03-13T10:30:00Z",
+                            lastSyncTimestamp = "2025-03-13T10:30:00Z",
                         ),
                 )
         }
     }
 
+    @Suppress("LongMethod")
     override fun getPerConversationDiagnostics(
         session: AuthSession,
         conversationId: String,
@@ -496,7 +501,7 @@ class StubSyncApiClient(
                 PerConversationDiagnosticsResult.Success(
                     report =
                         PerConversationDiagnosticsReport(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             checks =
                                 listOf(
                                     Check(
@@ -529,7 +534,7 @@ class StubSyncApiClient(
                 PerConversationDiagnosticsResult.Success(
                     report =
                         PerConversationDiagnosticsReport(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             checks =
                                 listOf(
                                     Check(
@@ -568,7 +573,7 @@ class StubSyncApiClient(
                 PerConversationDiagnosticsResult.Success(
                     report =
                         PerConversationDiagnosticsReport(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             checks =
                                 listOf(
                                     Check(
@@ -619,7 +624,7 @@ class StubSyncApiClient(
                 PerConversationDiagnosticsResult.Success(
                     report =
                         PerConversationDiagnosticsReport(
-                            conversation_id = conversationId,
+                            conversationId = conversationId,
                             checks =
                                 listOf(
                                     Check(

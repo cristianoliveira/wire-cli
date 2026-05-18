@@ -14,7 +14,9 @@ class AuthGuardedProfileServiceTest {
     @Test
     fun `returns auth failure when session is not active`() {
         val delegate =
-            TrackingProfileService(ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")))
+            TrackingProfileService(
+                ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")),
+            )
         val service =
             AuthGuardedProfileService(
                 authSessionService =
@@ -81,10 +83,15 @@ class AuthGuardedProfileServiceTest {
     @Test
     fun `delegates profile lookup when auth check succeeds`() {
         val delegate =
-            TrackingProfileService(ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")))
+            TrackingProfileService(
+                ProfileResult.Success(ProfileView(name = "Jane", email = "jane@example.com", handle = "jane")),
+            )
         val service =
             AuthGuardedProfileService(
-                authSessionService = FakeAuthSessionService(authResult = AuthResult.Success("Active session available.")),
+                authSessionService =
+                    FakeAuthSessionService(
+                        authResult = AuthResult.Success("Active session available."),
+                    ),
                 delegate = delegate,
             )
 

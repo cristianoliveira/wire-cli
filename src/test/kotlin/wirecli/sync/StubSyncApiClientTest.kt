@@ -25,9 +25,9 @@ class StubSyncApiClientTest {
 
         val success = assertIs<SyncStatusResult.Success>(result)
         assertEquals(SyncStatus.READY, success.view.status)
-        assertEquals(100L, success.view.metrics.lag_ms)
-        assertEquals(5, success.view.metrics.pending_messages)
-        assertEquals(85, success.view.metrics.mls_pct)
+        assertEquals(100L, success.view.metrics.lagMs)
+        assertEquals(5, success.view.metrics.pendingMessages)
+        assertEquals(85, success.view.metrics.mlsPct)
     }
 
     @Test
@@ -38,7 +38,7 @@ class StubSyncApiClientTest {
 
         val success = assertIs<SyncStatusResult.Success>(result)
         assertEquals(SyncStatus.READY, success.view.status)
-        assertEquals(100L, success.view.metrics.lag_ms)
+        assertEquals(100L, success.view.metrics.lagMs)
     }
 
     @Test
@@ -49,9 +49,9 @@ class StubSyncApiClientTest {
 
         val success = assertIs<SyncStatusResult.Success>(result)
         assertEquals(SyncStatus.INITIALIZING, success.view.status)
-        assertEquals(2000L, success.view.metrics.lag_ms)
-        assertEquals(100, success.view.metrics.pending_messages)
-        assertEquals(20, success.view.metrics.mls_pct)
+        assertEquals(2000L, success.view.metrics.lagMs)
+        assertEquals(100, success.view.metrics.pendingMessages)
+        assertEquals(20, success.view.metrics.mlsPct)
     }
 
     @Test
@@ -62,9 +62,9 @@ class StubSyncApiClientTest {
 
         val success = assertIs<SyncStatusResult.Success>(result)
         assertEquals(SyncStatus.DEGRADED, success.view.status)
-        assertEquals(5000L, success.view.metrics.lag_ms)
-        assertEquals(250, success.view.metrics.pending_messages)
-        assertEquals(45, success.view.metrics.mls_pct)
+        assertEquals(5000L, success.view.metrics.lagMs)
+        assertEquals(250, success.view.metrics.pendingMessages)
+        assertEquals(45, success.view.metrics.mlsPct)
     }
 
     @Test
@@ -75,9 +75,9 @@ class StubSyncApiClientTest {
 
         val success = assertIs<SyncStatusResult.Success>(result)
         assertEquals(SyncStatus.ERROR, success.view.status)
-        assertEquals(30000L, success.view.metrics.lag_ms)
-        assertEquals(1000, success.view.metrics.pending_messages)
-        assertEquals(10, success.view.metrics.mls_pct)
+        assertEquals(30000L, success.view.metrics.lagMs)
+        assertEquals(1000, success.view.metrics.pendingMessages)
+        assertEquals(10, success.view.metrics.mlsPct)
     }
 
     @Test
@@ -283,8 +283,8 @@ class StubSyncApiClientTest {
         val success2 = assertIs<SyncStatusResult.Success>(result2)
 
         assertEquals(success1.view.status, success2.view.status)
-        assertEquals(success1.view.metrics.lag_ms, success2.view.metrics.lag_ms)
-        assertEquals(success1.view.metrics.mls_pct, success2.view.metrics.mls_pct)
+        assertEquals(success1.view.metrics.lagMs, success2.view.metrics.lagMs)
+        assertEquals(success1.view.metrics.mlsPct, success2.view.metrics.mlsPct)
     }
 
     @Test
@@ -301,7 +301,7 @@ class StubSyncApiClientTest {
             val client = StubSyncApiClient(mapOf("WIRE_STUB_MODE" to mode))
             val result = client.getSyncStatus(session)
             val success = assertIs<SyncStatusResult.Success>(result)
-            assertEquals(expectedMls, success.view.metrics.mls_pct, "MLS% should be $expectedMls for mode: $mode")
+            assertEquals(expectedMls, success.view.metrics.mlsPct, "MLS% should be $expectedMls for mode: $mode")
         }
     }
 }

@@ -1,3 +1,4 @@
 [submodule "vendor/kalium"]
 	path = vendor/kalium
-	url = https://github.com/wireapp/kalium
+	url = git@github.com:wireapp/kalium.git
+	branch = develop

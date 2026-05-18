@@ -3,6 +3,7 @@ package wirecli.commands
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
+import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.option
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthRedactor
@@ -23,6 +24,7 @@ class ProfileCommand(
     init {
         subcommands(
             ProfileUpdateCommand(profileServiceProvider),
+            ProfileNameCommand(profileServiceProvider),
         )
     }
 
@@ -73,19 +75,50 @@ class ProfileUpdateCommand(
         val profileService = profileServiceProvider()
         val update = ProfileUpdate(name = name, handle = handle)
 
-        when (val result = profileService.updateProfile(update)) {
-            is ProfileUpdateResult.Success -> {
-                logger.info { "Profile updated successfully" }
-                echo("Profile updated successfully.")
-                echo("Name: ${result.profile.name ?: "(unchanged)"}")
-                echo("Handle: ${result.profile.handle ?: "(unchanged)"}")
-            }
+        handleProfileUpdateResult(profileService.updateProfile(update)) { result ->
+            echo("Name: ${result.profile.name ?: "(unchanged)"}")
+            echo("Handle: ${result.profile.handle ?: "(unchanged)"}")
+        }
+    }
+}
 
-            is ProfileUpdateResult.Failure -> {
-                logger.warn { "Failed to update profile: ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
-            }
+class ProfileNameCommand(
+    private val profileServiceProvider: () -> ProfileService,
+) : CliktCommand(name = "name", help = "Update your profile display name.") {
+    private val profileName by argument(name = "NAME", help = "New display name")
+
+    override fun run() {
+        val validatedName =
+            requireValueOrExit(
+                value = profileName,
+                fieldName = "Name",
+                errorMessage = "name required",
+            )
+
+        logger.info { "Profile name command started: name=${AuthRedactor.redact(validatedName)}" }
+
+        val result = profileServiceProvider().updateProfile(ProfileUpdate(name = validatedName))
+        handleProfileUpdateResult(result) { success ->
+            echo("Name: ${success.profile.name ?: validatedName}")
+        }
+    }
+}
+
+private fun CliktCommand.handleProfileUpdateResult(
+    result: ProfileUpdateResult,
+    onSuccess: CliktCommand.(ProfileUpdateResult.Success) -> Unit,
+) {
+    when (result) {
+        is ProfileUpdateResult.Success -> {
+            logger.info { "Profile updated successfully" }
+            echo("Profile updated successfully.")
+            onSuccess(result)
+        }
+
+        is ProfileUpdateResult.Failure -> {
+            logger.warn { "Failed to update profile: ${AuthRedactor.redact(result.message)}" }
+            echo(AuthRedactor.redact(result.message), err = true)
+            throw ProgramResult(result.exitCode)
         }
     }
 }

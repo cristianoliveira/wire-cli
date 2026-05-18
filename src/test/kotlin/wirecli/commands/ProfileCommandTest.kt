@@ -41,17 +41,21 @@ class ProfileCommandTest {
         val command =
             ProfileNameCommand {
                 StubProfileService(
-                    updateResult = ProfileUpdateResult.Failure(
-                        message = "Profile update service is unavailable. Retry later or check server settings.",
-                        exitCode = 13,
-                    ),
+                    updateResult =
+                        ProfileUpdateResult.Failure(
+                            message = "Profile update service is unavailable. Retry later or check server settings.",
+                            exitCode = 13,
+                        ),
                 )
             }
 
         val result = execute(command, listOf("Cristiano"))
 
         assertEquals(13, result.exitCode)
-        assertEquals("Profile update service is unavailable. Retry later or check server settings.", result.stderr.trim())
+        assertEquals(
+            "Profile update service is unavailable. Retry later or check server settings.",
+            result.stderr.trim(),
+        )
     }
 
     private data class ExecutionResult(

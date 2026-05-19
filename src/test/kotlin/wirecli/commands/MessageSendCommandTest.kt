@@ -218,5 +218,11 @@ class MessageSendCommandTest {
                 ),
             )
         }
+
+        override fun searchMessages(
+            query: String,
+            conversationId: String?,
+            limit: Int,
+        ): wirecli.message.SearchMessagesResult = wirecli.message.SearchMessagesResult.Success(emptyList())
     }
 }

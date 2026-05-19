@@ -21,6 +21,7 @@ class MessageCommand(
             MessageFetchCommand(messageServiceProvider),
             MessageWatchCommand(messageServiceProvider),
             MessageTypingCommand(messageServiceProvider),
+            MessageSearchCommand(messageServiceProvider),
         )
     }
 

@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.ProgramResult
 import wirecli.message.FetchMessagesResult
 import wirecli.message.FetchMessagesView
 import wirecli.message.MessageService
+import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
 import wirecli.message.SendTypingResult
 import wirecli.message.TypingStatus
@@ -185,6 +186,12 @@ class MessageTypingCommandTest {
             capturedStatuses?.add(status)
             return typingResult
         }
+
+        override fun searchMessages(
+            query: String,
+            conversationId: String?,
+            limit: Int,
+        ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
     }
 
     private fun sequenceAliveChecker(vararg values: Boolean): (Long) -> Boolean {

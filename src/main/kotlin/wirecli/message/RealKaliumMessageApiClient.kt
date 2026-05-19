@@ -112,6 +112,46 @@ internal class RealKaliumMessageApiClient(
         }
     }
 
+    override fun searchMessages(
+        session: AuthSession,
+        query: String,
+        conversationId: String?,
+        limit: Int,
+    ): SearchMessagesResult {
+        return when (val result = runtime.searchMessages(session, query, conversationId, limit)) {
+            is MessageStepResult.Success ->
+                SearchMessagesResult.Success(results = result.value)
+
+            is MessageStepResult.Failure -> {
+                val (message, exitCode) =
+                    when (result.category) {
+                        MessageFailureCategory.VALIDATION ->
+                            MessageUserMessages.SEARCH_EMPTY_QUERY to MessageExitCodes.VALIDATION_ERROR
+
+                        MessageFailureCategory.UNAUTHORIZED ->
+                            AuthMessages.invalidOrExpiredSession() to ExitCodes.UNAUTHORIZED
+
+                        MessageFailureCategory.TIMEOUT ->
+                            MessageUserMessages.SEARCH_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
+
+                        MessageFailureCategory.NETWORK ->
+                            MessageUserMessages.SEARCH_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
+
+                        MessageFailureCategory.SERVER ->
+                            MessageUserMessages.SEARCH_SERVER_ERROR to ExitCodes.SERVER_ERROR
+
+                        MessageFailureCategory.NOT_FOUND ->
+                            MessageUserMessages.CONVERSATION_NOT_FOUND to MessageExitCodes.NOT_FOUND
+
+                        MessageFailureCategory.UNKNOWN ->
+                            MessageUserMessages.SEARCH_SERVER_ERROR to ExitCodes.UNKNOWN_ERROR
+                    }
+
+                SearchMessagesResult.Failure(message = message, exitCode = exitCode)
+            }
+        }
+    }
+
     override fun sendTypingStatus(
         session: AuthSession,
         conversationId: String,

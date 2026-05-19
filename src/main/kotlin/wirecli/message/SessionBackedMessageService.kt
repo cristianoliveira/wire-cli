@@ -71,6 +71,42 @@ class SessionBackedMessageService(
         }
     }
 
+    override fun searchMessages(
+        query: String,
+        conversationId: String?,
+        limit: Int,
+    ): SearchMessagesResult {
+        logger.debug {
+            "Service operation: searchMessages(queryLength=${query.length}, " +
+                "conversationId=$conversationId, limit=$limit) started"
+        }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return SearchMessagesResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for searchMessages" } }
+
+        logger.info {
+            "message-search session resolved: userId=${session.userId}"
+        }
+        return apiClient.searchMessages(session, query, conversationId, limit).also { result ->
+            when (result) {
+                is SearchMessagesResult.Success ->
+                    logger.info {
+                        "message-search service outcome=success queryLength=${query.length} " +
+                            "count=${result.results.size}"
+                    }
+                is SearchMessagesResult.Failure ->
+                    logger.warn {
+                        "message-search service outcome=failure queryLength=${query.length} " +
+                            "exitCode=${result.exitCode}"
+                    }
+            }
+        }
+    }
+
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,

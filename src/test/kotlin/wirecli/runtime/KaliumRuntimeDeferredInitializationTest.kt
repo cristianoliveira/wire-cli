@@ -14,6 +14,7 @@ import wirecli.device.DeviceListResult
 import wirecli.device.DeviceVerifyResult
 import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageApiClient
+import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceResult
@@ -228,5 +229,14 @@ private object NoopMessageApiClient : MessageApiClient {
         conversationId: String,
     ): FetchMessagesResult {
         return FetchMessagesResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun searchMessages(
+        session: AuthSession,
+        query: String,
+        conversationId: String?,
+        limit: Int,
+    ): SearchMessagesResult {
+        return SearchMessagesResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

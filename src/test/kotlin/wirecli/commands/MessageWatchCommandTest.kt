@@ -6,6 +6,7 @@ import wirecli.message.FetchMessagesResult
 import wirecli.message.FetchMessagesView
 import wirecli.message.MessageService
 import wirecli.message.MessageUserMessages
+import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -231,5 +232,11 @@ class MessageWatchCommandTest {
 
         override fun fetchMessages(conversationId: String): FetchMessagesResult =
             queue.removeFirstOrNull() ?: FetchMessagesResult.Success(FetchMessagesView(conversationId, emptyList()))
+
+        override fun searchMessages(
+            query: String,
+            conversationId: String?,
+            limit: Int,
+        ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
     }
 }

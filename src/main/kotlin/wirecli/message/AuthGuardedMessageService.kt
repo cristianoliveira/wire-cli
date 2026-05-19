@@ -32,6 +32,21 @@ class AuthGuardedMessageService(
         }
     }
 
+    override fun searchMessages(
+        query: String,
+        conversationId: String?,
+        limit: Int,
+    ): SearchMessagesResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.searchMessages(query, conversationId, limit)
+            is AuthResult.Failure ->
+                SearchMessagesResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
+
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,

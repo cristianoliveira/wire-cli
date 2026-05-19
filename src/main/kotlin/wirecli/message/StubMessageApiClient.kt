@@ -131,6 +131,69 @@ class StubMessageApiClient(
         }
     }
 
+    override fun searchMessages(
+        session: AuthSession,
+        query: String,
+        conversationId: String?,
+        limit: Int,
+    ): SearchMessagesResult {
+        return when (mode) {
+            StubMode.SUCCESS ->
+                SearchMessagesResult.Success(
+                    listOf(
+                        MessageSearchResult(
+                            conversationId = conversationId ?: "conv-stub-001",
+                            messageId = "msg-stub-1",
+                            senderId = "alice@example.com",
+                            senderName = "Alice",
+                            timestamp = "2026-03-20T10:00:00Z",
+                            content = "Hello $query from stub",
+                            matchSnippet = "...$query...",
+                        ),
+                        MessageSearchResult(
+                            conversationId = conversationId ?: "conv-stub-001",
+                            messageId = "msg-stub-2",
+                            senderId = "bob@example.com",
+                            senderName = "Bob",
+                            timestamp = "2026-03-20T10:01:00Z",
+                            content = "Another message with $query",
+                            matchSnippet = "...$query...",
+                        ),
+                    ),
+                )
+
+            StubMode.UNAUTHORIZED ->
+                SearchMessagesResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            StubMode.NETWORK_ERROR ->
+                SearchMessagesResult.Failure(
+                    message = MessageUserMessages.SEARCH_NETWORK_ERROR,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            StubMode.SERVER_ERROR ->
+                SearchMessagesResult.Failure(
+                    message = MessageUserMessages.SEARCH_SERVER_ERROR,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            StubMode.VALIDATION_ERROR ->
+                SearchMessagesResult.Failure(
+                    message = MessageUserMessages.SEARCH_EMPTY_QUERY,
+                    exitCode = MessageExitCodes.VALIDATION_ERROR,
+                )
+
+            StubMode.CONVERSATION_NOT_FOUND ->
+                SearchMessagesResult.Failure(
+                    message = MessageUserMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = MessageExitCodes.NOT_FOUND,
+                )
+        }
+    }
+
     override fun sendTypingStatus(
         session: AuthSession,
         conversationId: String,

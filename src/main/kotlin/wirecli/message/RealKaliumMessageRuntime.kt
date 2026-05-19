@@ -7,6 +7,8 @@ import com.wire.kalium.logic.data.message.Message
 import com.wire.kalium.logic.data.message.MessageContent
 import com.wire.kalium.logic.data.user.UserId
 import com.wire.kalium.logic.feature.message.MessageOperationResult
+import com.wire.kalium.logic.feature.message.SearchMessagesGloballyUseCase
+import com.wire.kalium.logic.feature.message.SearchMessagesInConversationUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -37,6 +39,13 @@ internal interface RealKaliumMessageRuntime {
         session: AuthSession,
         conversationId: String,
     ): MessageStepResult<List<ConversationMessage>>
+
+    fun searchMessages(
+        session: AuthSession,
+        query: String,
+        conversationId: String? = null,
+        limit: Int = 10,
+    ): MessageStepResult<List<MessageSearchResult>>
 
     fun sendTypingStatus(
         session: AuthSession,
@@ -301,6 +310,128 @@ internal class SdkKaliumMessageRuntime(
         }
     }
 
+    override fun searchMessages(
+        session: AuthSession,
+        query: String,
+        conversationId: String?,
+        limit: Int,
+    ): MessageStepResult<List<MessageSearchResult>> {
+        val qualifiedId = session.userId.toQualifiedIdOrNull()
+        return when {
+            query.isBlank() -> {
+                logger.debug { "searchMessages: Validation failed - query is blank" }
+                MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+            }
+            qualifiedId == null -> {
+                logger.warn { "searchMessages: Invalid user ID format: ${session.userId}" }
+                MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
+            }
+            else -> executeSearchMessages(session, qualifiedId, query, conversationId, limit)
+        }
+    }
+
+    private fun executeSearchMessages(
+        session: AuthSession,
+        qualifiedId: UserId,
+        query: String,
+        conversationId: String?,
+        limit: Int,
+    ): MessageStepResult<List<MessageSearchResult>> {
+        activeSessionUserIds += qualifiedId
+        return runBlocking {
+            try {
+                logger.info {
+                    "message-search runtime start: queryLength=${query.length}, " +
+                        "conversationId=$conversationId, userId=${session.userId}"
+                }
+
+                val result =
+                    withTimeout(sendTimeoutMs) {
+                        coreLogic.sessionScope(qualifiedId) {
+                            withContext(Dispatchers.Default) {
+                                syncExecutor.request {
+                                    if (conversationId == null) {
+                                        val searchResult = messages.searchMessagesGlobally(query, limit)
+                                        mapGlobalSearchResult(searchResult, query)
+                                    } else {
+                                        val kaliumConvId =
+                                            MessageOperationHelper.buildQualifiedConversationId(
+                                                conversationId,
+                                                session.server,
+                                            )
+                                        mapConversationSearchResult(
+                                            messages.searchMessagesInConversation(kaliumConvId, query, limit),
+                                            query,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                logSearchOutcome(query, result)
+                result
+            } catch (_: TimeoutCancellationException) {
+                logger.warn {
+                    "message-search runtime timeout: queryLength=${query.length}, " +
+                        "conversationId=$conversationId"
+                }
+                MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
+                val mappedCategory = MessageFailureMapper.categoryFromThrowable(error)
+                logger.error(error) {
+                    "message-search runtime exception: queryLength=${query.length} " +
+                        "exceptionClass=${error::class.qualifiedName} message=${error.message} " +
+                        "mappedCategory=$mappedCategory"
+                }
+                MessageStepResult.Failure(mappedCategory)
+            }
+        }
+    }
+
+    private fun mapConversationSearchResult(
+        searchResult: SearchMessagesInConversationUseCase.Result,
+        query: String,
+    ): MessageStepResult<List<MessageSearchResult>> {
+        return when (searchResult) {
+            is SearchMessagesInConversationUseCase.Result.Success ->
+                MessageStepResult.Success(mapSearchResults(searchResult.messages, query))
+            is SearchMessagesInConversationUseCase.Result.Failure ->
+                MessageStepResult.Failure(MessageFailureMapper.categoryFromCoreFailure(searchResult.cause))
+        }
+    }
+
+    private fun mapGlobalSearchResult(
+        searchResult: SearchMessagesGloballyUseCase.Result,
+        query: String,
+    ): MessageStepResult<List<MessageSearchResult>> {
+        return when (searchResult) {
+            is SearchMessagesGloballyUseCase.Result.Success ->
+                MessageStepResult.Success(mapSearchResults(searchResult.messages, query))
+            is SearchMessagesGloballyUseCase.Result.Failure ->
+                MessageStepResult.Failure(MessageFailureMapper.categoryFromCoreFailure(searchResult.cause))
+        }
+    }
+
+    private fun logSearchOutcome(
+        query: String,
+        result: MessageStepResult<List<MessageSearchResult>>,
+    ) {
+        when (result) {
+            is MessageStepResult.Success ->
+                logger.info {
+                    "message-search runtime outcome=success " +
+                        "queryLength=${query.length} count=${result.value.size}"
+                }
+            is MessageStepResult.Failure ->
+                logger.warn {
+                    "message-search runtime outcome=failure " +
+                        "queryLength=${query.length} category=${result.category}"
+                }
+        }
+    }
+
     override fun sendTypingStatus(
         session: AuthSession,
         conversationId: String,
@@ -398,6 +529,47 @@ private fun Message.toConversationMessageOrNull(): ConversationMessage? {
         timestamp = date.toString(),
         content = text,
     )
+}
+
+private fun mapSearchResults(
+    result: List<Message.Standalone>,
+    query: String,
+): List<MessageSearchResult> {
+    return result.mapNotNull { message ->
+        val text =
+            when (val messageContent = message.content) {
+                is MessageContent.Text -> messageContent.value
+                is MessageContent.System -> return@mapNotNull null
+                else -> return@mapNotNull null
+            }
+
+        val senderDisplayName = (message as? Message.Regular)?.senderUserName
+
+        MessageSearchResult(
+            conversationId = message.conversationId.toString(),
+            messageId = message.id,
+            senderId = message.senderUserId.toString(),
+            senderName = senderDisplayName ?: message.sender?.name ?: message.senderUserId.toString(),
+            timestamp = message.date.toString(),
+            content = text,
+            matchSnippet = buildMatchSnippet(text, query),
+        )
+    }
+}
+
+private fun buildMatchSnippet(
+    content: String,
+    query: String,
+): String {
+    val lowerContent = content.lowercase()
+    val lowerQuery = query.lowercase()
+    val index = lowerContent.indexOf(lowerQuery)
+    if (index < 0) return "..."
+    val start = maxOf(0, index - 20)
+    val end = minOf(content.length, index + query.length + 20)
+    val prefix = if (start > 0) "…" else ""
+    val suffix = if (end < content.length) "…" else ""
+    return "$prefix${content.substring(start, end)}$suffix"
 }
 
 private fun String.toQualifiedIdOrNull(): UserId? {

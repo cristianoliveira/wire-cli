@@ -230,5 +230,11 @@ class AuthGuardedMessageServiceTest {
             conversationId: String,
             status: TypingStatus,
         ): SendTypingResult = typingResult
+
+        override fun searchMessages(
+            query: String,
+            conversationId: String?,
+            limit: Int,
+        ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
     }
 }

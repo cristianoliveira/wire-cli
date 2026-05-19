@@ -283,6 +283,13 @@ class SessionBackedMessageServiceTest {
                             FetchMessagesResult.Success(
                                 FetchMessagesView(conversationId = conversationId, messages = emptyList()),
                             )
+
+                        override fun searchMessages(
+                            session: AuthSession,
+                            query: String,
+                            conversationId: String?,
+                            limit: Int,
+                        ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
                     },
             )
 
@@ -327,5 +334,12 @@ class SessionBackedMessageServiceTest {
         ): SendTypingResult {
             return typingResult
         }
+
+        override fun searchMessages(
+            session: AuthSession,
+            query: String,
+            conversationId: String?,
+            limit: Int,
+        ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
     }
 }

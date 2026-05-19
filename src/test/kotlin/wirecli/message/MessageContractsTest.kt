@@ -195,4 +195,72 @@ class MessageContractsTest {
         val failure = assertIs<SendMessageResult.Failure>(result)
         assertEquals(MessageExitCodes.NOT_FOUND, failure.exitCode)
     }
+
+    // --- Message search contracts ---
+
+    @Test
+    fun `MessageSearchResult holds conversation message and match snippet`() {
+        val result =
+            MessageSearchResult(
+                conversationId = "conv-123",
+                messageId = "msg-1",
+                senderId = "alice@example.com",
+                senderName = "Alice",
+                timestamp = "2026-03-20T10:00:00Z",
+                content = "hello world",
+                matchSnippet = "hello",
+            )
+
+        assertEquals("conv-123", result.conversationId)
+        assertEquals("msg-1", result.messageId)
+        assertEquals("alice@example.com", result.senderId)
+        assertEquals("hello world", result.content)
+        assertEquals("hello", result.matchSnippet)
+    }
+
+    @Test
+    fun `SearchMessagesResult Success exposes list of results`() {
+        val results =
+            listOf(
+                MessageSearchResult(
+                    conversationId = "conv-123",
+                    messageId = "msg-1",
+                    senderId = "alice@example.com",
+                    senderName = "Alice",
+                    timestamp = "2026-03-20T10:00:00Z",
+                    content = "hello world",
+                    matchSnippet = "hello",
+                ),
+            )
+        val result: SearchMessagesResult = SearchMessagesResult.Success(results)
+
+        val success = assertIs<SearchMessagesResult.Success>(result)
+        assertEquals(1, success.results.size)
+        assertEquals("msg-1", success.results.first().messageId)
+    }
+
+    @Test
+    fun `SearchMessagesResult Failure exposes message and exit code`() {
+        val result: SearchMessagesResult =
+            SearchMessagesResult.Failure(
+                message = "search failed",
+                exitCode = MessageExitCodes.SERVER_ERROR,
+            )
+
+        val failure = assertIs<SearchMessagesResult.Failure>(result)
+        assertEquals("search failed", failure.message)
+        assertEquals(MessageExitCodes.SERVER_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `MessageApiClient interface defines searchMessages method`() {
+        val methodNames = MessageApiClient::class.java.methods.map { it.name }
+        assert(methodNames.contains("searchMessages"))
+    }
+
+    @Test
+    fun `MessageService interface defines searchMessages method`() {
+        val methodNames = MessageService::class.java.methods.map { it.name }
+        assert(methodNames.contains("searchMessages"))
+    }
 }

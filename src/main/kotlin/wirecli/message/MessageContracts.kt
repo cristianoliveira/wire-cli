@@ -39,6 +39,22 @@ sealed interface FetchMessagesResult {
     data class Failure(val message: String, val exitCode: Int) : FetchMessagesResult
 }
 
+data class MessageSearchResult(
+    val conversationId: String,
+    val messageId: String,
+    val senderId: String,
+    val senderName: String,
+    val timestamp: String,
+    val content: String,
+    val matchSnippet: String,
+)
+
+sealed interface SearchMessagesResult {
+    data class Success(val results: List<MessageSearchResult>) : SearchMessagesResult
+
+    data class Failure(val message: String, val exitCode: Int) : SearchMessagesResult
+}
+
 // Low-level API client interface - works with AuthSession directly
 interface MessageApiClient {
     fun sendMessage(
@@ -51,6 +67,13 @@ interface MessageApiClient {
         session: AuthSession,
         conversationId: String,
     ): FetchMessagesResult
+
+    fun searchMessages(
+        session: AuthSession,
+        query: String,
+        conversationId: String? = null,
+        limit: Int = 10,
+    ): SearchMessagesResult
 }
 
 interface MessageTypingApiClient {
@@ -69,6 +92,12 @@ interface MessageService {
     ): SendMessageResult
 
     fun fetchMessages(conversationId: String): FetchMessagesResult
+
+    fun searchMessages(
+        query: String,
+        conversationId: String? = null,
+        limit: Int = 10,
+    ): SearchMessagesResult
 
     fun sendTypingStatus(
         conversationId: String,
@@ -108,6 +137,9 @@ internal object MessageUserMessages {
     const val TYPING_TIMEOUT = "typing status send timed out while waiting for sync/MLS"
     const val TYPING_UNKNOWN_ERROR = "unknown error while sending typing status"
     const val TYPING_UNSUPPORTED = "typing status is not supported by this backend"
+    const val SEARCH_NETWORK_ERROR = "network error while searching messages"
+    const val SEARCH_SERVER_ERROR = "server error while searching messages"
+    const val SEARCH_EMPTY_QUERY = "search query cannot be blank"
 }
 
 // Message-specific exceptions for error handling

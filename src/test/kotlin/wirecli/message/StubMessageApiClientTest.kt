@@ -6,6 +6,7 @@ import wirecli.auth.ExitCodes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class StubMessageApiClientTest {
     private val testSession =
@@ -219,5 +220,86 @@ class StubMessageApiClientTest {
         val failure = assertIs<SendTypingResult.Failure>(result)
         assertEquals(MessageUserMessages.TYPING_NETWORK_ERROR, failure.message)
         assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+    }
+
+    // --- Search stub tests ---
+
+    @Test
+    fun `search SUCCESS mode returns deterministic results with query snippet`() {
+        val client = StubMessageApiClient(StubMode.SUCCESS)
+
+        val result = client.searchMessages(testSession, "hello", null, 10)
+
+        val success = assertIs<SearchMessagesResult.Success>(result)
+        assertEquals(2, success.results.size)
+        assertTrue(success.results[0].content.contains("hello"))
+        assertTrue(success.results[0].matchSnippet.contains("hello"))
+    }
+
+    @Test
+    fun `search UNAUTHORIZED mode returns failure`() {
+        val client = StubMessageApiClient(StubMode.UNAUTHORIZED)
+
+        val result = client.searchMessages(testSession, "hello", null, 10)
+
+        val failure = assertIs<SearchMessagesResult.Failure>(result)
+        assertEquals(AuthMessages.invalidOrExpiredSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `search NETWORK_ERROR mode returns search network error`() {
+        val client = StubMessageApiClient(StubMode.NETWORK_ERROR)
+
+        val result = client.searchMessages(testSession, "hello", null, 10)
+
+        val failure = assertIs<SearchMessagesResult.Failure>(result)
+        assertEquals(MessageUserMessages.SEARCH_NETWORK_ERROR, failure.message)
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `search SERVER_ERROR mode returns search server error`() {
+        val client = StubMessageApiClient(StubMode.SERVER_ERROR)
+
+        val result = client.searchMessages(testSession, "hello", null, 10)
+
+        val failure = assertIs<SearchMessagesResult.Failure>(result)
+        assertEquals(MessageUserMessages.SEARCH_SERVER_ERROR, failure.message)
+        assertEquals(ExitCodes.SERVER_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `search VALIDATION_ERROR mode returns empty query error`() {
+        val client = StubMessageApiClient(StubMode.VALIDATION_ERROR)
+
+        val result = client.searchMessages(testSession, "hello", null, 10)
+
+        val failure = assertIs<SearchMessagesResult.Failure>(result)
+        assertEquals(MessageUserMessages.SEARCH_EMPTY_QUERY, failure.message)
+        assertEquals(MessageExitCodes.VALIDATION_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `search CONVERSATION_NOT_FOUND mode returns not found error`() {
+        val client = StubMessageApiClient(StubMode.CONVERSATION_NOT_FOUND)
+
+        val result = client.searchMessages(testSession, "hello", null, 10)
+
+        val failure = assertIs<SearchMessagesResult.Failure>(result)
+        assertEquals(MessageUserMessages.CONVERSATION_NOT_FOUND, failure.message)
+        assertEquals(MessageExitCodes.NOT_FOUND, failure.exitCode)
+    }
+
+    @Test
+    fun `search passes conversation-id to results in stub mode`() {
+        val client = StubMessageApiClient(StubMode.SUCCESS)
+
+        val result = client.searchMessages(testSession, "hello", "conv-xyz", 5)
+
+        val success = assertIs<SearchMessagesResult.Success>(result)
+        assertEquals(2, success.results.size)
+        assertEquals("conv-xyz", success.results[0].conversationId)
+        assertEquals("conv-xyz", success.results[1].conversationId)
     }
 }

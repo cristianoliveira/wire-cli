@@ -1,6 +1,10 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import wirecli.message.MessageSearchResult
 import wirecli.message.MessageService
 import wirecli.message.SearchMessagesResult
@@ -21,7 +25,7 @@ class MessageSearchCommandTest {
                     senderName = "Alice",
                     timestamp = "2026-03-20T10:00:00Z",
                     content = "hello world",
-                    matchSnippet = "…hello world…",
+                    matchSnippet = "hello world",
                 ),
             )
         val command =
@@ -34,7 +38,7 @@ class MessageSearchCommandTest {
         val result = execute(command, listOf("hello"))
 
         assertEquals(0, result.exitCode)
-        assertTrue(result.stdout.contains("[2026-03-20T10:00:00Z] Alice (conv-123): …hello world…"))
+        assertTrue(result.stdout.contains("[2026-03-20T10:00:00Z] Alice (conv-123): hello world"))
     }
 
     @Test
@@ -66,6 +70,36 @@ class MessageSearchCommandTest {
         assertTrue(result.stdout.contains("\"content\":\"hello world\""))
         assertTrue(result.stdout.trim().startsWith("["))
         assertTrue(result.stdout.trim().endsWith("]"))
+    }
+
+    @Test
+    fun `search command with --json escapes control characters`() {
+        val results =
+            listOf(
+                MessageSearchResult(
+                    conversationId = "conv-123",
+                    messageId = "msg-1",
+                    senderId = "alice@example.com",
+                    senderName = "Alice\tAdmin",
+                    timestamp = "2026-03-20T10:00:00Z",
+                    content = "hello\r\n\t\\\" world",
+                    matchSnippet = "hello\r\n\t\\\"",
+                ),
+            )
+        val command =
+            MessageSearchCommand {
+                FakeMessageService(
+                    searchResult = SearchMessagesResult.Success(results),
+                )
+            }
+
+        val result = execute(command, listOf("hello", "--json"))
+
+        assertEquals(0, result.exitCode)
+        val item = Json.parseToJsonElement(result.stdout).jsonArray.single().jsonObject
+        assertEquals("Alice\tAdmin", item.getValue("senderName").jsonPrimitive.content)
+        assertEquals("hello\r\n\t\\\" world", item.getValue("content").jsonPrimitive.content)
+        assertEquals("hello\r\n\t\\\"", item.getValue("matchSnippet").jsonPrimitive.content)
     }
 
     @Test

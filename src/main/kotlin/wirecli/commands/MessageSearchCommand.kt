@@ -7,6 +7,9 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import wirecli.auth.ExitCodes
 import wirecli.message.MessageSearchResult
 import wirecli.message.MessageService
@@ -115,35 +118,21 @@ class MessageSearchCommand(
         jsonOutput: Boolean,
     ): String {
         if (jsonOutput) {
-            val items =
-                results.joinToString(",") { result ->
-                    val escapedContent =
-                        result.content
-                            .replace("\\", "\\\\")
-                            .replace("\"", "\\\"")
-                            .replace("\n", "\\n")
-                    val escapedSnippet =
-                        result.matchSnippet
-                            .replace("\\", "\\\\")
-                            .replace("\"", "\\\"")
-                            .replace("\n", "\\n")
-                    val escapedSender =
-                        result.senderName
-                            .replace("\\", "\\\\")
-                            .replace("\"", "\\\"")
-                    buildString {
-                        append("{")
-                        append("\"conversationId\":\"${result.conversationId}\",")
-                        append("\"messageId\":\"${result.messageId}\",")
-                        append("\"senderId\":\"${result.senderId}\",")
-                        append("\"senderName\":\"$escapedSender\",")
-                        append("\"timestamp\":\"${result.timestamp}\",")
-                        append("\"content\":\"$escapedContent\",")
-                        append("\"matchSnippet\":\"$escapedSnippet\"")
-                        append("}")
-                    }
+            return buildJsonArray {
+                results.forEach { result ->
+                    add(
+                        buildJsonObject {
+                            put("conversationId", JsonPrimitive(result.conversationId))
+                            put("messageId", JsonPrimitive(result.messageId))
+                            put("senderId", JsonPrimitive(result.senderId))
+                            put("senderName", JsonPrimitive(result.senderName))
+                            put("timestamp", JsonPrimitive(result.timestamp))
+                            put("content", JsonPrimitive(result.content))
+                            put("matchSnippet", JsonPrimitive(result.matchSnippet))
+                        },
+                    )
                 }
-            return "[$items]"
+            }.toString()
         }
         return results.joinToString("\n") { result ->
             val sender = result.senderName.ifBlank { result.senderId }

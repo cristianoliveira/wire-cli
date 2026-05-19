@@ -45,9 +45,7 @@ internal interface RealKaliumMessageRuntime {
         query: String,
         conversationId: String? = null,
         limit: Int = 10,
-    ): MessageStepResult<List<MessageSearchResult>> {
-        return MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
-    }
+    ): MessageStepResult<List<MessageSearchResult>>
 
     fun sendTypingStatus(
         session: AuthSession,
@@ -312,122 +310,125 @@ internal class SdkKaliumMessageRuntime(
         }
     }
 
-    @Suppress("LongMethod")
     override fun searchMessages(
         session: AuthSession,
         query: String,
         conversationId: String?,
         limit: Int,
     ): MessageStepResult<List<MessageSearchResult>> {
-        val isQueryBlank = query.isBlank()
-        if (isQueryBlank) {
-            logger.debug { "searchMessages: Validation failed - query is blank" }
-        }
         val qualifiedId = session.userId.toQualifiedIdOrNull()
         return when {
-            isQueryBlank -> MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+            query.isBlank() -> {
+                logger.debug { "searchMessages: Validation failed - query is blank" }
+                MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+            }
             qualifiedId == null -> {
                 logger.warn { "searchMessages: Invalid user ID format: ${session.userId}" }
                 MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
             }
-            else -> {
-                activeSessionUserIds += qualifiedId
-                runBlocking {
-                    try {
-                        logger.info {
-                            "message-search runtime start: queryLength=${query.length}, " +
-                                "conversationId=$conversationId, userId=${session.userId}"
-                        }
+            else -> executeSearchMessages(session, qualifiedId, query, conversationId, limit)
+        }
+    }
 
-                        val result =
-                            withTimeout(sendTimeoutMs) {
-                                if (conversationId != null) {
-                                    val kaliumConvId =
-                                        MessageOperationHelper.buildQualifiedConversationId(
-                                            conversationId,
-                                            session.server,
+    private fun executeSearchMessages(
+        session: AuthSession,
+        qualifiedId: UserId,
+        query: String,
+        conversationId: String?,
+        limit: Int,
+    ): MessageStepResult<List<MessageSearchResult>> {
+        activeSessionUserIds += qualifiedId
+        return runBlocking {
+            try {
+                logger.info {
+                    "message-search runtime start: queryLength=${query.length}, " +
+                        "conversationId=$conversationId, userId=${session.userId}"
+                }
+
+                val result =
+                    withTimeout(sendTimeoutMs) {
+                        coreLogic.sessionScope(qualifiedId) {
+                            withContext(Dispatchers.Default) {
+                                syncExecutor.request {
+                                    if (conversationId == null) {
+                                        val searchResult = messages.searchMessagesGlobally(query, limit)
+                                        mapGlobalSearchResult(searchResult, query)
+                                    } else {
+                                        val kaliumConvId =
+                                            MessageOperationHelper.buildQualifiedConversationId(
+                                                conversationId,
+                                                session.server,
+                                            )
+                                        mapConversationSearchResult(
+                                            messages.searchMessagesInConversation(kaliumConvId, query, limit),
+                                            query,
                                         )
-                                    coreLogic.sessionScope(qualifiedId) {
-                                        withContext(Dispatchers.Default) {
-                                            syncExecutor.request {
-                                                val searchResult =
-                                                    messages.searchMessagesInConversation(
-                                                        kaliumConvId,
-                                                        query,
-                                                        limit,
-                                                    )
-                                                when (searchResult) {
-                                                    is SearchMessagesInConversationUseCase.Result.Success ->
-                                                        MessageStepResult.Success(
-                                                            mapSearchResults(searchResult.messages, query),
-                                                        )
-
-                                                    is SearchMessagesInConversationUseCase.Result.Failure ->
-                                                        MessageStepResult.Failure(
-                                                            MessageFailureMapper.categoryFromCoreFailure(
-                                                                searchResult.cause,
-                                                            ),
-                                                        )
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    coreLogic.sessionScope(qualifiedId) {
-                                        withContext(Dispatchers.Default) {
-                                            syncExecutor.request {
-                                                val searchResult =
-                                                    messages.searchMessagesGlobally(query, limit)
-                                                when (searchResult) {
-                                                    is SearchMessagesGloballyUseCase.Result.Success ->
-                                                        MessageStepResult.Success(
-                                                            mapSearchResults(searchResult.messages, query),
-                                                        )
-
-                                                    is SearchMessagesGloballyUseCase.Result.Failure ->
-                                                        MessageStepResult.Failure(
-                                                            MessageFailureMapper.categoryFromCoreFailure(
-                                                                searchResult.cause,
-                                                            ),
-                                                        )
-                                                }
-                                            }
-                                        }
                                     }
                                 }
                             }
-                        when (result) {
-                            is MessageStepResult.Success ->
-                                logger.info {
-                                    "message-search runtime outcome=success " +
-                                        "queryLength=${query.length} count=${result.value.size}"
-                                }
-                            is MessageStepResult.Failure ->
-                                logger.warn {
-                                    "message-search runtime outcome=failure " +
-                                        "queryLength=${query.length} category=${result.category}"
-                                }
                         }
-                        result
-                    } catch (_: TimeoutCancellationException) {
-                        logger.warn {
-                            "message-search runtime timeout: queryLength=${query.length}, " +
-                                "conversationId=$conversationId"
-                        }
-                        MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
-                    } catch (
-                        @Suppress("TooGenericExceptionCaught") error: Throwable,
-                    ) {
-                        val mappedCategory = MessageFailureMapper.categoryFromThrowable(error)
-                        logger.error(error) {
-                            "message-search runtime exception: queryLength=${query.length} " +
-                                "exceptionClass=${error::class.qualifiedName} message=${error.message} " +
-                                "mappedCategory=$mappedCategory"
-                        }
-                        MessageStepResult.Failure(mappedCategory)
                     }
+                logSearchOutcome(query, result)
+                result
+            } catch (_: TimeoutCancellationException) {
+                logger.warn {
+                    "message-search runtime timeout: queryLength=${query.length}, " +
+                        "conversationId=$conversationId"
                 }
+                MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
+                val mappedCategory = MessageFailureMapper.categoryFromThrowable(error)
+                logger.error(error) {
+                    "message-search runtime exception: queryLength=${query.length} " +
+                        "exceptionClass=${error::class.qualifiedName} message=${error.message} " +
+                        "mappedCategory=$mappedCategory"
+                }
+                MessageStepResult.Failure(mappedCategory)
             }
+        }
+    }
+
+    private fun mapConversationSearchResult(
+        searchResult: SearchMessagesInConversationUseCase.Result,
+        query: String,
+    ): MessageStepResult<List<MessageSearchResult>> {
+        return when (searchResult) {
+            is SearchMessagesInConversationUseCase.Result.Success ->
+                MessageStepResult.Success(mapSearchResults(searchResult.messages, query))
+            is SearchMessagesInConversationUseCase.Result.Failure ->
+                MessageStepResult.Failure(MessageFailureMapper.categoryFromCoreFailure(searchResult.cause))
+        }
+    }
+
+    private fun mapGlobalSearchResult(
+        searchResult: SearchMessagesGloballyUseCase.Result,
+        query: String,
+    ): MessageStepResult<List<MessageSearchResult>> {
+        return when (searchResult) {
+            is SearchMessagesGloballyUseCase.Result.Success ->
+                MessageStepResult.Success(mapSearchResults(searchResult.messages, query))
+            is SearchMessagesGloballyUseCase.Result.Failure ->
+                MessageStepResult.Failure(MessageFailureMapper.categoryFromCoreFailure(searchResult.cause))
+        }
+    }
+
+    private fun logSearchOutcome(
+        query: String,
+        result: MessageStepResult<List<MessageSearchResult>>,
+    ) {
+        when (result) {
+            is MessageStepResult.Success ->
+                logger.info {
+                    "message-search runtime outcome=success " +
+                        "queryLength=${query.length} count=${result.value.size}"
+                }
+            is MessageStepResult.Failure ->
+                logger.warn {
+                    "message-search runtime outcome=failure " +
+                        "queryLength=${query.length} category=${result.category}"
+                }
         }
     }
 
@@ -542,11 +543,7 @@ private fun mapSearchResults(
                 else -> return@mapNotNull null
             }
 
-        val senderDisplayName =
-            when (message) {
-                is Message.Regular -> message.senderUserName
-                is Message.System -> message.senderUserName
-            }
+        val senderDisplayName = (message as? Message.Regular)?.senderUserName
 
         MessageSearchResult(
             conversationId = message.conversationId.toString(),

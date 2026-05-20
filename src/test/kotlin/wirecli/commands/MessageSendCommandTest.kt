@@ -224,5 +224,11 @@ class MessageSendCommandTest {
             conversationId: String?,
             limit: Int,
         ): wirecli.message.SearchMessagesResult = wirecli.message.SearchMessagesResult.Success(emptyList())
+
+        override fun toggleReaction(
+            conversationId: String,
+            messageId: String,
+            emoji: String,
+        ): wirecli.message.ToggleReactionResult = wirecli.message.ToggleReactionResult.Success(wirecli.message.ReactionAction.ADDED)
     }
 }

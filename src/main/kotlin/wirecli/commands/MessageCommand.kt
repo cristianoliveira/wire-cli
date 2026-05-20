@@ -22,6 +22,7 @@ class MessageCommand(
             MessageWatchCommand(messageServiceProvider),
             MessageTypingCommand(messageServiceProvider),
             MessageSearchCommand(messageServiceProvider),
+            MessageReactCommand(messageServiceProvider),
         )
     }
 

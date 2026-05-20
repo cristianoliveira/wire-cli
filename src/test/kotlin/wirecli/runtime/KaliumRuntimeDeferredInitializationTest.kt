@@ -239,4 +239,13 @@ private object NoopMessageApiClient : MessageApiClient {
     ): SearchMessagesResult {
         return SearchMessagesResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
+
+    override fun toggleReaction(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): ToggleReactionResult {
+        return ToggleReactionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
 }

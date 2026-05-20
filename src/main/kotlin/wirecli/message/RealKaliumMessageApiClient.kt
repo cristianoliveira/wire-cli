@@ -152,6 +152,44 @@ internal class RealKaliumMessageApiClient(
         }
     }
 
+    override fun toggleReaction(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): ToggleReactionResult {
+        return when (val result = runtime.toggleReaction(session, conversationId, messageId, emoji)) {
+            is MessageStepResult.Success -> ToggleReactionResult.Success(ReactionAction.ADDED)
+
+            is MessageStepResult.Failure -> {
+                val (message, exitCode) =
+                    when (result.category) {
+                        MessageFailureCategory.VALIDATION ->
+                            MessageUserMessages.REACTION_EMOJI_BLANK to MessageExitCodes.VALIDATION_ERROR
+
+                        MessageFailureCategory.UNAUTHORIZED ->
+                            AuthMessages.invalidOrExpiredSession() to ExitCodes.UNAUTHORIZED
+
+                        MessageFailureCategory.TIMEOUT,
+                        MessageFailureCategory.NETWORK,
+                        ->
+                            MessageUserMessages.REACTION_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
+
+                        MessageFailureCategory.SERVER ->
+                            MessageUserMessages.REACTION_SERVER_ERROR to ExitCodes.SERVER_ERROR
+
+                        MessageFailureCategory.NOT_FOUND ->
+                            MessageUserMessages.CONVERSATION_NOT_FOUND to MessageExitCodes.NOT_FOUND
+
+                        MessageFailureCategory.UNKNOWN ->
+                            MessageUserMessages.REACTION_UNKNOWN_ERROR to ExitCodes.UNKNOWN_ERROR
+                    }
+
+                ToggleReactionResult.Failure(message = message, exitCode = exitCode)
+            }
+        }
+    }
+
     override fun sendTypingStatus(
         session: AuthSession,
         conversationId: String,

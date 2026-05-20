@@ -4,9 +4,11 @@ import com.github.ajalt.clikt.core.ProgramResult
 import wirecli.message.FetchMessagesResult
 import wirecli.message.FetchMessagesView
 import wirecli.message.MessageService
+import wirecli.message.ReactionAction
 import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
 import wirecli.message.SendTypingResult
+import wirecli.message.ToggleReactionResult
 import wirecli.message.TypingStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -192,6 +194,12 @@ class MessageTypingCommandTest {
             conversationId: String?,
             limit: Int,
         ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
+
+        override fun toggleReaction(
+            conversationId: String,
+            messageId: String,
+            emoji: String,
+        ): ToggleReactionResult = ToggleReactionResult.Success(ReactionAction.ADDED)
     }
 
     private fun sequenceAliveChecker(vararg values: Boolean): (Long) -> Boolean {

@@ -47,6 +47,21 @@ class AuthGuardedMessageService(
         }
     }
 
+    override fun toggleReaction(
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): ToggleReactionResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.toggleReaction(conversationId, messageId, emoji)
+            is AuthResult.Failure ->
+                ToggleReactionResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
+
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,

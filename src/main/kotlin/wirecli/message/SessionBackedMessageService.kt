@@ -107,6 +107,40 @@ class SessionBackedMessageService(
         }
     }
 
+    override fun toggleReaction(
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): ToggleReactionResult {
+        logger.debug {
+            "Service operation: toggleReaction(conversationId=$conversationId, " +
+                "messageId=$messageId, emoji=$emoji) started"
+        }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return ToggleReactionResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for toggleReaction($conversationId)" } }
+
+        logger.info { "message-react session resolved: userId=${session.userId}" }
+        return apiClient.toggleReaction(session, conversationId, messageId, emoji).also { result ->
+            when (result) {
+                is ToggleReactionResult.Success ->
+                    logger.info {
+                        "message-react service outcome=success conversationId=$conversationId " +
+                            "messageId=$messageId action=${result.action}"
+                    }
+                is ToggleReactionResult.Failure ->
+                    logger.warn {
+                        "message-react service outcome=failure conversationId=$conversationId " +
+                            "messageId=$messageId exitCode=${result.exitCode}"
+                    }
+            }
+        }
+    }
+
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,

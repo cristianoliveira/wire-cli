@@ -7,8 +7,10 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import wirecli.message.MessageSearchResult
 import wirecli.message.MessageService
+import wirecli.message.ReactionAction
 import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
+import wirecli.message.ToggleReactionResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -205,6 +207,12 @@ class MessageSearchCommandTest {
                         capturedParams.add(Triple(query, conversationId, limit))
                         return SearchMessagesResult.Success(emptyList())
                     }
+
+                    override fun toggleReaction(
+                        conversationId: String,
+                        messageId: String,
+                        emoji: String,
+                    ): ToggleReactionResult = ToggleReactionResult.Success(ReactionAction.ADDED)
                 }
             }
 
@@ -269,5 +277,11 @@ class MessageSearchCommandTest {
             conversationId: String?,
             limit: Int,
         ): SearchMessagesResult = searchResult
+
+        override fun toggleReaction(
+            conversationId: String,
+            messageId: String,
+            emoji: String,
+        ): ToggleReactionResult = ToggleReactionResult.Success(ReactionAction.ADDED)
     }
 }

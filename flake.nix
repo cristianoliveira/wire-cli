@@ -336,7 +336,10 @@
             XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
             XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
             XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
-            GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false";
+            GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false -Xmx1g";
+            LOCALE_ARCHIVE = "${pkgs.glibcLocalesUtf8}/lib/locale/locale-archive";
+            LC_ALL = "en_US.UTF-8";
+            LANG = "en_US.UTF-8";
           };
         in
         {
@@ -350,6 +353,7 @@
               jdk
               pkgs.git
               pkgs.protobuf
+              pkgs.glibcLocalesUtf8
             ];
 
             env = gradleEnv;
@@ -360,7 +364,7 @@
               echo "Using maven repository at: $MAVEN_SOURCE_REPOSITORY"
               export GRADLE_USER_HOME=$(mktemp -d)
               export APP_VERSION=${appVersion}
-              gradle --offline --no-daemon --no-watch-fs -Dorg.gradle.unsafe.isolated-projects=false --no-configuration-cache --no-build-cache -Dorg.gradle.console=plain --no-scan -Porg.gradle.java.installations.auto-download=false --init-script ${buildGradleApplicationSrc}/buildGradleApplication/init.gradle.kts test
+              gradle --offline --no-daemon --no-watch-fs --max-workers 1 -Dorg.gradle.unsafe.isolated-projects=false --no-configuration-cache --no-build-cache -Dorg.gradle.console=plain --no-scan -Porg.gradle.java.installations.auto-download=false --init-script ${buildGradleApplicationSrc}/buildGradleApplication/init.gradle.kts test
               runHook postBuild
             '';
 

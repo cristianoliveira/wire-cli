@@ -337,6 +337,9 @@
             XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
             XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
             GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false -Xmx1g";
+            LOCALE_ARCHIVE = "${pkgs.glibcLocalesUtf8}/lib/locale/locale-archive";
+            LC_ALL = "en_US.UTF-8";
+            LANG = "en_US.UTF-8";
           };
         in
         {
@@ -350,6 +353,7 @@
               jdk
               pkgs.git
               pkgs.protobuf
+              pkgs.glibcLocalesUtf8
             ];
 
             env = gradleEnv;

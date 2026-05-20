@@ -16,6 +16,7 @@ import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageApiClient
 import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
+import wirecli.message.ToggleReactionResult
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceResult
 import wirecli.presence.WritablePresenceState

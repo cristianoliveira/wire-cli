@@ -1,5 +1,7 @@
 package wirecli.message
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import wirecli.auth.AuthSession
 
 // Result type for message sending operation
@@ -76,6 +78,13 @@ interface MessageApiClient {
     ): SearchMessagesResult
 }
 
+interface MessageWatchApiClient {
+    fun observeMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): Flow<FetchMessagesResult>
+}
+
 interface MessageTypingApiClient {
     fun sendTypingStatus(
         session: AuthSession,
@@ -92,6 +101,8 @@ interface MessageService {
     ): SendMessageResult
 
     fun fetchMessages(conversationId: String): FetchMessagesResult
+
+    fun observeMessages(conversationId: String): Flow<FetchMessagesResult> = flowOf(fetchMessages(conversationId))
 
     fun searchMessages(
         query: String,

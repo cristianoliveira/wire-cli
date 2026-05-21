@@ -17,7 +17,7 @@ private val logger = KotlinLogging.logger {}
  */
 internal class RealKaliumMessageApiClient(
     private val runtime: RealKaliumMessageRuntime,
-) : MessageApiClient, MessageTypingApiClient {
+) : MessageApiClient, MessageTypingApiClient, MessageWatchApiClient {
     override fun sendMessage(
         session: AuthSession,
         conversationId: String,
@@ -111,6 +111,11 @@ internal class RealKaliumMessageApiClient(
             }
         }
     }
+
+    override fun observeMessages(
+        session: AuthSession,
+        conversationId: String,
+    ) = runtime.observeMessages(session, conversationId)
 
     override fun searchMessages(
         session: AuthSession,

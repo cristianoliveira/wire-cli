@@ -4,21 +4,17 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.runBlocking
 import wirecli.auth.ExitCodes
 import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageService
 import wirecli.message.MessageUserMessages
-import kotlin.math.min
 
 private val logger = KotlinLogging.logger {}
 
-private const val DEFAULT_WATCH_POLL_INTERVAL_MS = 1_000L
-private const val MAX_RETRY_BACKOFF_MS = 15_000L
-
 class MessageWatchCommand(
     private val messageServiceProvider: () -> MessageService,
-    private val pollIntervalMs: Long = DEFAULT_WATCH_POLL_INTERVAL_MS,
-    private val sleep: (Long) -> Unit = { Thread.sleep(it) },
     private val keepWatching: () -> Boolean = { true },
 ) : CliktCommand(
         name = "watch",
@@ -48,26 +44,20 @@ class MessageWatchCommand(
         val messageService = messageServiceProvider()
         val knownMessageIds = mutableSetOf<String>()
         var hasBaselineSnapshot = false
-        var transientFailureCount = 0
 
-        while (keepWatching()) {
-            val result = messageService.fetchMessages(validatedConversationId)
-            when (result) {
-                is FetchMessagesResult.Success ->
-                    transientFailureCount =
-                        handleSuccessfulFetch(result, knownMessageIds, hasBaselineSnapshot)
-                            .also { hasBaselineSnapshot = true }
+        runBlocking {
+            messageService.observeMessages(validatedConversationId)
+                .takeWhile { keepWatching() }
+                .collect { result ->
+                    when (result) {
+                        is FetchMessagesResult.Success -> {
+                            handleSuccessfulFetch(result, knownMessageIds, hasBaselineSnapshot)
+                            hasBaselineSnapshot = true
+                        }
 
-                is FetchMessagesResult.Failure -> {
-                    val newFailureCount = handleFetchFailure(result, validatedConversationId, transientFailureCount)
-                    if (newFailureCount != null) {
-                        transientFailureCount = newFailureCount
-                    } else {
-                        echo(result.message, err = true)
-                        throw ProgramResult(result.exitCode)
+                        is FetchMessagesResult.Failure -> handleFetchFailure(result, validatedConversationId)
                     }
                 }
-            }
         }
     }
 
@@ -75,34 +65,30 @@ class MessageWatchCommand(
         result: FetchMessagesResult.Success,
         knownMessageIds: MutableSet<String>,
         hasBaselineSnapshot: Boolean,
-    ): Int {
+    ) {
         if (!hasBaselineSnapshot) {
             result.view.messages.forEach { knownMessageIds += it.id }
-        } else {
-            val newMessages = result.view.messages.filter { it.id !in knownMessageIds }
-            result.view.messages.forEach { knownMessageIds += it.id }
-            newMessages.forEach { echo(it.content) }
+            return
         }
-        sleep(pollIntervalMs)
-        return 0
+
+        val newMessages = result.view.messages.filter { it.id !in knownMessageIds }
+        result.view.messages.forEach { knownMessageIds += it.id }
+        newMessages.forEach { echo(it.content) }
     }
 
     private fun handleFetchFailure(
         result: FetchMessagesResult.Failure,
         conversationId: String,
-        failureCount: Int,
-    ): Int? {
-        if (!isRetryableWatchFailure(result)) return null
-
-        val newFailureCount = failureCount + 1
-        val delayMs = calculateRetryDelayMs(newFailureCount)
-        logger.warn {
-            "Transient message watch fetch failure for conversationId=$conversationId; " +
-                "retrying in ${delayMs}ms: ${result.message}"
+    ) {
+        if (!isRetryableWatchFailure(result)) {
+            echo(result.message, err = true)
+            throw ProgramResult(result.exitCode)
         }
-        echo("${result.message}; retrying in ${delayMs}ms", err = true)
-        sleep(delayMs)
-        return newFailureCount
+
+        logger.warn {
+            "Transient message watch flow failure for conversationId=$conversationId: ${result.message}"
+        }
+        echo(result.message, err = true)
     }
 
     private fun isRetryableWatchFailure(result: FetchMessagesResult.Failure): Boolean {
@@ -110,11 +96,5 @@ class MessageWatchCommand(
         return result.exitCode != ExitCodes.UNAUTHORIZED &&
             result.exitCode != ExitCodes.VALIDATION_ERROR &&
             !normalizedMessage.contains(MessageUserMessages.CONVERSATION_NOT_FOUND)
-    }
-
-    private fun calculateRetryDelayMs(transientFailureCount: Int): Long {
-        val baseDelayMs = pollIntervalMs.takeIf { it > 0 } ?: DEFAULT_WATCH_POLL_INTERVAL_MS
-        val growthFactor = 1L shl min(transientFailureCount - 1, 4)
-        return min(baseDelayMs * growthFactor, MAX_RETRY_BACKOFF_MS)
     }
 }

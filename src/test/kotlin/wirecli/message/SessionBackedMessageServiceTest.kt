@@ -290,6 +290,13 @@ class SessionBackedMessageServiceTest {
                             conversationId: String?,
                             limit: Int,
                         ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
+
+                        override fun toggleReaction(
+                            session: AuthSession,
+                            conversationId: String,
+                            messageId: String,
+                            emoji: String,
+                        ): ToggleReactionResult = ToggleReactionResult.Success(ReactionAction.ADDED)
                     },
             )
 
@@ -341,5 +348,12 @@ class SessionBackedMessageServiceTest {
             conversationId: String?,
             limit: Int,
         ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
+
+        override fun toggleReaction(
+            session: AuthSession,
+            conversationId: String,
+            messageId: String,
+            emoji: String,
+        ): ToggleReactionResult = ToggleReactionResult.Success(ReactionAction.ADDED)
     }
 }

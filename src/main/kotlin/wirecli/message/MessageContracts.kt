@@ -57,6 +57,17 @@ sealed interface SearchMessagesResult {
     data class Failure(val message: String, val exitCode: Int) : SearchMessagesResult
 }
 
+enum class ReactionAction {
+    ADDED,
+    REMOVED,
+}
+
+sealed interface ToggleReactionResult {
+    data class Success(val action: ReactionAction) : ToggleReactionResult
+
+    data class Failure(val message: String, val exitCode: Int) : ToggleReactionResult
+}
+
 // Low-level API client interface - works with AuthSession directly
 interface MessageApiClient {
     fun sendMessage(
@@ -76,6 +87,13 @@ interface MessageApiClient {
         conversationId: String? = null,
         limit: Int = 10,
     ): SearchMessagesResult
+
+    fun toggleReaction(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): ToggleReactionResult
 }
 
 interface MessageWatchApiClient {
@@ -109,6 +127,12 @@ interface MessageService {
         conversationId: String? = null,
         limit: Int = 10,
     ): SearchMessagesResult
+
+    fun toggleReaction(
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): ToggleReactionResult
 
     fun sendTypingStatus(
         conversationId: String,
@@ -151,6 +175,10 @@ internal object MessageUserMessages {
     const val SEARCH_NETWORK_ERROR = "network error while searching messages"
     const val SEARCH_SERVER_ERROR = "server error while searching messages"
     const val SEARCH_EMPTY_QUERY = "search query cannot be blank"
+    const val REACTION_NETWORK_ERROR = "network error while toggling reaction"
+    const val REACTION_SERVER_ERROR = "server error while toggling reaction"
+    const val REACTION_UNKNOWN_ERROR = "unknown error while toggling reaction"
+    const val REACTION_EMOJI_BLANK = "emoji cannot be blank"
 }
 
 // Message-specific exceptions for error handling

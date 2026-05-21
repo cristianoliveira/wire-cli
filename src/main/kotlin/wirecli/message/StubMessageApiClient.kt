@@ -194,6 +194,39 @@ class StubMessageApiClient(
         }
     }
 
+    override fun toggleReaction(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): ToggleReactionResult {
+        return when (mode) {
+            StubMode.SUCCESS ->
+                ToggleReactionResult.Success(ReactionAction.ADDED)
+
+            StubMode.UNAUTHORIZED ->
+                ToggleReactionResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            StubMode.NETWORK_ERROR ->
+                ToggleReactionResult.Failure(
+                    message = MessageUserMessages.REACTION_NETWORK_ERROR,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            StubMode.SERVER_ERROR,
+            StubMode.VALIDATION_ERROR,
+            StubMode.CONVERSATION_NOT_FOUND,
+            ->
+                ToggleReactionResult.Failure(
+                    message = MessageUserMessages.REACTION_SERVER_ERROR,
+                    exitCode = MessageExitCodes.SERVER_ERROR,
+                )
+        }
+    }
+
     override fun sendTypingStatus(
         session: AuthSession,
         conversationId: String,

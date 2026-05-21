@@ -517,6 +517,13 @@ class RealKaliumMessageApiClientTest {
                             status: TypingStatus,
                         ): MessageStepResult<Unit> = MessageStepResult.Success(Unit)
 
+                        override fun searchMessages(
+                            session: AuthSession,
+                            query: String,
+                            conversationId: String?,
+                            limit: Int,
+                        ): MessageStepResult<List<MessageSearchResult>> = MessageStepResult.Success(emptyList())
+
                         override fun shutdown() {
                             // No-op for test stub
                         }
@@ -550,6 +557,13 @@ class RealKaliumMessageApiClientTest {
                             conversationId: String,
                             status: TypingStatus,
                         ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
+
+                        override fun searchMessages(
+                            session: AuthSession,
+                            query: String,
+                            conversationId: String?,
+                            limit: Int,
+                        ): MessageStepResult<List<MessageSearchResult>> = MessageStepResult.Success(emptyList())
 
                         override fun shutdown() {
                             // No-op for test stub

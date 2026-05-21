@@ -16,6 +16,7 @@ import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageApiClient
 import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
+import wirecli.message.ToggleReactionResult
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceResult
 import wirecli.presence.WritablePresenceState
@@ -238,5 +239,14 @@ private object NoopMessageApiClient : MessageApiClient {
         limit: Int,
     ): SearchMessagesResult {
         return SearchMessagesResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun toggleReaction(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): ToggleReactionResult {
+        return ToggleReactionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

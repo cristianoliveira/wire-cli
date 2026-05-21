@@ -71,6 +71,13 @@ internal interface RealKaliumMessageRuntime {
         status: TypingStatus,
     ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
 
+    fun toggleReaction(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+
     fun close() {
         shutdown()
     }
@@ -553,6 +560,64 @@ internal class SdkKaliumMessageRuntime(
                     }
                 }
             }
+        }
+    }
+
+    override fun toggleReaction(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): MessageStepResult<Unit> {
+        if (conversationId.isBlank() || messageId.isBlank() || emoji.isBlank()) {
+            return MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+        }
+
+        return try {
+            val qualifiedId = session.userId.toQualifiedIdOrNull()
+
+            if (qualifiedId == null) {
+                return MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
+            }
+
+            activeSessionUserIds += qualifiedId
+            val kaliumConvId =
+                MessageOperationHelper.buildQualifiedConversationId(conversationId, session.server)
+
+            runBlocking {
+                coreLogic.sessionScope(qualifiedId) {
+                    withContext(Dispatchers.Default) {
+                        syncExecutor.request {
+                            messages.toggleReaction(kaliumConvId, messageId, emoji)
+                        }
+                    }
+                }
+            }.let { result ->
+                when (result) {
+                    is MessageOperationResult.Success -> {
+                        logger.info { "message-react runtime outcome=success conversationId=$conversationId messageId=$messageId" }
+                        MessageStepResult.Success(Unit)
+                    }
+                    is MessageOperationResult.Failure -> {
+                        val mapped = MessageFailureMapper.categoryFromCoreFailure(result.error)
+                        logger.warn {
+                            "message-react runtime outcome=failure conversationId=$conversationId " +
+                                "messageId=$messageId failureClass=${result.error::class.simpleName} mappedCategory=$mapped"
+                        }
+                        MessageStepResult.Failure(mapped)
+                    }
+                    else -> MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+                }
+            }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") error: Throwable,
+        ) {
+            val mapped = MessageFailureMapper.categoryFromThrowable(error)
+            logger.error(error) {
+                "message-react runtime exception: conversationId=$conversationId messageId=$messageId " +
+                    "exceptionClass=${error::class.qualifiedName} message=${error.message} mappedCategory=$mapped"
+            }
+            MessageStepResult.Failure(mapped)
         }
     }
 

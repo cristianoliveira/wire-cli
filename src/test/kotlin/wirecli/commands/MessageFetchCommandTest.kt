@@ -5,8 +5,10 @@ import wirecli.message.ConversationMessage
 import wirecli.message.FetchMessagesResult
 import wirecli.message.FetchMessagesView
 import wirecli.message.MessageService
+import wirecli.message.ReactionAction
 import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
+import wirecli.message.ToggleReactionResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -124,5 +126,11 @@ class MessageFetchCommandTest {
             conversationId: String?,
             limit: Int,
         ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
+
+        override fun toggleReaction(
+            conversationId: String,
+            messageId: String,
+            emoji: String,
+        ): ToggleReactionResult = ToggleReactionResult.Success(ReactionAction.ADDED)
     }
 }

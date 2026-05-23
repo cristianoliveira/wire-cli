@@ -1,6 +1,8 @@
 package wirecli.message
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import wirecli.auth.AuthMessages
 import wirecli.auth.ExitCodes
 import wirecli.auth.SessionProvider
@@ -11,6 +13,7 @@ class SessionBackedMessageService(
     private val sessionStore: SessionProvider,
     private val apiClient: MessageApiClient,
     private val typingApiClient: MessageTypingApiClient? = apiClient as? MessageTypingApiClient,
+    private val watchApiClient: MessageWatchApiClient? = apiClient as? MessageWatchApiClient,
 ) : MessageService {
     override fun sendMessage(
         conversationId: String,
@@ -69,6 +72,27 @@ class SessionBackedMessageService(
                     }
             }
         }
+    }
+
+    override fun observeMessages(conversationId: String): Flow<FetchMessagesResult> {
+        logger.debug { "Service operation: observeMessages(conversationId=$conversationId) started" }
+
+        val session = sessionStore.readActiveSession()
+        if (session == null) {
+            logger.warn { "No active session found for observeMessages($conversationId)" }
+            return flowOf(
+                FetchMessagesResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ),
+            )
+        }
+
+        logger.info {
+            "message-watch session resolved: userId=${session.userId}, conversationId=$conversationId"
+        }
+        return watchApiClient?.observeMessages(session, conversationId)
+            ?: flowOf(apiClient.fetchMessages(session, conversationId))
     }
 
     override fun searchMessages(

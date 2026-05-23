@@ -1,6 +1,8 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import wirecli.message.ConversationMessage
 import wirecli.message.FetchMessagesResult
 import wirecli.message.FetchMessagesView
@@ -16,132 +18,54 @@ import kotlin.test.assertTrue
 
 class MessageWatchCommandTest {
     @Test
-    fun `watch command streams new messages until stopped`() {
-        val existing =
-            ConversationMessage(
-                id = "msg-1",
-                senderId = "alice@example.com",
-                senderName = "Alice",
-                timestamp = "2026-03-20T10:00:00Z",
-                content = "existing",
-            )
-        val incoming =
-            ConversationMessage(
-                id = "msg-2",
-                senderId = "bob@example.com",
-                senderName = "Bob",
-                timestamp = "2026-03-20T10:01:00Z",
-                content = "incoming",
-            )
-        val incomingSecond =
-            ConversationMessage(
-                id = "msg-3",
-                senderId = "charlie@example.com",
-                senderName = "Charlie",
-                timestamp = "2026-03-20T10:02:00Z",
-                content = "incoming-2",
-            )
+    fun `watch command streams new messages from reactive flow`() {
+        val existing = message("msg-1", "existing")
+        val incoming = message("msg-2", "incoming")
+        val incomingSecond = message("msg-3", "incoming-2")
 
-        var iterationsRemaining = 4
-
-        val command =
-            MessageWatchCommand(
-                messageServiceProvider = {
-                    QueueMessageService(
-                        listOf(
-                            FetchMessagesResult.Success(FetchMessagesView("conv-123", listOf(existing))),
-                            FetchMessagesResult.Success(FetchMessagesView("conv-123", listOf(existing, incoming))),
-                            FetchMessagesResult.Success(FetchMessagesView("conv-123", listOf(existing, incoming))),
-                            FetchMessagesResult.Success(
-                                FetchMessagesView("conv-123", listOf(existing, incoming, incomingSecond)),
-                            ),
-                        ),
-                    )
-                },
-                pollIntervalMs = 0,
-                sleep = {},
-                keepWatching = { iterationsRemaining-- > 0 },
+        val service =
+            ReactiveMessageService(
+                flowOf(
+                    success(existing),
+                    success(existing, incoming),
+                    success(existing, incoming),
+                    success(existing, incoming, incomingSecond),
+                ),
             )
+        val command = MessageWatchCommand(messageServiceProvider = { service })
 
         val result = execute(command, listOf("conv-123"))
 
         assertEquals(0, result.exitCode)
         assertEquals("incoming\nincoming-2", result.stdout.trim())
+        assertEquals(0, service.fetchCalls)
     }
 
     @Test
-    fun `watch command retries transient failure and recovers with later message`() {
-        val incoming =
-            ConversationMessage(
-                id = "msg-2",
-                senderId = "bob@example.com",
-                senderName = "Bob",
-                timestamp = "2026-03-20T10:01:00Z",
-                content = "incoming",
-            )
-        var iterationsRemaining = 3
+    fun `watch command keeps collecting reactive flow after transient failure`() {
+        val incoming = message("msg-2", "incoming")
 
         val command =
             MessageWatchCommand(
                 messageServiceProvider = {
-                    QueueMessageService(
-                        listOf(
-                            FetchMessagesResult.Success(FetchMessagesView("conv-123", emptyList())),
+                    ReactiveMessageService(
+                        flowOf(
+                            success(),
                             FetchMessagesResult.Failure(
-                                message = "network error while fetching messages",
+                                message = "network error while observing messages",
                                 exitCode = 12,
                             ),
-                            FetchMessagesResult.Success(FetchMessagesView("conv-123", listOf(incoming))),
+                            success(incoming),
                         ),
                     )
                 },
-                pollIntervalMs = 0,
-                sleep = {},
-                keepWatching = { iterationsRemaining-- > 0 },
             )
 
         val result = execute(command, listOf("conv-123"))
 
         assertEquals(0, result.exitCode)
         assertEquals("incoming", result.stdout.trim())
-        assertTrue(result.stderr.contains("retrying in"))
-    }
-
-    @Test
-    fun `watch command does not exit on first transient baseline failure`() {
-        val incoming =
-            ConversationMessage(
-                id = "msg-2",
-                senderId = "bob@example.com",
-                senderName = "Bob",
-                timestamp = "2026-03-20T10:01:00Z",
-                content = "incoming-after-baseline-retry",
-            )
-        var iterationsRemaining = 4
-
-        val command =
-            MessageWatchCommand(
-                messageServiceProvider = {
-                    QueueMessageService(
-                        listOf(
-                            FetchMessagesResult.Failure(
-                                message = "message-fetch preflight sync timeout",
-                                exitCode = 12,
-                            ),
-                            FetchMessagesResult.Success(FetchMessagesView("conv-123", emptyList())),
-                            FetchMessagesResult.Success(FetchMessagesView("conv-123", listOf(incoming))),
-                        ),
-                    )
-                },
-                pollIntervalMs = 0,
-                sleep = {},
-                keepWatching = { iterationsRemaining-- > 0 },
-            )
-
-        val result = execute(command, listOf("conv-123"))
-
-        assertEquals(0, result.exitCode)
-        assertEquals("incoming-after-baseline-retry", result.stdout.trim())
+        assertTrue(result.stderr.contains("network error while observing messages"))
     }
 
     @Test
@@ -149,8 +73,8 @@ class MessageWatchCommandTest {
         val command =
             MessageWatchCommand(
                 messageServiceProvider = {
-                    QueueMessageService(
-                        listOf(
+                    ReactiveMessageService(
+                        flowOf(
                             FetchMessagesResult.Failure(
                                 message = MessageUserMessages.CONVERSATION_NOT_FOUND,
                                 exitCode = 13,
@@ -158,9 +82,6 @@ class MessageWatchCommandTest {
                         ),
                     )
                 },
-                pollIntervalMs = 0,
-                sleep = {},
-                keepWatching = { true },
             )
 
         val result = execute(command, listOf("conv-123"))
@@ -174,12 +95,8 @@ class MessageWatchCommandTest {
         val command =
             MessageWatchCommand(
                 messageServiceProvider = {
-                    QueueMessageService(
-                        listOf(FetchMessagesResult.Success(FetchMessagesView("conv-123", emptyList()))),
-                    )
+                    ReactiveMessageService(flowOf(success()))
                 },
-                pollIntervalMs = 0,
-                sleep = {},
             )
 
         val result = execute(command, listOf("   "))
@@ -187,6 +104,20 @@ class MessageWatchCommandTest {
         assertEquals(14, result.exitCode)
         assertEquals("validation error: conversation required", result.stderr.trim())
     }
+
+    private fun message(
+        id: String,
+        content: String,
+    ) = ConversationMessage(
+        id = id,
+        senderId = "sender@example.com",
+        senderName = "Sender",
+        timestamp = "2026-03-20T10:00:00Z",
+        content = content,
+    )
+
+    private fun success(vararg messages: ConversationMessage) =
+        FetchMessagesResult.Success(FetchMessagesView("conv-123", messages.toList()))
 
     private data class ExecutionResult(
         val exitCode: Int,
@@ -222,18 +153,23 @@ class MessageWatchCommandTest {
         )
     }
 
-    private class QueueMessageService(
-        results: List<FetchMessagesResult>,
+    private class ReactiveMessageService(
+        private val results: Flow<FetchMessagesResult>,
     ) : MessageService {
-        private val queue = ArrayDeque(results)
+        var fetchCalls = 0
+            private set
 
         override fun sendMessage(
             conversationId: String,
             text: String,
         ): SendMessageResult = SendMessageResult.Success
 
-        override fun fetchMessages(conversationId: String): FetchMessagesResult =
-            queue.removeFirstOrNull() ?: FetchMessagesResult.Success(FetchMessagesView(conversationId, emptyList()))
+        override fun fetchMessages(conversationId: String): FetchMessagesResult {
+            fetchCalls += 1
+            return FetchMessagesResult.Success(FetchMessagesView(conversationId, emptyList()))
+        }
+
+        override fun observeMessages(conversationId: String): Flow<FetchMessagesResult> = results
 
         override fun searchMessages(
             query: String,

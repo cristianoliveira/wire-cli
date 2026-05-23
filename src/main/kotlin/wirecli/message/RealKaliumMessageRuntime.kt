@@ -12,7 +12,13 @@ import com.wire.kalium.logic.feature.message.SearchMessagesInConversationUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -39,6 +45,18 @@ internal interface RealKaliumMessageRuntime {
         session: AuthSession,
         conversationId: String,
     ): MessageStepResult<List<ConversationMessage>>
+
+    fun observeMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): Flow<FetchMessagesResult> =
+        flowOf(
+            when (val result = fetchMessages(session, conversationId)) {
+                is MessageStepResult.Success ->
+                    FetchMessagesResult.Success(FetchMessagesView(conversationId, result.value))
+                is MessageStepResult.Failure -> mapFetchFailure(result.category)
+            },
+        )
 
     fun searchMessages(
         session: AuthSession,
@@ -317,6 +335,57 @@ internal class SdkKaliumMessageRuntime(
         }
     }
 
+    override fun observeMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): Flow<FetchMessagesResult> {
+        val isConversationBlank = conversationId.isBlank()
+        val qualifiedId = session.userId.toQualifiedIdOrNull()
+        return when {
+            isConversationBlank ->
+                flowOf(
+                    FetchMessagesResult.Failure(
+                        MessageUserMessages.VALIDATION_ERROR,
+                        MessageExitCodes.VALIDATION_ERROR,
+                    ),
+                )
+            qualifiedId == null ->
+                flowOf(
+                    FetchMessagesResult.Failure(
+                        MessageUserMessages.UNAUTHORIZED,
+                        MessageExitCodes.UNAUTHORIZED,
+                    ),
+                )
+            else -> {
+                activeSessionUserIds += qualifiedId
+                val kaliumConvId = MessageOperationHelper.buildQualifiedConversationId(conversationId, session.server)
+                flow {
+                    coreLogic.sessionScope(qualifiedId) {
+                        emitAll(
+                            messages.getRecentMessages(kaliumConvId, limit = FETCH_MESSAGES_LIMIT)
+                                .map { messages ->
+                                    FetchMessagesResult.Success(
+                                        FetchMessagesView(
+                                            conversationId = conversationId,
+                                            messages = mapFetchedMessages(messages),
+                                        ),
+                                    ) as FetchMessagesResult
+                                },
+                        )
+                    }
+                }.catch { error ->
+                    val category = MessageFailureMapper.categoryFromThrowable(error)
+                    logger.error(error) {
+                        "message-watch runtime exception: conversationId=$conversationId " +
+                            "exceptionClass=${error::class.qualifiedName} message=${error.message} " +
+                            "mappedCategory=$category"
+                    }
+                    emit(mapFetchFailure(category))
+                }
+            }
+        }
+    }
+
     override fun searchMessages(
         session: AuthSession,
         query: String,
@@ -564,6 +633,20 @@ internal class SdkKaliumMessageRuntime(
                 ?: Paths.get("").toAbsolutePath().toString()
         }
     }
+}
+
+private fun mapFetchFailure(category: MessageFailureCategory): FetchMessagesResult.Failure {
+    val (message, exitCode) =
+        when (category) {
+            MessageFailureCategory.VALIDATION -> MessageUserMessages.VALIDATION_ERROR to MessageExitCodes.VALIDATION_ERROR
+            MessageFailureCategory.UNAUTHORIZED -> MessageUserMessages.UNAUTHORIZED to MessageExitCodes.UNAUTHORIZED
+            MessageFailureCategory.TIMEOUT -> MessageUserMessages.FETCH_NETWORK_ERROR to MessageExitCodes.NETWORK_ERROR
+            MessageFailureCategory.NETWORK -> MessageUserMessages.FETCH_NETWORK_ERROR to MessageExitCodes.NETWORK_ERROR
+            MessageFailureCategory.SERVER -> MessageUserMessages.FETCH_SERVER_ERROR to MessageExitCodes.SERVER_ERROR
+            MessageFailureCategory.NOT_FOUND -> MessageUserMessages.CONVERSATION_NOT_FOUND to MessageExitCodes.NOT_FOUND
+            MessageFailureCategory.UNKNOWN -> MessageUserMessages.FETCH_UNKNOWN_ERROR to MessageExitCodes.SERVER_ERROR
+        }
+    return FetchMessagesResult.Failure(message = message, exitCode = exitCode)
 }
 
 private fun mapFetchedMessages(result: List<Message>?): List<ConversationMessage> {

@@ -65,22 +65,6 @@ internal interface RealKaliumMessageRuntime {
     fun shutdown()
 }
 
-internal sealed interface MessageStepResult<out T> {
-    data class Success<T>(val value: T) : MessageStepResult<T>
-
-    data class Failure(val category: MessageFailureCategory) : MessageStepResult<Nothing>
-}
-
-internal enum class MessageFailureCategory {
-    VALIDATION,
-    TIMEOUT,
-    NETWORK,
-    SERVER,
-    UNAUTHORIZED,
-    NOT_FOUND,
-    UNKNOWN,
-}
-
 private const val PREFLIGHT_SYNC_TIMEOUT_MS = 15_000L
 private const val FETCH_MESSAGES_LIMIT = 10
 internal const val MESSAGE_SEND_TIMEOUT_ENV = "WIRECLI_MESSAGE_SEND_TIMEOUT_MS"

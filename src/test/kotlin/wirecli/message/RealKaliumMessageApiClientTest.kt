@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  * - Maps all MessageFailureCategory values to appropriate exit codes
  * - Returns success results without modification
  * - Provides user-friendly error messages
- * - Delegates to RealKaliumMessageRuntime
+ * - Delegates to MessageRuntime
  */
 class RealKaliumMessageApiClientTest {
     private val testSession =
@@ -499,7 +499,7 @@ class RealKaliumMessageApiClientTest {
         val client =
             RealKaliumMessageApiClient(
                 runtime =
-                    object : RealKaliumMessageRuntime {
+                    object : MessageRuntime {
                         override fun sendMessage(
                             session: AuthSession,
                             conversationId: String,
@@ -540,7 +540,7 @@ class RealKaliumMessageApiClientTest {
         val client =
             RealKaliumMessageApiClient(
                 runtime =
-                    object : RealKaliumMessageRuntime {
+                    object : MessageRuntime {
                         override fun sendMessage(
                             session: AuthSession,
                             conversationId: String,
@@ -584,7 +584,7 @@ class RealKaliumMessageApiClientTest {
         private val result: MessageStepResult<Unit>,
         private val fetchResult: MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList()),
         private val captureCalls: MutableList<Triple<AuthSession, String, String>>? = null,
-    ) : RealKaliumMessageRuntime {
+    ) : MessageRuntime {
         override fun sendMessage(
             session: AuthSession,
             conversationId: String,
@@ -608,7 +608,7 @@ class RealKaliumMessageApiClientTest {
 
     private class HangingKaliumMessageRuntime(
         private val releaseLatch: CountDownLatch,
-    ) : RealKaliumMessageRuntime {
+    ) : MessageRuntime {
         override fun sendMessage(
             session: AuthSession,
             conversationId: String,
@@ -634,7 +634,7 @@ class RealKaliumMessageApiClientTest {
     private class FakeKaliumMessageRuntimeWithFetchCapture(
         private val fetchResult: MessageStepResult<List<ConversationMessage>>,
         private val captureFetchCalls: MutableList<Pair<AuthSession, String>>? = null,
-    ) : RealKaliumMessageRuntime {
+    ) : MessageRuntime {
         override fun sendMessage(
             session: AuthSession,
             conversationId: String,

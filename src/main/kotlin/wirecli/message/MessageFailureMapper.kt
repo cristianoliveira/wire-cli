@@ -1,9 +1,8 @@
-package wirecli.domains.message
+package wirecli.message
 
 import com.wire.kalium.common.error.CoreFailure
 import com.wire.kalium.common.error.NetworkFailure
 import io.github.oshai.kotlinlogging.KotlinLogging
-import wirecli.message.MessageFailureCategory
 
 private val logger = KotlinLogging.logger {}
 

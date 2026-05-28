@@ -1,4 +1,4 @@
-package wirecli.runtime
+package wirecli.config
 
 import com.wire.kalium.logic.featureFlags.KaliumConfigs
 import kotlin.time.Duration

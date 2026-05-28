@@ -1,7 +1,4 @@
-package wirecli.domains.sync
-
-import wirecli.sync.Check
-import wirecli.sync.RecoveryHint
+package wirecli.sync
 
 /**
  * Builder for recovery hints in sync diagnostics.

@@ -9,8 +9,8 @@ import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
-import wirecli.runtime.KaliumCliMode
-import wirecli.runtime.kaliumCliConfigs
+import wirecli.config.KaliumCliMode
+import wirecli.config.kaliumCliConfigs
 
 private val logger = KotlinLogging.logger {}
 

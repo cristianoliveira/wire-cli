@@ -15,7 +15,7 @@ import wirecli.config.kaliumCliConfigs
 private val logger = KotlinLogging.logger {}
 
 internal class RealKaliumPresenceApiClient(
-    private val runtime: RealKaliumPresenceRuntime,
+    private val runtime: PresenceRuntime,
 ) : PresenceApiClient {
     override fun fetchPresence(session: AuthSession): PresenceResult {
         logger.debug { "RealKaliumPresenceApiClient: Fetching presence for user: ${session.userId}" }
@@ -78,45 +78,12 @@ internal class RealKaliumPresenceApiClient(
     }
 }
 
-internal interface RealKaliumPresenceRuntime {
-    fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope>
-
-    fun getSelfAvailabilityStatus(sessionScope: KaliumPresenceSessionScope): PresenceStepResult<UserAvailabilityStatus>
-
-    fun setSelfAvailabilityStatus(
-        sessionScope: KaliumPresenceSessionScope,
-        status: UserAvailabilityStatus,
-    ): PresenceStepResult<Unit>
-
-    fun close() {
-        shutdown()
-    }
-
-    fun shutdown()
-}
-
-internal data class KaliumPresenceSessionScope(
-    val userId: String,
-    val server: String?,
-)
-
-internal sealed interface PresenceStepResult<out T> {
-    data class Success<T>(val value: T) : PresenceStepResult<T>
-
-    data class Failure(val category: PresenceFailureCategory) : PresenceStepResult<Nothing>
-}
-
-internal enum class PresenceFailureCategory {
-    NETWORK,
-    SERVER,
-    UNAUTHORIZED,
-    UNKNOWN,
-}
+internal typealias RealKaliumPresenceRuntime = PresenceRuntime
 
 internal class SdkKaliumPresenceRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
-) : RealKaliumPresenceRuntime {
+) : PresenceRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
     private val coreLogicLazy =

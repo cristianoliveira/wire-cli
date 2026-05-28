@@ -90,3 +90,44 @@ internal object PresenceMessages {
     const val SET_SERVER_FAILURE = "Presence update could not be completed. Retry later or check server settings."
     const val SET_UNKNOWN_FAILURE = "Presence update failed unexpectedly. Retry and check your setup."
 }
+
+// Step result for runtime-level operations (SDK adapter layer)
+internal sealed interface PresenceStepResult<out T> {
+    data class Success<T>(val value: T) : PresenceStepResult<T>
+
+    data class Failure(val category: PresenceFailureCategory) : PresenceStepResult<Nothing>
+}
+
+// Failure categories for runtime-level presence operations
+internal enum class PresenceFailureCategory {
+    NETWORK,
+    SERVER,
+    UNAUTHORIZED,
+    UNKNOWN,
+}
+
+// Scoped context for presence operations on a specific authenticated user
+internal data class KaliumPresenceSessionScope(
+    val userId: String,
+    val server: String?,
+)
+
+// Runtime-level interface for SDK adapters
+internal interface PresenceRuntime {
+    fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope>
+
+    fun getSelfAvailabilityStatus(
+        sessionScope: KaliumPresenceSessionScope,
+    ): PresenceStepResult<com.wire.kalium.logic.data.user.UserAvailabilityStatus>
+
+    fun setSelfAvailabilityStatus(
+        sessionScope: KaliumPresenceSessionScope,
+        status: com.wire.kalium.logic.data.user.UserAvailabilityStatus,
+    ): PresenceStepResult<Unit>
+
+    fun close() {
+        shutdown()
+    }
+
+    fun shutdown()
+}

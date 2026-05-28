@@ -10,8 +10,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthSession
-import wirecli.runtime.KaliumCliMode
-import wirecli.runtime.kaliumCliConfigs
+import wirecli.config.KaliumCliMode
+import wirecli.config.kaliumCliConfigs
 import java.nio.file.Paths
 
 private val logger = KotlinLogging.logger {}

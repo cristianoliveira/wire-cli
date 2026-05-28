@@ -1,5 +1,7 @@
 package wirecli.runtime
 
+import wirecli.config.KaliumCliMode
+import wirecli.config.kaliumCliConfigs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

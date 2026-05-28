@@ -1,4 +1,4 @@
-package wirecli.runtime
+package wirecli.config
 
 internal data class KaliumCliMode(
     val enableCalling: Boolean = false,

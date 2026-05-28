@@ -278,3 +278,29 @@ internal object SyncMessages {
     const val MLS_ENROLLMENT_FAILURES = "MLS enrollment failures detected. Check network and retry."
     const val MLS_GROUP_UPDATE_FAILURES = "MLS group update failures detected. May impact group conversations."
 }
+
+// Runtime-level interface for SDK adapters
+internal interface SyncRuntime {
+    fun forceSyncAndWait(session: AuthSession): SyncStatusResult
+
+    fun getSyncStatus(session: AuthSession): SyncStatusResult
+
+    fun getDiagnostics(session: AuthSession): DiagnosticsResult
+
+    fun getConversationSyncStatus(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationSyncStatusResult
+
+    fun getPerConversationDiagnostics(
+        session: AuthSession,
+        conversationId: String,
+    ): PerConversationDiagnosticsResult
+
+    fun resetSync(
+        session: AuthSession,
+        force: Boolean = false,
+    ): ResetResult
+
+    fun shutdown()
+}

@@ -26,7 +26,7 @@ private val logger = KotlinLogging.logger {}
  * including status checks and diagnostic reports.
  */
 internal class RealKaliumSyncApiClient(
-    private val runtime: RealKaliumSyncRuntime,
+    private val runtime: SyncRuntime,
 ) : SyncApiClient {
     companion object {
         // Key package thresholds
@@ -205,56 +205,7 @@ internal class RealKaliumSyncApiClient(
     }
 }
 
-/**
- * Interface for Kalium sync runtime integration.
- *
- * This interface defines the contract for interacting with the Kalium SDK to obtain
- * real sync status and diagnostic information.
- */
-internal interface RealKaliumSyncRuntime {
-    fun forceSyncAndWait(session: AuthSession): SyncStatusResult
-
-    /**
-     * Retrieves the current sync status and health metrics for an authenticated session.
-     */
-    fun getSyncStatus(session: AuthSession): SyncStatusResult
-
-    /**
-     * Retrieves diagnostic information about the sync engine.
-     */
-    fun getDiagnostics(session: AuthSession): DiagnosticsResult
-
-    /**
-     * Retrieves sync status for a specific conversation.
-     *
-     * @param session The authenticated session
-     * @param conversationId The ID of the conversation to query
-     * @return Sync status and metrics for the conversation
-     */
-    fun getConversationSyncStatus(
-        session: AuthSession,
-        conversationId: String,
-    ): ConversationSyncStatusResult
-
-    /**
-     * Retrieves detailed diagnostics for a conversation's sync status.
-     *
-     * @param session The authenticated session
-     * @param conversationId The ID of the conversation to diagnose
-     * @return Detailed diagnostics report with checks and recovery hints
-     */
-    fun getPerConversationDiagnostics(
-        session: AuthSession,
-        conversationId: String,
-    ): PerConversationDiagnosticsResult
-
-    fun resetSync(
-        session: AuthSession,
-        force: Boolean = false,
-    ): ResetResult
-
-    fun shutdown()
-}
+internal typealias RealKaliumSyncRuntime = SyncRuntime
 
 /**
  * SDK implementation for Kalium sync runtime.
@@ -268,7 +219,7 @@ internal class SdkKaliumSyncRuntime(
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
     private val networkConnectivityChecker: NetworkConnectivityChecker = RealNetworkConnectivityChecker(),
     private val syncMetricsCalculator: SyncMetricsCalculator = RealSyncMetricsCalculator(),
-) : RealKaliumSyncRuntime {
+) : SyncRuntime {
     private companion object {
         const val FORCE_SYNC_WAIT_TIMEOUT_MS = 120_000L
         const val STATUS_WAIT_TIMEOUT_MS = 15_000L

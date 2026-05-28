@@ -290,4 +290,17 @@ class MessageContractsTest {
 
         assertTrue(categories.containsAll(setOf("VALIDATION", "TIMEOUT", "NETWORK", "SERVER", "UNAUTHORIZED", "NOT_FOUND", "UNKNOWN")))
     }
+
+    // --- MessageRuntime contract ---
+
+    @Test
+    fun `MessageRuntime interface defines all message operations`() {
+        val methodNames = MessageRuntime::class.java.methods.map { it.name }.toSet()
+
+        assertTrue(
+            methodNames.containsAll(
+                setOf("sendMessage", "fetchMessages", "searchMessages", "sendTypingStatus", "toggleReaction", "shutdown"),
+            ),
+        )
+    }
 }

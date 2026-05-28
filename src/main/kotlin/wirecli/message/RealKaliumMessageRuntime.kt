@@ -26,44 +26,7 @@ private val logger = KotlinLogging.logger {}
 /**
  * Runtime abstraction for Kalium message operations
  */
-internal interface RealKaliumMessageRuntime {
-    fun sendMessage(
-        session: AuthSession,
-        conversationId: String,
-        text: String,
-    ): MessageStepResult<Unit>
-
-    fun fetchMessages(
-        session: AuthSession,
-        conversationId: String,
-    ): MessageStepResult<List<ConversationMessage>>
-
-    fun searchMessages(
-        session: AuthSession,
-        query: String,
-        conversationId: String? = null,
-        limit: Int = 10,
-    ): MessageStepResult<List<MessageSearchResult>> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
-
-    fun sendTypingStatus(
-        session: AuthSession,
-        conversationId: String,
-        status: TypingStatus,
-    ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
-
-    fun toggleReaction(
-        session: AuthSession,
-        conversationId: String,
-        messageId: String,
-        emoji: String,
-    ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
-
-    fun close() {
-        shutdown()
-    }
-
-    fun shutdown()
-}
+internal typealias RealKaliumMessageRuntime = MessageRuntime
 
 private const val PREFLIGHT_SYNC_TIMEOUT_MS = 15_000L
 private const val FETCH_MESSAGES_LIMIT = 10

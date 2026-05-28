@@ -66,6 +66,46 @@ sealed interface ToggleReactionResult {
     data class Failure(val message: String, val exitCode: Int) : ToggleReactionResult
 }
 
+// Runtime-level interface for SDK adapters
+internal interface MessageRuntime {
+    fun sendMessage(
+        session: AuthSession,
+        conversationId: String,
+        text: String,
+    ): MessageStepResult<Unit>
+
+    fun fetchMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): MessageStepResult<List<ConversationMessage>>
+
+    fun searchMessages(
+        session: AuthSession,
+        query: String,
+        conversationId: String? = null,
+        limit: Int = 10,
+    ): MessageStepResult<List<MessageSearchResult>> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+
+    fun sendTypingStatus(
+        session: AuthSession,
+        conversationId: String,
+        status: TypingStatus,
+    ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+
+    fun toggleReaction(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+    ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+
+    fun close() {
+        shutdown()
+    }
+
+    fun shutdown()
+}
+
 // Low-level API client interface - works with AuthSession directly
 interface MessageApiClient {
     fun sendMessage(

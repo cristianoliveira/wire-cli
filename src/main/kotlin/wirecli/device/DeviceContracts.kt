@@ -163,3 +163,59 @@ sealed class DeviceException(message: String, cause: Throwable? = null) : Except
     class UnknownFailure(message: String = DeviceMessages.UNKNOWN_FAILURE, cause: Throwable? = null) :
         DeviceException(message, cause)
 }
+
+// Step result for runtime-level operations (SDK adapter layer)
+internal sealed interface DeviceStepResult<out T> {
+    data class Success<T>(val value: T) : DeviceStepResult<T>
+
+    data class Failure(val category: DeviceFailureCategory) : DeviceStepResult<Nothing>
+}
+
+// Failure categories for runtime-level device operations
+internal enum class DeviceFailureCategory {
+    NETWORK,
+    SERVER,
+    UNAUTHORIZED,
+    PASSWORD_REQUIRED,
+    INVALID_CREDENTIALS,
+    DEVICE_NOT_FOUND,
+    UNKNOWN,
+}
+
+// Scoped context for device operations on a specific authenticated user
+internal data class KaliumDeviceSessionScope(
+    val userId: String,
+    val server: String?,
+)
+
+// Runtime-level interface for SDK adapters
+internal interface DeviceRuntime {
+    fun resolveSessionScope(
+        session: AuthSession,
+        isWriteOperation: Boolean = false,
+    ): DeviceStepResult<KaliumDeviceSessionScope>
+
+    fun listDevices(sessionScope: KaliumDeviceSessionScope): DeviceStepResult<List<Device>>
+
+    fun listDevicesForUser(
+        sessionScope: KaliumDeviceSessionScope,
+        userId: String,
+    ): DeviceStepResult<List<Device>>
+
+    fun getDeviceDetail(
+        sessionScope: KaliumDeviceSessionScope,
+        deviceId: String,
+    ): DeviceStepResult<Device>
+
+    fun deleteDevice(
+        sessionScope: KaliumDeviceSessionScope,
+        deviceId: String,
+        password: String? = null,
+    ): DeviceStepResult<Unit>
+
+    fun close() {
+        shutdown()
+    }
+
+    fun shutdown()
+}

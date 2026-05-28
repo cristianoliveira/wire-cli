@@ -8,3 +8,5 @@ result
 .agent
 RESPONSE.md
 .devenv
+kls_database.db
+src/.kotlin-lsp-root

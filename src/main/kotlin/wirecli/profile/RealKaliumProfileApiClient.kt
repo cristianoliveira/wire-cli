@@ -17,7 +17,7 @@ import wirecli.config.kaliumCliConfigs
 private val logger = KotlinLogging.logger {}
 
 internal class RealKaliumProfileApiClient(
-    private val runtime: RealKaliumProfileRuntime,
+    private val runtime: ProfileRuntime,
 ) : ProfileApiClient {
     override fun updateProfile(
         session: AuthSession,
@@ -87,52 +87,12 @@ internal class RealKaliumProfileApiClient(
     }
 }
 
-internal interface RealKaliumProfileRuntime {
-    fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope>
-
-    fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser>
-
-    fun updateSelf(
-        sessionScope: KaliumProfileSessionScope,
-        name: String?,
-        handle: String?,
-    ): ProfileStepResult<Unit>
-
-    fun close() {
-        shutdown()
-    }
-
-    fun shutdown()
-}
-
-internal data class KaliumProfileSessionScope(
-    val userId: String,
-    val server: String?,
-)
-
-internal data class KaliumSelfUser(
-    val name: String?,
-    val email: String?,
-    val handle: String?,
-)
-
-internal sealed interface ProfileStepResult<out T> {
-    data class Success<T>(val value: T) : ProfileStepResult<T>
-
-    data class Failure(val category: ProfileFailureCategory) : ProfileStepResult<Nothing>
-}
-
-internal enum class ProfileFailureCategory {
-    NETWORK,
-    SERVER,
-    UNAUTHORIZED,
-    UNKNOWN,
-}
+internal typealias RealKaliumProfileRuntime = ProfileRuntime
 
 internal class SdkKaliumProfileRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
-) : RealKaliumProfileRuntime {
+) : ProfileRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
     private val coreLogicLazy =

@@ -16,45 +16,15 @@ import java.nio.file.Paths
 
 private val logger = KotlinLogging.logger {}
 
-/**
- * Runtime abstraction for Kalium conversation operations
- */
-internal interface RealKaliumConversationRuntime {
-    fun listConversations(session: AuthSession): ConversationStepResult<List<ConversationDetails>>
-
-    fun getConversation(
-        session: AuthSession,
-        conversationId: String,
-    ): ConversationStepResult<ConversationDetails>
-
-    fun close() {
-        shutdown()
-    }
-
-    fun shutdown()
-}
-
-internal sealed interface ConversationStepResult<out T> {
-    data class Success<T>(val value: T) : ConversationStepResult<T>
-
-    data class Failure(val category: ConversationFailureCategory) : ConversationStepResult<Nothing>
-}
-
-internal enum class ConversationFailureCategory {
-    NETWORK,
-    SERVER,
-    UNAUTHORIZED,
-    NOT_FOUND,
-    UNKNOWN,
-}
+internal typealias RealKaliumConversationRuntime = ConversationRuntime
 
 /**
- * SDK-based implementation of RealKaliumConversationRuntime using CoreLogic
+ * SDK-based implementation of ConversationRuntime using CoreLogic
  */
 internal class SdkKaliumConversationRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
-) : RealKaliumConversationRuntime {
+) : ConversationRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
     private val coreLogicLazy =

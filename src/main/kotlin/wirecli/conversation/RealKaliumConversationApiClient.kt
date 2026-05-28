@@ -14,7 +14,7 @@ private val logger = KotlinLogging.logger {}
  * Real API client implementation using Kalium SDK for conversation operations
  */
 internal class RealKaliumConversationApiClient(
-    private val runtime: RealKaliumConversationRuntime,
+    private val runtime: ConversationRuntime,
 ) : ConversationApiClient {
     override fun listConversations(session: AuthSession): ListConversationsResult {
         logger.info { "Listing conversations for current user" }

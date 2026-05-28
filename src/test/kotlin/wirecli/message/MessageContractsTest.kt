@@ -3,6 +3,7 @@ package wirecli.message
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class MessageContractsTest {
     @Test
@@ -262,5 +263,31 @@ class MessageContractsTest {
     fun `MessageService interface defines searchMessages method`() {
         val methodNames = MessageService::class.java.methods.map { it.name }
         assert(methodNames.contains("searchMessages"))
+    }
+
+    // --- MessageStepResult contracts ---
+
+    @Test
+    fun `MessageStepResult Success wraps value`() {
+        val result: MessageStepResult<String> = MessageStepResult.Success("hello")
+
+        val success = assertIs<MessageStepResult.Success<String>>(result)
+        assertEquals("hello", success.value)
+    }
+
+    @Test
+    fun `MessageStepResult Failure holds category`() {
+        val result: MessageStepResult<String> =
+            MessageStepResult.Failure(MessageFailureCategory.NETWORK)
+
+        val failure = assertIs<MessageStepResult.Failure>(result)
+        assertEquals(MessageFailureCategory.NETWORK, failure.category)
+    }
+
+    @Test
+    fun `MessageFailureCategory covers all failure modes`() {
+        val categories = MessageFailureCategory.values().map { it.name }.toSet()
+
+        assertTrue(categories.containsAll(setOf("VALIDATION", "TIMEOUT", "NETWORK", "SERVER", "UNAUTHORIZED", "NOT_FOUND", "UNKNOWN")))
     }
 }

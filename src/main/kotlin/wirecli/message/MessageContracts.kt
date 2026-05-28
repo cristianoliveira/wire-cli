@@ -181,6 +181,24 @@ internal object MessageUserMessages {
     const val REACTION_EMOJI_BLANK = "emoji cannot be blank"
 }
 
+// Step result for runtime-level operations (SDK adapter layer)
+internal sealed interface MessageStepResult<out T> {
+    data class Success<T>(val value: T) : MessageStepResult<T>
+
+    data class Failure(val category: MessageFailureCategory) : MessageStepResult<Nothing>
+}
+
+// Failure categories for runtime-level message operations
+internal enum class MessageFailureCategory {
+    VALIDATION,
+    TIMEOUT,
+    NETWORK,
+    SERVER,
+    UNAUTHORIZED,
+    NOT_FOUND,
+    UNKNOWN,
+}
+
 // Message-specific exceptions for error handling
 sealed class MessageException(message: String, cause: Throwable? = null) : Exception(message, cause) {
     class Unauthorized(message: String = MessageUserMessages.UNAUTHORIZED) : MessageException(message)

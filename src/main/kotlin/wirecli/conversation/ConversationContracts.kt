@@ -160,3 +160,35 @@ sealed class ConversationException(message: String, cause: Throwable? = null) : 
     class UnknownFailure(message: String = ConversationMessages.UNKNOWN_FAILURE, cause: Throwable? = null) :
         ConversationException(message, cause)
 }
+
+// Step result for runtime-level operations (SDK adapter layer)
+internal sealed interface ConversationStepResult<out T> {
+    data class Success<T>(val value: T) : ConversationStepResult<T>
+
+    data class Failure(val category: ConversationFailureCategory) : ConversationStepResult<Nothing>
+}
+
+// Failure categories for runtime-level conversation operations
+internal enum class ConversationFailureCategory {
+    NETWORK,
+    SERVER,
+    UNAUTHORIZED,
+    NOT_FOUND,
+    UNKNOWN,
+}
+
+// Runtime-level interface for SDK adapters
+internal interface ConversationRuntime {
+    fun listConversations(session: AuthSession): ConversationStepResult<List<com.wire.kalium.logic.data.conversation.ConversationDetails>>
+
+    fun getConversation(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationStepResult<com.wire.kalium.logic.data.conversation.ConversationDetails>
+
+    fun close() {
+        shutdown()
+    }
+
+    fun shutdown()
+}

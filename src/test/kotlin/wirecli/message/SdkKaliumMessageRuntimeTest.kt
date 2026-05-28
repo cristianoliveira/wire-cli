@@ -274,7 +274,7 @@ class SdkKaliumMessageRuntimeTest {
     @Test
     fun `RealKaliumMessageApiClient maps VALIDATION failure to correct exit code`() {
         val stubRuntime =
-            object : RealKaliumMessageRuntime {
+            object : MessageRuntime {
                 override fun sendMessage(
                     session: AuthSession,
                     conversationId: String,
@@ -302,7 +302,7 @@ class SdkKaliumMessageRuntimeTest {
     @Test
     fun `RealKaliumMessageApiClient maps UNAUTHORIZED failure to exit code 11`() {
         val stubRuntime =
-            object : RealKaliumMessageRuntime {
+            object : MessageRuntime {
                 override fun sendMessage(
                     session: AuthSession,
                     conversationId: String,
@@ -331,7 +331,7 @@ class SdkKaliumMessageRuntimeTest {
     @Test
     fun `RealKaliumMessageApiClient maps NETWORK failure to exit code 12`() {
         val stubRuntime =
-            object : RealKaliumMessageRuntime {
+            object : MessageRuntime {
                 override fun sendMessage(
                     session: AuthSession,
                     conversationId: String,
@@ -360,7 +360,7 @@ class SdkKaliumMessageRuntimeTest {
     @Test
     fun `RealKaliumMessageApiClient maps SERVER failure to exit code 13`() {
         val stubRuntime =
-            object : RealKaliumMessageRuntime {
+            object : MessageRuntime {
                 override fun sendMessage(
                     session: AuthSession,
                     conversationId: String,
@@ -389,7 +389,7 @@ class SdkKaliumMessageRuntimeTest {
     @Test
     fun `RealKaliumMessageApiClient maps NOT_FOUND failure to exit code 13`() {
         val stubRuntime =
-            object : RealKaliumMessageRuntime {
+            object : MessageRuntime {
                 override fun sendMessage(
                     session: AuthSession,
                     conversationId: String,
@@ -418,7 +418,7 @@ class SdkKaliumMessageRuntimeTest {
     @Test
     fun `RealKaliumMessageApiClient maps UNKNOWN failure correctly`() {
         val stubRuntime =
-            object : RealKaliumMessageRuntime {
+            object : MessageRuntime {
                 override fun sendMessage(
                     session: AuthSession,
                     conversationId: String,
@@ -459,7 +459,7 @@ class SdkKaliumMessageRuntimeTest {
 
         for ((category, expectedExitCode) in categories) {
             val stubRuntime =
-                object : RealKaliumMessageRuntime {
+                object : MessageRuntime {
                     override fun sendMessage(
                         session: AuthSession,
                         conversationId: String,

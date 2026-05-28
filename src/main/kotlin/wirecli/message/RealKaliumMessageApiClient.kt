@@ -10,13 +10,13 @@ private val logger = KotlinLogging.logger {}
 /**
  * Real Kalium-backed implementation of the message API client.
  *
- * This delegates message sending operations to the Kalium SDK via RealKaliumMessageRuntime.
+ * This delegates message sending operations to the Kalium SDK via MessageRuntime.
  *
  * @invariant runtime is never null and properly initialized
  * @invariant All public methods return non-null SendMessageResult
  */
 internal class RealKaliumMessageApiClient(
-    private val runtime: RealKaliumMessageRuntime,
+    private val runtime: MessageRuntime,
 ) : MessageApiClient, MessageTypingApiClient {
     override fun sendMessage(
         session: AuthSession,

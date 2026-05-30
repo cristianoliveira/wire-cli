@@ -4,6 +4,25 @@ import com.wire.kalium.logic.data.sync.SyncState
 import com.wire.kalium.logic.feature.keypackage.MLSKeyPackageCountResult
 
 /**
+ * Health signals collected from SDK APIs for extended diagnostics.
+ *
+ * These are gathered inside `coreLogic.sessionScope` and passed to [SyncCheckBuilder]
+ * so the builder stays pure (no SDK dependency, easy to test).
+ */
+data class ExtendedHealthSignals(
+    val clientRegistered: Boolean = true,
+    val hasClientId: Boolean = true,
+    val webSocketEnabled: Boolean = true,
+    val mlsEnabled: Boolean = true,
+    val e2eiEnabled: Boolean = true,
+    val legalHoldActive: Boolean = false,
+    val certificateRevoked: Boolean = false,
+    val certificatePresent: Boolean = true,
+    val consumableNotificationsEnabled: Boolean = true,
+    val isTeamMember: Boolean = false,
+)
+
+/**
  * Builder for diagnostic checks in sync operations.
  *
  * This class is responsible for creating diagnostic checks for sync status and
@@ -259,4 +278,140 @@ internal class SyncCheckBuilder(
             }
         return Check(name = "Key Packages", status = status, details = details)
     }
+
+    // ==================== EXTENDED DIAGNOSTICS CHECKS ====================
+
+    fun buildClientRegistrationCheck(signals: ExtendedHealthSignals): Check {
+        if (!signals.hasClientId) {
+            return Check(
+                name = "Client Registration",
+                status = "Fail",
+                details = "No client ID found - session has no registered client",
+            )
+        }
+        return if (signals.clientRegistered) {
+            Check(
+                name = "Client Registration",
+                status = "Pass",
+                details = "Client is registered with the backend",
+            )
+        } else {
+            Check(
+                name = "Client Registration",
+                status = "Fail",
+                details = "Client is not registered - cannot encrypt or send messages",
+            )
+        }
+    }
+
+    fun buildWebSocketConfigCheck(signals: ExtendedHealthSignals): Check =
+        if (signals.webSocketEnabled) {
+            Check(
+                name = "WebSocket Config",
+                status = "Pass",
+                details = "Persistent WebSocket is enabled",
+            )
+        } else {
+            Check(
+                name = "WebSocket Config",
+                status = "Warn",
+                details = "Persistent WebSocket is not enabled - real-time updates may be delayed",
+            )
+        }
+
+    fun buildFeatureConfigCheck(signals: ExtendedHealthSignals): Check {
+        val details =
+            "MLS: ${if (signals.mlsEnabled) "enabled" else "disabled"}, " +
+                "E2EI: ${if (signals.e2eiEnabled) "enabled" else "disabled"}"
+        val status =
+            when {
+                !signals.mlsEnabled && !signals.e2eiEnabled -> "Fail"
+                !signals.mlsEnabled || !signals.e2eiEnabled -> "Warn"
+                else -> "Pass"
+            }
+        return Check(
+            name = "Feature Config",
+            status = status,
+            details = details,
+        )
+    }
+
+    fun buildLegalHoldCheck(signals: ExtendedHealthSignals): Check =
+        if (signals.legalHoldActive) {
+            Check(
+                name = "Legal Hold",
+                status = "Fail",
+                details = "Legal hold is active on this account",
+            )
+        } else {
+            Check(
+                name = "Legal Hold",
+                status = "Pass",
+                details = "No legal hold is active",
+            )
+        }
+
+    fun buildE2EICertificateCheck(signals: ExtendedHealthSignals): Check {
+        if (!signals.certificatePresent) {
+            return Check(
+                name = "E2EI Certificate",
+                status = "Warn",
+                details = "E2EI certificate is not available - E2EI may not be configured",
+            )
+        }
+        return if (signals.certificateRevoked) {
+            Check(
+                name = "E2EI Certificate",
+                status = "Fail",
+                details = "E2EI certificate has been revoked - re-enrollment required",
+            )
+        } else {
+            Check(
+                name = "E2EI Certificate",
+                status = "Pass",
+                details = "E2EI certificate is valid",
+            )
+        }
+    }
+
+    fun buildNotificationPipelineCheck(signals: ExtendedHealthSignals): Check =
+        if (signals.consumableNotificationsEnabled) {
+            Check(
+                name = "Notification Pipeline",
+                status = "Pass",
+                details = "Consumable notifications are enabled",
+            )
+        } else {
+            Check(
+                name = "Notification Pipeline",
+                status = "Warn",
+                details = "Consumable notifications are not enabled - falling back to polling",
+            )
+        }
+
+    fun buildTeamMembershipCheck(signals: ExtendedHealthSignals): Check =
+        if (signals.isTeamMember) {
+            Check(
+                name = "Team Membership",
+                status = "Pass",
+                details = "User is a team member",
+            )
+        } else {
+            Check(
+                name = "Team Membership",
+                status = "Pass",
+                details = "User is on a personal account (no team)",
+            )
+        }
+
+    fun buildAllExtendedChecks(signals: ExtendedHealthSignals): List<Check> =
+        listOf(
+            buildClientRegistrationCheck(signals),
+            buildWebSocketConfigCheck(signals),
+            buildFeatureConfigCheck(signals),
+            buildLegalHoldCheck(signals),
+            buildE2EICertificateCheck(signals),
+            buildNotificationPipelineCheck(signals),
+            buildTeamMembershipCheck(signals),
+        )
 }

@@ -5,7 +5,6 @@ import com.wire.kalium.common.error.NetworkFailure
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.sync.SyncState
 import com.wire.kalium.logic.data.user.UserId
-import com.wire.kalium.logic.feature.UserSessionScope
 import com.wire.kalium.logic.feature.keypackage.MLSKeyPackageCountResult
 import com.wire.kalium.logic.sync.SyncRequestResult
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -220,7 +219,6 @@ internal class SdkKaliumSyncRuntime(
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
     private val networkConnectivityChecker: NetworkConnectivityChecker = RealNetworkConnectivityChecker(),
     private val syncMetricsCalculator: SyncMetricsCalculator = RealSyncMetricsCalculator(),
-    private val checkBuilder: SyncCheckBuilder = SyncCheckBuilder(networkConnectivityChecker, syncMetricsCalculator),
 ) : SyncRuntime {
     private companion object {
         const val FORCE_SYNC_WAIT_TIMEOUT_MS = 120_000L
@@ -464,7 +462,7 @@ internal class SdkKaliumSyncRuntime(
             runBlocking {
                 try {
                     logger.debug { "Observing sync state for diagnostics" }
-                    val (syncState, keyPackageCountResult, extendedSignals) =
+                    val (syncState, keyPackageCountResult) =
                         coreLogic.sessionScope(qualifiedId) {
                             val waitResult =
                                 withTimeoutOrNull(STATUS_WAIT_TIMEOUT_MS) {
@@ -479,10 +477,9 @@ internal class SdkKaliumSyncRuntime(
                                     }
                                 else -> logger.debug { "Doctor snapshot wait reached live state" }
                             }
-                            Triple(
+                            Pair(
                                 observeSyncState().firstOrNull(),
                                 client.mlsKeyPackageCountUseCase(fromAPI = false),
-                                gatherExtendedHealthSignals(),
                             )
                         }
 
@@ -502,7 +499,6 @@ internal class SdkKaliumSyncRuntime(
                     checks.add(buildEventQueueCheck(syncState))
                     checks.add(buildKeyPackagesCheck(syncState, keyPackageCountResult))
                     checks.add(buildNetworkConnectivityCheck(syncState))
-                    checks.addAll(checkBuilder.buildAllExtendedChecks(extendedSignals))
 
                     logger.debug { "Built ${checks.size} diagnostic checks" }
                     val summary = buildDiagnosticsSummary(checks)
@@ -1243,101 +1239,6 @@ internal class SdkKaliumSyncRuntime(
         val home = env["HOME"]?.trim()
         if (!home.isNullOrEmpty()) return home
         return System.getProperty("user.home")
-    }
-
-    /**
-     * Gathers extended health signals from Kalium SDK APIs.
-     *
-     * Must be called inside `coreLogic.sessionScope(userId) { ... }`.
-     * Each signal is gathered independently so one failure doesn't block others.
-     * Failures default to a safe value ("not available" / false / true depending on signal).
-     */
-    private suspend fun UserSessionScope.gatherExtendedHealthSignals(): ExtendedHealthSignals {
-        val needsRegistration =
-            try {
-                client.needsToRegisterClient()
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to check client registration status" }
-                true
-            }
-
-        val hasClientId =
-            try {
-                client.observeCurrentClientId().firstOrNull() != null
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to observe current client ID" }
-                false
-            }
-
-        val webSocketEnabled =
-            try {
-                getPersistentWebSocketStatus()
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to check WebSocket status" }
-                false
-            }
-
-        val mlsEnabled =
-            try {
-                isMLSEnabled()
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to check MLS enabled status" }
-                false
-            }
-
-        val e2eiEnabled =
-            try {
-                isE2EIEnabled()
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to check E2EI enabled status" }
-                false
-            }
-
-        val legalHoldActive =
-            try {
-                observeLegalHoldForSelfUser().firstOrNull()?.let { state ->
-                    state::class.simpleName?.contains("Enabled", ignoreCase = true) == true
-                } ?: false
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to check legal hold status" }
-                false
-            }
-
-        val certificateRevoked =
-            try {
-                observeShouldNotifyForRevokedCertificate().firstOrNull() ?: false
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to check certificate revocation status" }
-                false
-            }
-
-        val consumableNotificationsEnabled =
-            try {
-                debug.observeIsConsumableNotificationsEnabled().firstOrNull() ?: false
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to check consumable notifications status" }
-                false
-            }
-
-        val isTeamMember =
-            try {
-                team.isSelfATeamMember()
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to check team membership status" }
-                false
-            }
-
-        return ExtendedHealthSignals(
-            clientRegistered = !needsRegistration && hasClientId,
-            hasClientId = hasClientId,
-            webSocketEnabled = webSocketEnabled,
-            mlsEnabled = mlsEnabled,
-            e2eiEnabled = e2eiEnabled,
-            legalHoldActive = legalHoldActive,
-            certificateRevoked = certificateRevoked,
-            consumableNotificationsEnabled = consumableNotificationsEnabled,
-            isTeamMember = isTeamMember,
-        )
     }
 }
 

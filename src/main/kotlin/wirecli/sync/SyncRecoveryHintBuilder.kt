@@ -43,6 +43,43 @@ internal class SyncRecoveryHintBuilder {
             }
         }
 
+        // Extended diagnostics recovery hints
+        if (checks.any { it.name == "Client Registration" && it.status == "Fail" }) {
+            hints.add(
+                RecoveryHint(
+                    description = "Client is not registered with the backend",
+                    command = "wire login --email <email> to re-authenticate and register client",
+                ),
+            )
+        }
+
+        if (checks.any { it.name == "Legal Hold" && it.status == "Fail" }) {
+            hints.add(
+                RecoveryHint(
+                    description = "Legal hold is active on your account",
+                    command = "Contact your team admin for more information",
+                ),
+            )
+        }
+
+        if (checks.any { it.name == "E2EI Certificate" && it.status == "Fail" }) {
+            hints.add(
+                RecoveryHint(
+                    description = "E2EI certificate has been revoked",
+                    command = "wire login --email <email> to re-enroll E2EI certificate",
+                ),
+            )
+        }
+
+        if (checks.any { it.name == "WebSocket Config" && it.status == "Warn" }) {
+            hints.add(
+                RecoveryHint(
+                    description = "WebSocket is not enabled - updates may be delayed",
+                    command = "wire sync to trigger slow sync and restore WebSocket connection",
+                ),
+            )
+        }
+
         return hints
     }
 

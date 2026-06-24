@@ -3,6 +3,9 @@ package wirecli.commands
 import com.github.ajalt.clikt.core.ProgramResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import wirecli.message.ConversationMessage
 import wirecli.message.FetchMessagesResult
 import wirecli.message.FetchMessagesView
@@ -39,6 +42,42 @@ class MessageWatchCommandTest {
         assertEquals(0, result.exitCode)
         assertEquals("incoming\nincoming-2", result.stdout.trim())
         assertEquals(0, service.fetchCalls)
+    }
+
+    @Test
+    fun `watch command with json format streams new messages as JSON lines`() {
+        val existing = message("msg-1", "existing")
+        val incoming = message("msg-2", "hello\r\n\t\\\" world")
+
+        val service =
+            ReactiveMessageService(
+                flowOf(
+                    success(existing),
+                    success(existing, incoming),
+                ),
+            )
+        val command = MessageWatchCommand(messageServiceProvider = { service })
+
+        val result = execute(command, listOf("conv-123", "--format", "json"))
+
+        assertEquals(0, result.exitCode)
+        val json = Json.parseToJsonElement(result.stdout.trim()).jsonObject
+        assertEquals("conv-123", json.getValue("conversationId").jsonPrimitive.content)
+        assertEquals("msg-2", json.getValue("messageId").jsonPrimitive.content)
+        assertEquals("sender@example.com", json.getValue("senderId").jsonPrimitive.content)
+        assertEquals("Sender", json.getValue("senderName").jsonPrimitive.content)
+        assertEquals("2026-03-20T10:00:00Z", json.getValue("timestamp").jsonPrimitive.content)
+        assertEquals("hello\r\n\t\\\" world", json.getValue("content").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `watch command rejects unsupported format`() {
+        val command = MessageWatchCommand(messageServiceProvider = { ReactiveMessageService(flowOf(success())) })
+
+        val result = execute(command, listOf("conv-123", "--format", "xml"))
+
+        assertEquals(14, result.exitCode)
+        assertEquals("validation error: format must be one of: text, json", result.stderr.trim())
     }
 
     @Test

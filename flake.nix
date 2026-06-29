@@ -38,8 +38,8 @@
       # Gradle version from wrapper properties
       gradleVersion = "9.1.0";
 
-      # JDK version based on kotlin { jvmToolchain(17) }
-      jdkVersion = 17;
+      # JDK version based on kotlin { jvmToolchain(21) }
+      jdkVersion = 21;
 
       appVersion = "0.1.0";
     in

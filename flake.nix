@@ -53,6 +53,7 @@
           };
 
           jdk = pkgs."jdk${toString jdkVersion}";
+          jdk17 = pkgs.jdk17;
 
           # Use gradleFromWrapper to match the project's gradle version
           gradle = pkgs.gradleFromWrapper {
@@ -157,6 +158,8 @@
 
                         # Disable Android Gradle Plugin analytics to avoid sandbox issues
                         echo "android.disableAnalytics=true" >> $out/gradle.properties
+                        echo "org.gradle.java.installations.paths=${jdk},${jdk17}" >> $out/gradle.properties
+                        echo "org.gradle.java.installations.paths=${jdk},${jdk17}" >> $out/vendor/kalium/gradle.properties
 
                         # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
                         # The logic module explicitly creates iOS targets which fail in sandbox without SDK
@@ -193,6 +196,7 @@
             # protobuf is needed for protoc (protobuf compiler)
             nativeBuildInputs = [
               jdk
+              jdk17
               pkgs.git
               pkgs.protobuf
             ];
@@ -209,9 +213,8 @@
               XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
               XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
               XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
-              GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false";
+              GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false -Dorg.gradle.java.installations.paths=${jdk},${jdk17}";
             };
-
 
             meta = with pkgs.lib; {
               description = "A command-line interface for Wire messaging";
@@ -236,6 +239,7 @@
           buildGradleApplicationSrc = build-gradle-application;
 
           jdk = pkgs."jdk${toString jdkVersion}";
+          jdk17 = pkgs.jdk17;
 
           gradle = pkgs.gradleFromWrapper {
             wrapperPropertiesPath = ./gradle/wrapper/gradle-wrapper.properties;
@@ -314,6 +318,8 @@
               $out/vendor/kalium/tools/protobuf-codegen/build.gradle.kts
 
             echo "android.disableAnalytics=true" >> $out/gradle.properties
+            echo "org.gradle.java.installations.paths=${jdk},${jdk17}" >> $out/gradle.properties
+            echo "org.gradle.java.installations.paths=${jdk},${jdk17}" >> $out/vendor/kalium/gradle.properties
             sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
             sed -i '/<component group="com.wire" name="detekt-rules"/,/<\/component>/d' $out/gradle/verification-metadata.xml
           '';
@@ -336,7 +342,7 @@
             XDG_CACHE_HOME = "/tmp/wire-cli-xdg-cache";
             XDG_CONFIG_HOME = "/tmp/wire-cli-xdg-config";
             XDG_DATA_HOME = "/tmp/wire-cli-xdg-data";
-            GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false -Xmx1g";
+            GRADLE_OPTS = "-Dnix.build=true -Duser.home=/tmp/wire-cli-home -Dgradle.user.home=/tmp/wire-cli-gradle -Dorg.gradle.native=false -Dorg.gradle.java.installations.paths=${jdk},${jdk17} -Xmx1g";
             LOCALE_ARCHIVE = "${pkgs.glibcLocalesUtf8}/lib/locale/locale-archive";
             LC_ALL = "en_US.UTF-8";
             LANG = "en_US.UTF-8";
@@ -351,6 +357,7 @@
             nativeBuildInputs = [
               gradle
               jdk
+              jdk17
               pkgs.git
               pkgs.protobuf
               pkgs.glibcLocalesUtf8

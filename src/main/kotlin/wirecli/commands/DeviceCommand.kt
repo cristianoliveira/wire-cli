@@ -57,6 +57,15 @@ internal fun CliktCommand.validateConversationIdOrExit(conversationId: String): 
     }
 }
 
+internal fun CliktCommand.validateUserIdOrExit(userId: String): String {
+    return validateOrExit(
+        defaultMessage = "Invalid user ID.",
+        errorFormatter = { "validation error: $it" },
+    ) {
+        InputValidator.validateUserId(userId)
+    }
+}
+
 internal fun CliktCommand.requireValueOrExit(
     value: String,
     fieldName: String,

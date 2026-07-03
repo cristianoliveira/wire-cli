@@ -2,6 +2,7 @@ package wirecli
 
 import com.github.ajalt.clikt.core.subcommands
 import io.github.oshai.kotlinlogging.KotlinLogging
+import wirecli.commands.ConnectionCommand
 import wirecli.commands.ConversationCommand
 import wirecli.commands.DeviceCommand
 import wirecli.commands.LoginCommand
@@ -11,6 +12,7 @@ import wirecli.commands.PresenceCommand
 import wirecli.commands.ProfileCommand
 import wirecli.commands.RootCommand
 import wirecli.commands.SyncCommand
+import wirecli.commands.UserCommand
 import wirecli.runtime.KaliumRuntimeBootstrap
 import kotlin.system.exitProcess
 
@@ -60,6 +62,8 @@ fun main(args: Array<String>) {
                 ConversationCommand { runtime.conversationService },
                 MessageCommand { runtime.messageService },
                 SyncCommand { runtime.syncService },
+                UserCommand { runtime.userService },
+                ConnectionCommand { runtime.connectionService },
             )
             .main(args)
         completed = true

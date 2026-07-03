@@ -56,6 +56,14 @@ Device listing, info, verification, and deletion. Keep user-facing device failur
 
 Conversation list/get/create/delete and member count. Owns conversation display models and formatters. Do not place message behavior here.
 
+### `user/`
+
+User search and discovery. Owns user list/detail views, schema-versioned JSON output, and user search query validation. Depends on auth for active session and connection contracts for connection-state labels.
+
+### `connection/`
+
+Connection lifecycle: request, block, unblock. Owns connection action results, stable exit codes (conflict states), and connection failure mapping. Do not place user search behavior here.
+
 ### `message/`
 
 Message send/fetch/watch/search/reaction/typing behavior. Owns message runtime timeout handling, message failure mapping, and message output views.

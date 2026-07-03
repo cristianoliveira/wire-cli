@@ -9,6 +9,13 @@ import wirecli.auth.SdkKaliumAuthRuntime
 import wirecli.auth.StandardAuthResponseParser
 import wirecli.auth.StandardAuthenticationOrchestrator
 import wirecli.auth.StubAuthApiClient
+import wirecli.connection.AuthGuardedConnectionService
+import wirecli.connection.ConnectionApiClient
+import wirecli.connection.ConnectionService
+import wirecli.connection.RealKaliumConnectionApiClient
+import wirecli.connection.SdkKaliumConnectionRuntime
+import wirecli.connection.SessionBackedConnectionService
+import wirecli.connection.StubConnectionApiClient
 import wirecli.conversation.AuthGuardedConversationService
 import wirecli.conversation.ConversationApiClient
 import wirecli.conversation.ConversationService
@@ -51,6 +58,13 @@ import wirecli.sync.SessionBackedSyncService
 import wirecli.sync.StubSyncApiClient
 import wirecli.sync.SyncApiClient
 import wirecli.sync.SyncService
+import wirecli.user.AuthGuardedUserService
+import wirecli.user.RealKaliumUserApiClient
+import wirecli.user.SdkKaliumUserRuntime
+import wirecli.user.SessionBackedUserService
+import wirecli.user.StubUserApiClient
+import wirecli.user.UserApiClient
+import wirecli.user.UserService
 import java.util.Locale
 
 interface KaliumRuntime : AutoCloseable {
@@ -61,6 +75,8 @@ interface KaliumRuntime : AutoCloseable {
     val syncService: SyncService
     val conversationService: ConversationService
     val messageService: MessageService
+    val userService: UserService
+    val connectionService: ConnectionService
 
     fun shutdown()
 
@@ -179,6 +195,28 @@ private class DefaultKaliumRuntime(
         )
     }
 
+    override val userService: UserService by lazy {
+        AuthGuardedUserService(
+            authSessionService = authSessionService,
+            delegate =
+                SessionBackedUserService(
+                    sessionStore = sessionStore,
+                    apiClient = backend.userApiClient,
+                ),
+        )
+    }
+
+    override val connectionService: ConnectionService by lazy {
+        AuthGuardedConnectionService(
+            authSessionService = authSessionService,
+            delegate =
+                SessionBackedConnectionService(
+                    sessionStore = sessionStore,
+                    apiClient = backend.connectionApiClient,
+                ),
+        )
+    }
+
     override fun shutdown() {
         if (!backendLazy.isInitialized()) return
         backend.shutdown()
@@ -221,6 +259,8 @@ internal interface RuntimeBackend {
     val syncApiClient: SyncApiClient
     val conversationApiClient: ConversationApiClient
     val messageApiClient: MessageApiClient
+    val userApiClient: UserApiClient
+    val connectionApiClient: ConnectionApiClient
 
     fun shutdown()
 }
@@ -235,6 +275,8 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
             override val syncApiClient: SyncApiClient = StubSyncApiClient(environment)
             override val conversationApiClient: ConversationApiClient = StubConversationApiClient(environment)
             override val messageApiClient: MessageApiClient = StubMessageApiClient(environment)
+            override val userApiClient: UserApiClient = StubUserApiClient(environment)
+            override val connectionApiClient: ConnectionApiClient = StubConnectionApiClient(environment)
 
             override fun shutdown() {
                 // No background resources in stub backend.
@@ -253,6 +295,8 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             private val syncRuntimeLazy = lazy { SdkKaliumSyncRuntime(environment) }
             private val conversationRuntimeLazy = lazy { SdkKaliumConversationRuntime(environment) }
             private val messageRuntimeLazy = lazy { SdkKaliumMessageRuntime(environment) }
+            private val userRuntimeLazy = lazy { SdkKaliumUserRuntime(environment) }
+            private val connectionRuntimeLazy = lazy { SdkKaliumConnectionRuntime(environment) }
 
             private val authRuntime by authRuntimeLazy
             private val profileRuntime by profileRuntimeLazy
@@ -261,6 +305,8 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
             private val syncRuntime by syncRuntimeLazy
             private val conversationRuntime by conversationRuntimeLazy
             private val messageRuntime by messageRuntimeLazy
+            private val userRuntime by userRuntimeLazy
+            private val connectionRuntime by connectionRuntimeLazy
 
             override val authApiClient: AuthApiClient by lazy {
                 val orchestrator =
@@ -283,6 +329,14 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
                 RealKaliumMessageApiClient(messageRuntime)
             }
 
+            override val userApiClient: UserApiClient by lazy {
+                RealKaliumUserApiClient(userRuntime)
+            }
+
+            override val connectionApiClient: ConnectionApiClient by lazy {
+                RealKaliumConnectionApiClient(connectionRuntime)
+            }
+
             override fun shutdown() {
                 if (authRuntimeLazy.isInitialized()) authRuntime.close()
                 if (profileRuntimeLazy.isInitialized()) profileRuntime.close()
@@ -291,6 +345,8 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
                 if (syncRuntimeLazy.isInitialized()) syncRuntime.shutdown()
                 if (conversationRuntimeLazy.isInitialized()) conversationRuntime.shutdown()
                 if (messageRuntimeLazy.isInitialized()) messageRuntime.shutdown()
+                if (userRuntimeLazy.isInitialized()) userRuntime.shutdown()
+                if (connectionRuntimeLazy.isInitialized()) connectionRuntime.shutdown()
             }
         }
     }

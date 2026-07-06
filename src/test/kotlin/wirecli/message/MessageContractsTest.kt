@@ -299,8 +299,57 @@ class MessageContractsTest {
 
         assertTrue(
             methodNames.containsAll(
-                setOf("sendMessage", "fetchMessages", "searchMessages", "sendTypingStatus", "toggleReaction", "shutdown"),
+                setOf(
+                    "sendMessage",
+                    "fetchMessages",
+                    "searchMessages",
+                    "sendTypingStatus",
+                    "toggleReaction",
+                    "deleteMessage",
+                    "shutdown",
+                ),
             ),
         )
+    }
+
+    // --- Message delete contracts ---
+
+    @Test
+    fun `DeleteScope enum exposes for-me and for-everyone`() {
+        val scopes = DeleteScope.values().map { it.name }.toSet()
+        assertTrue(scopes.containsAll(setOf("FOR_ME", "FOR_EVERYONE")))
+    }
+
+    @Test
+    fun `DeleteMessageResult Success exposes scope`() {
+        val result: DeleteMessageResult = DeleteMessageResult.Success(DeleteScope.FOR_EVERYONE)
+
+        val success = assertIs<DeleteMessageResult.Success>(result)
+        assertEquals(DeleteScope.FOR_EVERYONE, success.scope)
+    }
+
+    @Test
+    fun `DeleteMessageResult Failure exposes message and exit code`() {
+        val result: DeleteMessageResult =
+            DeleteMessageResult.Failure(
+                message = "delete failed",
+                exitCode = MessageExitCodes.SERVER_ERROR,
+            )
+
+        val failure = assertIs<DeleteMessageResult.Failure>(result)
+        assertEquals("delete failed", failure.message)
+        assertEquals(MessageExitCodes.SERVER_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `MessageApiClient interface defines deleteMessage method`() {
+        val methodNames = MessageApiClient::class.java.methods.map { it.name }
+        assert(methodNames.contains("deleteMessage"))
+    }
+
+    @Test
+    fun `MessageService interface defines deleteMessage method`() {
+        val methodNames = MessageService::class.java.methods.map { it.name }
+        assert(methodNames.contains("deleteMessage"))
     }
 }

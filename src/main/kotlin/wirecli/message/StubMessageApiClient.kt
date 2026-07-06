@@ -227,6 +227,48 @@ class StubMessageApiClient(
         }
     }
 
+    override fun deleteMessage(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        scope: DeleteScope,
+    ): DeleteMessageResult {
+        return when (mode) {
+            StubMode.SUCCESS ->
+                DeleteMessageResult.Success(scope)
+
+            StubMode.UNAUTHORIZED ->
+                DeleteMessageResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            StubMode.NETWORK_ERROR ->
+                DeleteMessageResult.Failure(
+                    message = MessageUserMessages.DELETE_NETWORK_ERROR,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            StubMode.SERVER_ERROR ->
+                DeleteMessageResult.Failure(
+                    message = MessageUserMessages.DELETE_SERVER_ERROR,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            StubMode.VALIDATION_ERROR ->
+                DeleteMessageResult.Failure(
+                    message = MessageUserMessages.VALIDATION_ERROR,
+                    exitCode = MessageExitCodes.VALIDATION_ERROR,
+                )
+
+            StubMode.CONVERSATION_NOT_FOUND ->
+                DeleteMessageResult.Failure(
+                    message = MessageUserMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = MessageExitCodes.NOT_FOUND,
+                )
+        }
+    }
+
     override fun sendTypingStatus(
         session: AuthSession,
         conversationId: String,

@@ -497,6 +497,69 @@ internal class SdkKaliumMessageRuntime(
         }
     }
 
+    override fun deleteMessage(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        scope: DeleteScope,
+    ): MessageStepResult<Unit> {
+        if (conversationId.isBlank() || messageId.isBlank()) {
+            return MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+        }
+
+        val qualifiedId = session.userId.toQualifiedIdOrNull()
+        if (qualifiedId == null) {
+            logger.warn { "deleteMessage: Invalid user ID format: ${session.userId}" }
+            return MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
+        }
+
+        return try {
+            activeSessionUserIds += qualifiedId
+            val kaliumConvId =
+                MessageOperationHelper.buildQualifiedConversationId(conversationId, session.server)
+            val deleteForEveryone = scope == DeleteScope.FOR_EVERYONE
+
+            runBlocking {
+                coreLogic.sessionScope(qualifiedId) {
+                    withContext(Dispatchers.Default) {
+                        syncExecutor.request {
+                            messages.deleteMessage(kaliumConvId, messageId, deleteForEveryone)
+                        }
+                    }
+                }
+            }.let { result ->
+                when (result) {
+                    is MessageOperationResult.Success -> {
+                        logger.info {
+                            "message-delete runtime outcome=success conversationId=$conversationId " +
+                                "messageId=$messageId scope=$scope"
+                        }
+                        MessageStepResult.Success(Unit)
+                    }
+                    is MessageOperationResult.Failure -> {
+                        val mapped = MessageFailureMapper.categoryFromCoreFailure(result.error)
+                        logger.warn {
+                            "message-delete runtime outcome=failure conversationId=$conversationId " +
+                                "messageId=$messageId scope=$scope failureClass=${result.error::class.simpleName} " +
+                                "mappedCategory=$mapped"
+                        }
+                        MessageStepResult.Failure(mapped)
+                    }
+                }
+            }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") error: Throwable,
+        ) {
+            val mapped = MessageFailureMapper.categoryFromThrowable(error)
+            logger.error(error) {
+                "message-delete runtime exception: conversationId=$conversationId messageId=$messageId " +
+                    "scope=$scope exceptionClass=${error::class.qualifiedName} message=${error.message} " +
+                    "mappedCategory=$mapped"
+            }
+            MessageStepResult.Failure(mapped)
+        }
+    }
+
     override fun shutdown() {
         if (coreLogicLazy.isInitialized()) {
             activeSessionUserIds.clear()

@@ -227,4 +227,55 @@ internal class RealKaliumMessageApiClient(
             }
         }
     }
+
+    override fun deleteMessage(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        scope: DeleteScope,
+    ): DeleteMessageResult {
+        return when (val result = runtime.deleteMessage(session, conversationId, messageId, scope)) {
+            is MessageStepResult.Success -> {
+                logger.info {
+                    "message-delete api outcome=success conversationId=$conversationId messageId=$messageId scope=$scope"
+                }
+                DeleteMessageResult.Success(scope)
+            }
+
+            is MessageStepResult.Failure -> {
+                val (message, exitCode) =
+                    when (result.category) {
+                        MessageFailureCategory.VALIDATION ->
+                            MessageUserMessages.VALIDATION_ERROR to MessageExitCodes.VALIDATION_ERROR
+
+                        MessageFailureCategory.UNAUTHORIZED ->
+                            AuthMessages.invalidOrExpiredSession() to ExitCodes.UNAUTHORIZED
+
+                        MessageFailureCategory.TIMEOUT ->
+                            MessageUserMessages.DELETE_TIMEOUT to ExitCodes.NETWORK_ERROR
+
+                        MessageFailureCategory.NETWORK ->
+                            MessageUserMessages.DELETE_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
+
+                        MessageFailureCategory.SERVER ->
+                            MessageUserMessages.DELETE_SERVER_ERROR to ExitCodes.SERVER_ERROR
+
+                        MessageFailureCategory.NOT_FOUND ->
+                            MessageUserMessages.CONVERSATION_NOT_FOUND to MessageExitCodes.NOT_FOUND
+
+                        MessageFailureCategory.UNKNOWN ->
+                            MessageUserMessages.DELETE_UNKNOWN_ERROR to ExitCodes.UNKNOWN_ERROR
+                    }
+
+                logger.warn {
+                    "message-delete category mapping: category=${result.category} -> exitCode=$exitCode, " +
+                        "conversationId=$conversationId messageId=$messageId"
+                }
+                logger.warn {
+                    "message-delete api outcome=failure conversationId=$conversationId messageId=$messageId message=$message"
+                }
+                DeleteMessageResult.Failure(message = message, exitCode = exitCode)
+            }
+        }
+    }
 }

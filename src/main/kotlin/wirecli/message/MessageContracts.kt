@@ -68,6 +68,18 @@ sealed interface ToggleReactionResult {
     data class Failure(val message: String, val exitCode: Int) : ToggleReactionResult
 }
 
+// Scope for message deletion: local-only vs remote (for everyone)
+enum class DeleteScope {
+    FOR_ME,
+    FOR_EVERYONE,
+}
+
+sealed interface DeleteMessageResult {
+    data class Success(val scope: DeleteScope) : DeleteMessageResult
+
+    data class Failure(val message: String, val exitCode: Int) : DeleteMessageResult
+}
+
 // Runtime-level interface for SDK adapters
 internal interface MessageRuntime {
     fun sendMessage(
@@ -99,6 +111,13 @@ internal interface MessageRuntime {
         conversationId: String,
         messageId: String,
         emoji: String,
+    ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+
+    fun deleteMessage(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        scope: DeleteScope,
     ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
 
     fun close() {
@@ -134,6 +153,13 @@ interface MessageApiClient {
         messageId: String,
         emoji: String,
     ): ToggleReactionResult
+
+    fun deleteMessage(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        scope: DeleteScope,
+    ): DeleteMessageResult
 }
 
 interface MessageWatchApiClient {
@@ -173,6 +199,16 @@ interface MessageService {
         messageId: String,
         emoji: String,
     ): ToggleReactionResult
+
+    fun deleteMessage(
+        conversationId: String,
+        messageId: String,
+        scope: DeleteScope = DeleteScope.FOR_ME,
+    ): DeleteMessageResult =
+        DeleteMessageResult.Failure(
+            message = MessageUserMessages.DELETE_UNSUPPORTED,
+            exitCode = MessageExitCodes.SERVER_ERROR,
+        )
 
     fun sendTypingStatus(
         conversationId: String,
@@ -219,6 +255,11 @@ internal object MessageUserMessages {
     const val REACTION_SERVER_ERROR = "server error while toggling reaction"
     const val REACTION_UNKNOWN_ERROR = "unknown error while toggling reaction"
     const val REACTION_EMOJI_BLANK = "emoji cannot be blank"
+    const val DELETE_NETWORK_ERROR = "network error while deleting message"
+    const val DELETE_SERVER_ERROR = "server error while deleting message"
+    const val DELETE_TIMEOUT = "message delete timed out while waiting for sync/MLS"
+    const val DELETE_UNKNOWN_ERROR = "unknown error while deleting message"
+    const val DELETE_UNSUPPORTED = "message delete is not supported by this backend"
 }
 
 // Step result for runtime-level operations (SDK adapter layer)

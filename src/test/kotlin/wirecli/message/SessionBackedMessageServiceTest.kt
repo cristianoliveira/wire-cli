@@ -297,6 +297,13 @@ class SessionBackedMessageServiceTest {
                             messageId: String,
                             emoji: String,
                         ): ToggleReactionResult = ToggleReactionResult.Success(ReactionAction.ADDED)
+
+                        override fun deleteMessage(
+                            session: AuthSession,
+                            conversationId: String,
+                            messageId: String,
+                            scope: DeleteScope,
+                        ): DeleteMessageResult = DeleteMessageResult.Success(scope)
                     },
             )
 
@@ -355,5 +362,12 @@ class SessionBackedMessageServiceTest {
             messageId: String,
             emoji: String,
         ): ToggleReactionResult = ToggleReactionResult.Success(ReactionAction.ADDED)
+
+        override fun deleteMessage(
+            session: AuthSession,
+            conversationId: String,
+            messageId: String,
+            scope: DeleteScope,
+        ): DeleteMessageResult = DeleteMessageResult.Success(scope)
     }
 }

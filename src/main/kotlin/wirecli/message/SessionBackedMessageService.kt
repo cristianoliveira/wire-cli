@@ -165,6 +165,42 @@ class SessionBackedMessageService(
         }
     }
 
+    override fun deleteMessage(
+        conversationId: String,
+        messageId: String,
+        scope: DeleteScope,
+    ): DeleteMessageResult {
+        logger.debug {
+            "Service operation: deleteMessage(conversationId=$conversationId, " +
+                "messageId=$messageId, scope=$scope) started"
+        }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return DeleteMessageResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for deleteMessage($conversationId)" } }
+
+        logger.info {
+            "message-delete session resolved: userId=${session.userId}, conversationId=$conversationId"
+        }
+        return apiClient.deleteMessage(session, conversationId, messageId, scope).also { result ->
+            when (result) {
+                is DeleteMessageResult.Success ->
+                    logger.info {
+                        "message-delete service outcome=success conversationId=$conversationId " +
+                            "messageId=$messageId scope=${result.scope}"
+                    }
+                is DeleteMessageResult.Failure ->
+                    logger.warn {
+                        "message-delete service outcome=failure conversationId=$conversationId " +
+                            "messageId=$messageId exitCode=${result.exitCode}"
+                    }
+            }
+        }
+    }
+
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,

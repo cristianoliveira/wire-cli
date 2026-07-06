@@ -62,6 +62,21 @@ class AuthGuardedMessageService(
         }
     }
 
+    override fun deleteMessage(
+        conversationId: String,
+        messageId: String,
+        scope: DeleteScope,
+    ): DeleteMessageResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.deleteMessage(conversationId, messageId, scope)
+            is AuthResult.Failure ->
+                DeleteMessageResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
+
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,

@@ -12,6 +12,8 @@ import wirecli.device.DeviceDeleteResult
 import wirecli.device.DeviceDetailResult
 import wirecli.device.DeviceListResult
 import wirecli.device.DeviceVerifyResult
+import wirecli.message.DeleteMessageResult
+import wirecli.message.DeleteScope
 import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageApiClient
 import wirecli.message.SearchMessagesResult
@@ -248,5 +250,14 @@ private object NoopMessageApiClient : MessageApiClient {
         emoji: String,
     ): ToggleReactionResult {
         return ToggleReactionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun deleteMessage(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+        scope: DeleteScope,
+    ): DeleteMessageResult {
+        return DeleteMessageResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

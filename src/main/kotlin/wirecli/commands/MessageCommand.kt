@@ -23,6 +23,7 @@ class MessageCommand(
             MessageTypingCommand(messageServiceProvider),
             MessageSearchCommand(messageServiceProvider),
             MessageReactCommand(messageServiceProvider),
+            MessageDeleteCommand(messageServiceProvider),
         )
     }
 

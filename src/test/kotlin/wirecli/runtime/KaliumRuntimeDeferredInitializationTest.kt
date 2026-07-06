@@ -5,6 +5,8 @@ import wirecli.auth.AuthApiResult
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.auth.LoginInput
+import wirecli.connection.ConnectionActionResult
+import wirecli.connection.ConnectionApiClient
 import wirecli.conversation.ConversationApiClient
 import wirecli.conversation.StubConversationApiClient
 import wirecli.device.DeviceApiClient
@@ -32,6 +34,10 @@ import wirecli.sync.PerConversationDiagnosticsResult
 import wirecli.sync.ResetResult
 import wirecli.sync.SyncApiClient
 import wirecli.sync.SyncStatusResult
+import wirecli.user.UserApiClient
+import wirecli.user.UserGetResult
+import wirecli.user.UserSearchQuery
+import wirecli.user.UserSearchResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -76,6 +82,8 @@ private data class BackendCounters(
     var deviceApiClientAccesses: Int = 0,
     var syncApiClientAccesses: Int = 0,
     var messageApiClientAccesses: Int = 0,
+    var userApiClientAccesses: Int = 0,
+    var connectionApiClientAccesses: Int = 0,
     var shutdownCalls: Int = 0,
 )
 
@@ -104,6 +112,12 @@ private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFac
 
                 override val messageApiClient: MessageApiClient
                     get() = NoopMessageApiClient.also { counters.messageApiClientAccesses += 1 }
+
+                override val userApiClient: UserApiClient
+                    get() = NoopUserApiClient.also { counters.userApiClientAccesses += 1 }
+
+                override val connectionApiClient: ConnectionApiClient
+                    get() = NoopConnectionApiClient.also { counters.connectionApiClientAccesses += 1 }
 
                 override fun shutdown() {
                     counters.shutdownCalls += 1
@@ -215,6 +229,45 @@ private object NoopSyncApiClient : SyncApiClient {
         conversationId: String,
     ): PerConversationDiagnosticsResult {
         return PerConversationDiagnosticsResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+}
+
+private object NoopUserApiClient : UserApiClient {
+    override fun searchUsers(
+        session: AuthSession,
+        query: UserSearchQuery,
+    ): UserSearchResult {
+        return UserSearchResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun getUser(
+        session: AuthSession,
+        userId: String,
+    ): UserGetResult {
+        return UserGetResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+}
+
+private object NoopConnectionApiClient : ConnectionApiClient {
+    override fun sendRequest(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult {
+        return ConnectionActionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun blockUser(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult {
+        return ConnectionActionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun unblockUser(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult {
+        return ConnectionActionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }
 

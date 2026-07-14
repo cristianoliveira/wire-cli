@@ -125,6 +125,14 @@ class UserCommandTest {
         assertEquals(5, service.lastSearchQuery?.limit)
     }
 
+    @Test
+    fun `search command limits results to contacts`() {
+        val service = StubUserService(searchResult = UserSearchResult.Success(UserListView(emptyList())))
+        execute(UserSearchCommand { service }, listOf("alice", "--contacts-only"))
+
+        assertEquals(true, service.lastSearchQuery?.contactsOnly)
+    }
+
     private data class ExecutionResult(
         val exitCode: Int,
         val stdout: String,

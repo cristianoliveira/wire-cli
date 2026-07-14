@@ -18,6 +18,7 @@ class ConversationCommand(
     init {
         subcommands(
             ConversationListCommand(conversationServiceProvider),
+            ConversationSearchCommand(conversationServiceProvider),
             ConversationGetCommand(conversationServiceProvider),
         )
     }

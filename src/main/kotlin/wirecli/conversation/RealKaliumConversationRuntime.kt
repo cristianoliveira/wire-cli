@@ -45,9 +45,11 @@ internal class SdkKaliumConversationRuntime(
 
         return runBlocking {
             try {
-                // Use observeConversationListDetailsWithEvents usecase to get full ConversationDetails with contact info
                 val conversationDetails =
                     coreLogic.sessionScope(qualifiedId) {
+                        if (!cliMode.disableSessionSyncWait) {
+                            syncExecutor.request { waitUntilLiveOrFailure() }
+                        }
                         conversations.observeConversationListDetailsWithEvents(
                             fromArchive = false,
                             conversationFilter = ConversationFilter.All,

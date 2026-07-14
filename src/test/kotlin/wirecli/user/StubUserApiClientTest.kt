@@ -41,6 +41,16 @@ class StubUserApiClientTest {
     }
 
     @Test
+    fun `contacts-only search excludes users without accepted connection`() {
+        val client = StubUserApiClient(emptyMap())
+
+        val result = client.searchUsers(session, UserSearchQuery(query = "cara", contactsOnly = true))
+
+        val success = assertIs<UserSearchResult.Success>(result)
+        assertTrue(success.view.users.isEmpty())
+    }
+
+    @Test
     fun `search respects the limit`() {
         val client = StubUserApiClient(emptyMap())
 

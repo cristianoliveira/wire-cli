@@ -9,8 +9,16 @@ import com.wire.kalium.logic.feature.UserSessionScope
 import com.wire.kalium.logic.feature.keypackage.MLSKeyPackageCountResult
 import com.wire.kalium.logic.sync.SyncRequestResult
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import wirecli.auth.AuthSession
@@ -66,6 +74,12 @@ internal class RealKaliumSyncApiClient(
             }
         }
         return result
+    }
+
+    override fun startContinuousSync(session: AuthSession): SyncStatusResult {
+        require(session.userId.isNotBlank()) { "Continuous sync requires a non-blank session user ID." }
+        require(session.accessToken.isNotBlank()) { "Continuous sync requires a non-blank session access token." }
+        return runtime.startContinuousSync(session)
     }
 
     override fun getSyncStatus(session: AuthSession): SyncStatusResult {
@@ -228,6 +242,8 @@ internal class SdkKaliumSyncRuntime(
     }
 
     private val activeSessionUserIds = mutableSetOf<UserId>()
+    private val continuousSyncScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val continuousSyncJobs = mutableMapOf<UserId, Job>()
 
     init {
         logger.debug { "SdkKaliumSyncRuntime initialized with CLI mode: $cliMode" }
@@ -350,6 +366,33 @@ internal class SdkKaliumSyncRuntime(
             }
         }
         return result
+    }
+
+    override fun startContinuousSync(session: AuthSession): SyncStatusResult {
+        require(session.userId.isNotBlank()) { "Continuous sync requires a non-blank user ID." }
+        require(session.accessToken.isNotBlank()) { "Continuous sync requires a non-blank access token." }
+        val qualifiedId =
+            session.userId.toQualifiedIdOrNull()
+                ?: return SyncStatusResult.Failure(
+                    message = SyncExitMessages.UNAUTHORIZED_FAILURE,
+                    exitCode = SyncExitCodes.UNAUTHORIZED,
+                )
+
+        val syncJob =
+            continuousSyncScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                coreLogic.sessionScope(qualifiedId) {
+                    syncExecutor.request {
+                        awaitCancellation()
+                    }
+                }
+            }
+        continuousSyncJobs.put(qualifiedId, syncJob)?.cancel()
+
+        return forceSyncAndWait(session).also { result ->
+            if (result is SyncStatusResult.Failure) {
+                continuousSyncJobs.remove(qualifiedId)?.cancel()
+            }
+        }
     }
 
     @Suppress("LongMethod")
@@ -768,11 +811,16 @@ internal class SdkKaliumSyncRuntime(
         logger.debug { "SdkKaliumSyncRuntime: Shutting down sync runtime" }
         if (!coreLogicLazy.isInitialized()) {
             logger.debug { "CoreLogic not initialized - nothing to shutdown" }
+            continuousSyncScope.cancel()
             return
         }
 
         logger.debug { "Cancelling ${activeSessionUserIds.size} active session scopes" }
         runBlocking {
+            continuousSyncJobs.values.toList().forEach { job ->
+                job.cancelAndJoin()
+            }
+            continuousSyncJobs.clear()
             activeSessionUserIds.forEach { userId ->
                 logger.debug { "Cancelling session scope for user: $userId" }
                 coreLogic.sessionScope(userId) { cancel() }
@@ -787,6 +835,7 @@ internal class SdkKaliumSyncRuntime(
         check(coreLogicLazy.isInitialized()) {
             "Sync runtime shutdown expects initialized CoreLogic before cancellation."
         }
+        continuousSyncScope.cancel()
         logger.info { "Sync runtime shutdown complete" }
     }
 

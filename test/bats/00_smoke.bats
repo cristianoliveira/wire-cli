@@ -23,4 +23,13 @@ teardown() {
   assert_status 0
   [[ "${output}" == *"Usage:"* ]]
   [[ "${output}" == *"presence"* ]]
+  [[ "${output}" == *"daemon"* ]]
+}
+
+@test "Given built CLI, when message fetch help is requested, then local cache option is documented" {
+  run_wire message fetch --help
+
+  assert_status 0
+  [[ "${output}" == *"--local"* ]]
+  [[ "${output}" == *"local Kalium cache"* ]]
 }

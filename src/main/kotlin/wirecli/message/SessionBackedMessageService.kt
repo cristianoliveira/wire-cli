@@ -74,6 +74,20 @@ class SessionBackedMessageService(
         }
     }
 
+    override fun fetchLocalMessages(conversationId: String): FetchMessagesResult {
+        logger.debug { "Service operation: fetchLocalMessages(conversationId=$conversationId) started" }
+        val session = sessionStore.readActiveSession()
+        if (session == null) {
+            logger.warn { "No active session found for local message fetch" }
+            return FetchMessagesResult.Failure(
+                message = AuthMessages.noActiveSession(),
+                exitCode = ExitCodes.UNAUTHORIZED,
+            )
+        }
+
+        return apiClient.fetchLocalMessages(session, conversationId)
+    }
+
     override fun observeMessages(conversationId: String): Flow<FetchMessagesResult> {
         logger.debug { "Service operation: observeMessages(conversationId=$conversationId) started" }
 

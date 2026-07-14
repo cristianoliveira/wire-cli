@@ -36,6 +36,18 @@ class SessionBackedSyncService(
         }
     }
 
+    override fun startContinuousSync(): SyncStatusResult {
+        logger.debug { "Starting continuous sync" }
+        val session =
+            sessionStore.readActiveSession()
+                ?: return SyncStatusResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+        return apiClient.startContinuousSync(session)
+    }
+
     override fun getCurrentSyncStatus(): SyncStatusResult {
         logger.debug { "Fetching current sync status" }
         val session =

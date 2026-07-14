@@ -32,6 +32,17 @@ class AuthGuardedMessageService(
         }
     }
 
+    override fun fetchLocalMessages(conversationId: String): FetchMessagesResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.fetchLocalMessages(conversationId)
+            is AuthResult.Failure ->
+                FetchMessagesResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
+
     override fun searchMessages(
         query: String,
         conversationId: String?,

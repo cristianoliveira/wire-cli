@@ -93,6 +93,11 @@ internal interface MessageRuntime {
         conversationId: String,
     ): MessageStepResult<List<ConversationMessage>>
 
+    fun fetchLocalMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): MessageStepResult<List<ConversationMessage>> = fetchMessages(session, conversationId)
+
     fun searchMessages(
         session: AuthSession,
         query: String,
@@ -140,6 +145,11 @@ interface MessageApiClient {
         conversationId: String,
     ): FetchMessagesResult
 
+    fun fetchLocalMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): FetchMessagesResult = fetchMessages(session, conversationId)
+
     fun searchMessages(
         session: AuthSession,
         query: String,
@@ -185,6 +195,8 @@ interface MessageService {
     ): SendMessageResult
 
     fun fetchMessages(conversationId: String): FetchMessagesResult
+
+    fun fetchLocalMessages(conversationId: String): FetchMessagesResult = fetchMessages(conversationId)
 
     fun observeMessages(conversationId: String): Flow<FetchMessagesResult> = flowOf(fetchMessages(conversationId))
 

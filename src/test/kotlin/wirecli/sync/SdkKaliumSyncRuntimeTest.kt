@@ -41,6 +41,7 @@ class SdkKaliumSyncRuntimeTest {
 
     @Test
     fun `RealKaliumSyncApiClient delegates to runtime`() {
+        var continuousSyncSession: AuthSession? = null
         val runtime =
             object : RealKaliumSyncRuntime {
                 override fun forceSyncAndWait(session: AuthSession): SyncStatusResult {
@@ -50,6 +51,11 @@ class SdkKaliumSyncRuntimeTest {
                             metrics = HealthMetrics(100L, 5, 85, "2025-03-13T10:30:00Z"),
                         ),
                     )
+                }
+
+                override fun startContinuousSync(session: AuthSession): SyncStatusResult {
+                    continuousSyncSession = session
+                    return forceSyncAndWait(session)
                 }
 
                 override fun getSyncStatus(session: AuthSession): SyncStatusResult {
@@ -120,6 +126,9 @@ class SdkKaliumSyncRuntimeTest {
         val statusResult = client.getSyncStatus(session)
         val successStatus = assertIs<SyncStatusResult.Success>(statusResult)
         assertEquals(SyncStatus.READY, successStatus.view.status)
+
+        assertIs<SyncStatusResult.Success>(client.startContinuousSync(session))
+        assertEquals(session, continuousSyncSession)
     }
 
     @Test

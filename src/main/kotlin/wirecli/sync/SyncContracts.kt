@@ -176,6 +176,8 @@ interface SyncDiagnosticsApiClient {
 interface SyncControlApiClient {
     fun forceSyncAndWait(session: AuthSession): SyncStatusResult
 
+    fun startContinuousSync(session: AuthSession): SyncStatusResult = forceSyncAndWait(session)
+
     fun resetSync(
         session: AuthSession,
         force: Boolean = false,
@@ -231,6 +233,8 @@ interface SyncService {
 
     fun forceSyncAndWait(): SyncStatusResult
 
+    fun startContinuousSync(): SyncStatusResult = forceSyncAndWait()
+
     /**
      * Retrieves sync status for a specific conversation.
      *
@@ -282,6 +286,8 @@ internal object SyncMessages {
 // Runtime-level interface for SDK adapters
 internal interface SyncRuntime {
     fun forceSyncAndWait(session: AuthSession): SyncStatusResult
+
+    fun startContinuousSync(session: AuthSession): SyncStatusResult = forceSyncAndWait(session)
 
     fun getSyncStatus(session: AuthSession): SyncStatusResult
 

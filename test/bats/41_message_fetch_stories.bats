@@ -32,6 +32,14 @@ setup_active_session() {
 	[[ "${lines[1]}" == "[2026-03-20T10:01:00Z] Bob: Reply from stub" ]]
 }
 
+@test "message fetch: local reads cached messages" {
+	export WIRE_STUB_MODE="success"
+	run_wire message fetch --local "conv-001"
+	assert_status 0
+	[[ "${lines[0]}" == "[2026-03-20T10:00:00Z] Alice: Hello from stub" ]]
+	[[ "${lines[1]}" == "[2026-03-20T10:01:00Z] Bob: Reply from stub" ]]
+}
+
 @test "message fetch: validation error for blank conversation id" {
 	export WIRE_STUB_MODE="success"
 	run_wire message fetch ""

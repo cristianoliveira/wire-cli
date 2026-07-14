@@ -184,80 +184,113 @@ internal class SdkKaliumMessageRuntime(
         }
     }
 
-    @Suppress("LongMethod")
     override fun fetchMessages(
         session: AuthSession,
         conversationId: String,
+    ): MessageStepResult<List<ConversationMessage>> = fetchMessages(session, conversationId, synchronizeBeforeRead = true)
+
+    override fun fetchLocalMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): MessageStepResult<List<ConversationMessage>> = fetchMessages(session, conversationId, synchronizeBeforeRead = false)
+
+    @Suppress("LongMethod", "ReturnCount")
+    private fun fetchMessages(
+        session: AuthSession,
+        conversationId: String,
+        synchronizeBeforeRead: Boolean,
     ): MessageStepResult<List<ConversationMessage>> {
         val isConversationBlank = conversationId.isBlank()
         if (isConversationBlank) {
             logger.debug { "fetchMessages: Validation failed - conversationId is blank" }
         }
         val qualifiedId = session.userId.toQualifiedIdOrNull()
-        return when {
-            isConversationBlank -> MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
-            qualifiedId == null -> {
-                logger.warn { "fetchMessages: Invalid user ID format: ${session.userId}" }
-                MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
-            }
+        if (isConversationBlank) return MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+        if (qualifiedId == null) {
+            logger.warn { "fetchMessages: Invalid user ID format: ${session.userId}" }
+            return MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
+        }
 
-            else -> {
-                activeSessionUserIds += qualifiedId
-                runBlocking {
-                    try {
-                        logger.info {
-                            "message-fetch runtime start: conversationId=$conversationId, userId=${session.userId}"
-                        }
+        activeSessionUserIds += qualifiedId
+        return runBlocking {
+            try {
+                logger.info {
+                    "message-fetch runtime start: conversationId=$conversationId, userId=${session.userId}, " +
+                        "localOnly=${!synchronizeBeforeRead}"
+                }
 
-                        val preflightFailureCategory =
-                            MessageOperationHelper.executePreflightSync(
-                                coreLogic,
-                                qualifiedId,
-                                conversationId,
-                                PREFLIGHT_SYNC_TIMEOUT_MS,
-                            )
-                        if (preflightFailureCategory != null) {
-                            MessageStepResult.Failure(preflightFailureCategory)
-                        } else {
-                            val kaliumConvId =
-                                MessageOperationHelper.buildQualifiedConversationId(
-                                    conversationId,
-                                    session.server,
-                                )
+                val preflightFailureCategory =
+                    if (synchronizeBeforeRead) {
+                        MessageOperationHelper.executePreflightSync(
+                            coreLogic,
+                            qualifiedId,
+                            conversationId,
+                            PREFLIGHT_SYNC_TIMEOUT_MS,
+                        )
+                    } else {
+                        null
+                    }
+                if (preflightFailureCategory != null) {
+                    return@runBlocking MessageStepResult.Failure(preflightFailureCategory)
+                }
 
-                            val (result, timeoutFailure) =
-                                MessageOperationHelper.executeFetchWithTimeout(conversationId, sendTimeoutMs) {
-                                    coreLogic.sessionScope(qualifiedId) {
-                                        withContext(Dispatchers.Default) {
-                                            logger.info {
-                                                "message-fetch getRecentMessages request body start: conversationId=$conversationId"
-                                            }
-                                            syncExecutor.request {
-                                                messages.getRecentMessages(kaliumConvId, limit = FETCH_MESSAGES_LIMIT).first()
-                                            }
-                                        }
-                                    }
-                                }
-                            when {
-                                timeoutFailure != null -> MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
-                                else -> {
-                                    val mappedMessages = mapFetchedMessages(result)
-                                    logger.info { "message-fetch runtime outcome=success conversationId=$conversationId" }
-                                    MessageStepResult.Success(mappedMessages)
+                val kaliumConvId =
+                    MessageOperationHelper.buildQualifiedConversationId(
+                        conversationId,
+                        session.server,
+                    )
+                if (!synchronizeBeforeRead) {
+                    val localResult =
+                        withTimeout(sendTimeoutMs) {
+                            coreLogic.sessionScope(qualifiedId) {
+                                withContext(Dispatchers.Default) {
+                                    messages.searchMessagesInConversation(
+                                        conversationId = kaliumConvId,
+                                        searchQuery = "",
+                                        limit = FETCH_MESSAGES_LIMIT,
+                                    )
                                 }
                             }
                         }
-                    } catch (
-                        @Suppress("TooGenericExceptionCaught") error: Throwable,
-                    ) {
-                        val mappedCategory = MessageFailureMapper.categoryFromThrowable(error)
-                        logger.error(error) {
-                            "message-fetch runtime exception: conversationId=$conversationId " +
-                                "exceptionClass=${error::class.qualifiedName} message=${error.message} mappedCategory=$mappedCategory"
-                        }
-                        MessageStepResult.Failure(mappedCategory)
+                    return@runBlocking when (localResult) {
+                        is SearchMessagesInConversationUseCase.Result.Success ->
+                            MessageStepResult.Success(mapFetchedMessages(localResult.messages))
+                        is SearchMessagesInConversationUseCase.Result.Failure ->
+                            MessageStepResult.Failure(
+                                MessageFailureMapper.categoryFromCoreFailure(localResult.cause),
+                            )
                     }
                 }
+
+                val (result, timeoutFailure) =
+                    MessageOperationHelper.executeFetchWithTimeout(conversationId, sendTimeoutMs) {
+                        coreLogic.sessionScope(qualifiedId) {
+                            withContext(Dispatchers.Default) {
+                                logger.info {
+                                    "message-fetch getRecentMessages request body start: conversationId=$conversationId"
+                                }
+                                syncExecutor.request {
+                                    messages.getRecentMessages(kaliumConvId, limit = FETCH_MESSAGES_LIMIT).first()
+                                }
+                            }
+                        }
+                    }
+                if (timeoutFailure != null) {
+                    return@runBlocking MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
+                }
+
+                val mappedMessages = mapFetchedMessages(result)
+                logger.info { "message-fetch runtime outcome=success conversationId=$conversationId" }
+                MessageStepResult.Success(mappedMessages)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
+                val mappedCategory = MessageFailureMapper.categoryFromThrowable(error)
+                logger.error(error) {
+                    "message-fetch runtime exception: conversationId=$conversationId " +
+                        "exceptionClass=${error::class.qualifiedName} message=${error.message} mappedCategory=$mappedCategory"
+                }
+                MessageStepResult.Failure(mappedCategory)
             }
         }
     }

@@ -216,6 +216,46 @@ class SessionBackedMessageServiceTest {
     }
 
     @Test
+    fun `fetchLocalMessages delegates cache-only read for persisted session`() {
+        var localFetchConversationId: String? = null
+        val service =
+            SessionBackedMessageService(
+                sessionStore =
+                    FakeSessionStore(
+                        AuthSession(
+                            userId = "alice@example.com",
+                            accessToken = "token",
+                            server = null,
+                        ),
+                    ),
+                apiClient =
+                    FakeMessageApiClient(
+                        result = SendMessageResult.Success,
+                        onLocalFetch = { localFetchConversationId = it },
+                    ),
+            )
+
+        val result = service.fetchLocalMessages("conv-local")
+
+        assertIs<FetchMessagesResult.Success>(result)
+        assertEquals("conv-local", localFetchConversationId)
+    }
+
+    @Test
+    fun `fetchLocalMessages returns unauthorized when no session is persisted`() {
+        val service =
+            SessionBackedMessageService(
+                sessionStore = FakeSessionStore(activeSession = null),
+                apiClient = FakeMessageApiClient(result = SendMessageResult.Success),
+            )
+
+        val result = service.fetchLocalMessages("conv-123")
+
+        val failure = assertIs<FetchMessagesResult.Failure>(result)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
     fun `sendTypingStatus returns unauthorized when no session is persisted`() {
         val service =
             SessionBackedMessageService(
@@ -324,6 +364,7 @@ class SessionBackedMessageServiceTest {
             FetchMessagesResult.Success(FetchMessagesView(conversationId = "conv", messages = emptyList())),
         private val typingResult: SendTypingResult = SendTypingResult.Success,
         private val captureRequests: MutableList<Triple<AuthSession, String, String>>? = null,
+        private val onLocalFetch: (String) -> Unit = {},
     ) : MessageApiClient, MessageTypingApiClient {
         override fun sendMessage(
             session: AuthSession,
@@ -338,6 +379,14 @@ class SessionBackedMessageServiceTest {
             session: AuthSession,
             conversationId: String,
         ): FetchMessagesResult {
+            return fetchResult
+        }
+
+        override fun fetchLocalMessages(
+            session: AuthSession,
+            conversationId: String,
+        ): FetchMessagesResult {
+            onLocalFetch(conversationId)
             return fetchResult
         }
 

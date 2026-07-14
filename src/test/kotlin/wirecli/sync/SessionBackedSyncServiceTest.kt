@@ -39,6 +39,36 @@ class SessionBackedSyncServiceTest {
     }
 
     @Test
+    fun `startContinuousSync delegates active session to backend`() {
+        var capturedSession: AuthSession? = null
+        val session = AuthSession("alice@example.com", "token", null)
+        val service =
+            SessionBackedSyncService(
+                sessionStore = FakeSessionStore(activeSession = session),
+                apiClient = FakeSyncApiClient(onContinuousSync = { capturedSession = it }),
+            )
+
+        val result = service.startContinuousSync()
+
+        assertIs<SyncStatusResult.Success>(result)
+        assertEquals(session, capturedSession)
+    }
+
+    @Test
+    fun `startContinuousSync returns unauthorized when no session is persisted`() {
+        val service =
+            SessionBackedSyncService(
+                sessionStore = FakeSessionStore(activeSession = null),
+                apiClient = FakeSyncApiClient(),
+            )
+
+        val result = service.startContinuousSync()
+
+        val failure = assertIs<SyncStatusResult.Failure>(result)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
     fun `returns unauthorized when no session is persisted for getCurrentSyncStatus`() {
         val service =
             SessionBackedSyncService(
@@ -218,6 +248,7 @@ class SessionBackedSyncServiceTest {
         private val statusResult: SyncStatusResult? = null,
         private val diagnosticsResult: DiagnosticsResult? = null,
         private val forceSyncResult: SyncStatusResult? = null,
+        private val onContinuousSync: (AuthSession) -> Unit = {},
     ) : SyncApiClient {
         override fun forceSyncAndWait(session: AuthSession): SyncStatusResult =
             forceSyncResult
@@ -227,6 +258,11 @@ class SessionBackedSyncServiceTest {
                         metrics = HealthMetrics(100L, 5, 85, "2025-03-13T10:30:00Z"),
                     ),
                 )
+
+        override fun startContinuousSync(session: AuthSession): SyncStatusResult {
+            onContinuousSync(session)
+            return forceSyncAndWait(session)
+        }
 
         override fun getSyncStatus(session: AuthSession): SyncStatusResult =
             statusResult

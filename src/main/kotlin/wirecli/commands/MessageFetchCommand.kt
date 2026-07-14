@@ -3,6 +3,8 @@ package wirecli.commands
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.option
 import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageFetchFormatter
 import wirecli.message.MessageService
@@ -18,6 +20,11 @@ class MessageFetchCommand(
         help = "The conversation ID to fetch messages from",
     )
 
+    private val local by option(
+        "--local",
+        help = "Read messages from the local Kalium cache without waiting for network sync.",
+    ).flag(default = false)
+
     override fun run() {
         val validatedConversationId =
             requireValueOrExit(
@@ -27,7 +34,13 @@ class MessageFetchCommand(
             )
 
         val messageService = messageServiceProvider()
-        when (val result = messageService.fetchMessages(validatedConversationId)) {
+        val result =
+            if (local) {
+                messageService.fetchLocalMessages(validatedConversationId)
+            } else {
+                messageService.fetchMessages(validatedConversationId)
+            }
+        when (result) {
             is FetchMessagesResult.Success -> {
                 val formatter = MessageFetchFormatter()
                 val output = formatter.toHumanReadable(result.view.messages)

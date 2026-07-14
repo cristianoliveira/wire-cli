@@ -71,8 +71,18 @@ internal class RealKaliumMessageApiClient(
     override fun fetchMessages(
         session: AuthSession,
         conversationId: String,
+    ): FetchMessagesResult = mapFetchResult(conversationId, runtime.fetchMessages(session, conversationId))
+
+    override fun fetchLocalMessages(
+        session: AuthSession,
+        conversationId: String,
+    ): FetchMessagesResult = mapFetchResult(conversationId, runtime.fetchLocalMessages(session, conversationId))
+
+    private fun mapFetchResult(
+        conversationId: String,
+        result: MessageStepResult<List<ConversationMessage>>,
     ): FetchMessagesResult {
-        return when (val result = runtime.fetchMessages(session, conversationId)) {
+        return when (result) {
             is MessageStepResult.Success ->
                 FetchMessagesResult.Success(
                     view =
@@ -91,11 +101,9 @@ internal class RealKaliumMessageApiClient(
                         MessageFailureCategory.UNAUTHORIZED ->
                             AuthMessages.invalidOrExpiredSession() to ExitCodes.UNAUTHORIZED
 
-                        MessageFailureCategory.TIMEOUT ->
-                            MessageUserMessages.FETCH_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
-
-                        MessageFailureCategory.NETWORK ->
-                            MessageUserMessages.FETCH_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
+                        MessageFailureCategory.TIMEOUT,
+                        MessageFailureCategory.NETWORK,
+                        -> MessageUserMessages.FETCH_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
 
                         MessageFailureCategory.SERVER ->
                             MessageUserMessages.FETCH_SERVER_ERROR to ExitCodes.SERVER_ERROR

@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.subcommands
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.commands.ConnectionCommand
 import wirecli.commands.ConversationCommand
+import wirecli.commands.DaemonCommand
 import wirecli.commands.DeviceCommand
 import wirecli.commands.LoginCommand
 import wirecli.commands.LogoutCommand
@@ -48,6 +49,12 @@ fun main(args: Array<String>) {
             throw e
         }
 
+    val runtimeShutdownHook =
+        Thread(
+            { runtime.close() },
+            "wire-cli-runtime-shutdown",
+        )
+    Runtime.getRuntime().addShutdownHook(runtimeShutdownHook)
     var completed = false
 
     try {
@@ -56,6 +63,7 @@ fun main(args: Array<String>) {
             .subcommands(
                 LoginCommand(runtime.authSessionService),
                 LogoutCommand(runtime.authSessionService),
+                DaemonCommand(syncServiceProvider = { runtime.syncService }),
                 ProfileCommand { runtime.profileService },
                 PresenceCommand { runtime.presenceService },
                 DeviceCommand { runtime.deviceService },
@@ -75,6 +83,9 @@ fun main(args: Array<String>) {
         throw e
     } finally {
         logger.debug { "Shutting down Wire CLI application" }
+        runCatching {
+            Runtime.getRuntime().removeShutdownHook(runtimeShutdownHook)
+        }
         runCatching {
             runtime.close()
             logger.debug { "Kalium runtime shutdown complete" }

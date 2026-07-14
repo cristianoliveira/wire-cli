@@ -44,6 +44,23 @@ class MessageFetchCommandTest {
     }
 
     @Test
+    fun `fetch command reads only the local cache when local flag is set`() {
+        var localConversationId: String? = null
+        val command =
+            MessageFetchCommand {
+                FakeMessageService(
+                    fetchResult = FetchMessagesResult.Success(FetchMessagesView("conv-123", emptyList())),
+                    onLocalFetch = { localConversationId = it },
+                )
+            }
+
+        val result = execute(command, listOf("--local", "conv-123"))
+
+        assertEquals(0, result.exitCode)
+        assertEquals("conv-123", localConversationId)
+    }
+
+    @Test
     fun `fetch command maps service failure to exit code and stderr`() {
         val command =
             MessageFetchCommand {
@@ -111,6 +128,7 @@ class MessageFetchCommandTest {
 
     private class FakeMessageService(
         private val fetchResult: FetchMessagesResult,
+        private val onLocalFetch: (String) -> Unit = {},
     ) : MessageService {
         override fun sendMessage(
             conversationId: String,
@@ -120,6 +138,11 @@ class MessageFetchCommandTest {
         }
 
         override fun fetchMessages(conversationId: String): FetchMessagesResult = fetchResult
+
+        override fun fetchLocalMessages(conversationId: String): FetchMessagesResult {
+            onLocalFetch(conversationId)
+            return fetchResult
+        }
 
         override fun searchMessages(
             query: String,

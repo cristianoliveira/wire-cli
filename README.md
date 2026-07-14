@@ -73,7 +73,15 @@ wire presence set online
 wire presence set busy
 wire presence set away
 wire presence set offline
+
+# Keep message sync active and cache messages locally
+wire daemon
+
+# Read cached messages without waiting for network sync
+wire message fetch --local <conversation-id>
 ```
+
+`wire daemon` runs in the foreground until interrupted. Use systemd, launchd, Docker, or another process supervisor to keep it running. Kalium stores synchronized state under `~/.wire/kalium`.
 
 Presence values are normalized; unsupported or unavailable backend values are surfaced as `unknown`.
 

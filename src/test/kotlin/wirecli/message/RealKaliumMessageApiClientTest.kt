@@ -578,12 +578,30 @@ class RealKaliumMessageApiClientTest {
         assertEquals(MessageUserMessages.TYPING_TIMEOUT, failure.message)
     }
 
+    @Test
+    fun `fetchLocalMessages delegates cache-only read to runtime`() {
+        val localFetchCalls = mutableListOf<Pair<AuthSession, String>>()
+        val client =
+            RealKaliumMessageApiClient(
+                FakeKaliumMessageRuntime(
+                    result = MessageStepResult.Success(Unit),
+                    localFetchCalls = localFetchCalls,
+                ),
+            )
+
+        val result = client.fetchLocalMessages(testSession, "conv-local")
+
+        assertIs<FetchMessagesResult.Success>(result)
+        assertEquals(listOf(testSession to "conv-local"), localFetchCalls)
+    }
+
     // ==================== Helper Classes ====================
 
     private class FakeKaliumMessageRuntime(
         private val result: MessageStepResult<Unit>,
         private val fetchResult: MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList()),
         private val captureCalls: MutableList<Triple<AuthSession, String, String>>? = null,
+        private val localFetchCalls: MutableList<Pair<AuthSession, String>>? = null,
     ) : MessageRuntime {
         override fun sendMessage(
             session: AuthSession,
@@ -598,6 +616,14 @@ class RealKaliumMessageApiClientTest {
             session: AuthSession,
             conversationId: String,
         ): MessageStepResult<List<ConversationMessage>> {
+            return fetchResult
+        }
+
+        override fun fetchLocalMessages(
+            session: AuthSession,
+            conversationId: String,
+        ): MessageStepResult<List<ConversationMessage>> {
+            localFetchCalls?.add(session to conversationId)
             return fetchResult
         }
 

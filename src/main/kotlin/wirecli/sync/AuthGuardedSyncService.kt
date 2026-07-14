@@ -27,6 +27,18 @@ class AuthGuardedSyncService(
         }
     }
 
+    override fun startContinuousSync(): SyncStatusResult {
+        logger.debug { "AuthGuardedSyncService: Checking authentication for startContinuousSync" }
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.startContinuousSync()
+            is AuthResult.Failure ->
+                SyncStatusResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
+
     override fun getCurrentSyncStatus(): SyncStatusResult {
         logger.debug { "AuthGuardedSyncService: Checking authentication for getCurrentSyncStatus" }
         return when (val authResult = authSessionService.requireActiveSession()) {

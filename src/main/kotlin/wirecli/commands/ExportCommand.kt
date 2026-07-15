@@ -3,9 +3,11 @@ package wirecli.commands
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import wirecli.exporting.ExportInput
 import wirecli.exporting.ExportResult
 import wirecli.exporting.ExportService
 import wirecli.importing.ImportSource
@@ -15,7 +17,7 @@ class ExportCommand(private val serviceProvider: () -> ExportService) : CliktCom
     name = "export",
     help = "Export Wire client data for analysis.",
 ) {
-    private val input by argument("BACKUP")
+    private val input by argument("BACKUP", help = "Wire backup file; omit to export authenticated local cache").optional()
     private val sourceName by option("--from", help = "Source client format (default: wire-backup)")
         .default(ImportSource.WIRE_BACKUP.cliName)
     private val format by option("--format", help = "Output format (jsonl)").required()
@@ -28,7 +30,8 @@ class ExportCommand(private val serviceProvider: () -> ExportService) : CliktCom
             echo("unsupported export source or format", err = true)
             throw ProgramResult(1)
         }
-        when (val result = serviceProvider().export(Path(input), source, Path(destination), password)) {
+        val exportInput = input?.let { ExportInput.ExternalBackup(Path(it)) } ?: ExportInput.LocalCache
+        when (val result = serviceProvider().export(exportInput, source, Path(destination), password)) {
             is ExportResult.Success ->
                 echo(
                     "Exported ${result.conversations} conversations, ${result.messages} messages, " +

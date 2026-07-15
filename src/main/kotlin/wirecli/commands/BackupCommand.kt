@@ -4,11 +4,13 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
 import wirecli.exporting.ExportService
+import wirecli.exporting.LocalBackupService
 import wirecli.importing.ImportService
 
 class BackupCommand(
     importServiceProvider: () -> ImportService,
     exportServiceProvider: () -> ExportService,
+    localBackupServiceProvider: () -> LocalBackupService,
 ) : CliktCommand(
         name = "backup",
         help = "Import, export, and inspect Wire backups.",
@@ -18,6 +20,7 @@ class BackupCommand(
         subcommands(
             ImportCommand(importServiceProvider),
             ExportCommand(exportServiceProvider),
+            CreateBackupCommand(localBackupServiceProvider),
         )
     }
 

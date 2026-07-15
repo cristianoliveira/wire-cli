@@ -68,6 +68,7 @@ fun main(args: Array<String>) {
                 BackupCommand(
                     importServiceProvider = { runtime.importService },
                     exportServiceProvider = { runtime.exportService },
+                    localBackupServiceProvider = { runtime.localBackupService },
                 ),
                 ProfileCommand { runtime.profileService },
                 PresenceCommand { runtime.presenceService },

@@ -70,6 +70,7 @@ class StubUserApiClient(
             else -> {
                 val matches =
                     knownUsers
+                        .filter { user -> !query.contactsOnly || user.connection == UserConnectionState.ACCEPTED }
                         .filter { user -> user.matches(query.query) }
                         .take(query.limit)
                 UserSearchResult.Success(view = UserListView(users = matches.toUserViews()))

@@ -37,7 +37,7 @@ internal class RealKaliumUserApiClient(
                 }
             }
 
-        return when (val result = runtime.searchUsers(sessionScope, query.query, query.limit)) {
+        return when (val result = runtime.searchUsers(sessionScope, query.query, query.limit, query.contactsOnly)) {
             is UserStepResult.Success -> {
                 logger.info { "User search returned ${result.value.users.size} user(s)" }
                 val view = UserListView(users = result.value.users.toUserViews())
@@ -130,6 +130,7 @@ internal class SdkKaliumUserRuntime(
         sessionScope: KaliumUserSessionScope,
         query: String,
         limit: Int,
+        contactsOnly: Boolean,
     ): UserStepResult<KaliumUserSearchResult> {
         val qualifiedId =
             sessionScope.userId.toQualifiedIdOrNull()
@@ -142,7 +143,7 @@ internal class SdkKaliumUserRuntime(
                         search.searchUsersByName(
                             searchQuery = query,
                             excludingMembersOfConversation = null,
-                            skipRemoteSearch = false,
+                            skipRemoteSearch = contactsOnly,
                             customDomain = null,
                         )
                     }

@@ -52,6 +52,7 @@ data class UserListView(
 data class UserSearchQuery(
     val query: String,
     val limit: Int = DEFAULT_LIMIT,
+    val contactsOnly: Boolean = false,
 ) {
     init {
         require(query.isNotBlank()) { "Search query must not be blank." }
@@ -163,6 +164,7 @@ internal interface UserRuntime {
         sessionScope: KaliumUserSessionScope,
         query: String,
         limit: Int,
+        contactsOnly: Boolean,
     ): UserStepResult<KaliumUserSearchResult>
 
     fun getUser(

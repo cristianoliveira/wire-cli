@@ -20,10 +20,10 @@ private val logger = KotlinLogging.logger {}
 class UserCommand(
     private val userServiceProvider: () -> UserService,
 ) : CliktCommand(
-        name = "user",
-        help = "Discover users (search, get).",
-        invokeWithoutSubcommand = true,
-    ) {
+    name = "user",
+    help = "Discover users (search, get).",
+    invokeWithoutSubcommand = true,
+) {
     init {
         subcommands(
             UserSearchCommand(userServiceProvider),
@@ -45,6 +45,7 @@ class UserSearchCommand(
 ) : CliktCommand(name = "search", help = "Search users by name, handle, or email.") {
     private val query by argument(name = "query", help = "Search query (name, handle, or email)")
     private val limit by option("--limit", help = "Maximum number of results (1-100)").int()
+    private val contactsOnly by option("--contacts-only", help = "Search connected contacts only").flag(default = false)
     private val json by option("--json", help = "Output as JSON").flag(default = false)
     private val jsonLines by option("--json-lines", help = "Output as JSON lines").flag(default = false)
 
@@ -52,7 +53,13 @@ class UserSearchCommand(
 
     override fun run() {
         val validatedQuery =
-            validateOrExit { UserSearchQuery(query = query, limit = limit ?: UserSearchQuery.DEFAULT_LIMIT) }
+            validateOrExit {
+                UserSearchQuery(
+                    query = query,
+                    limit = limit ?: UserSearchQuery.DEFAULT_LIMIT,
+                    contactsOnly = contactsOnly,
+                )
+            }
         val userService = userServiceProvider()
 
         when (val result = userService.search(validatedQuery)) {

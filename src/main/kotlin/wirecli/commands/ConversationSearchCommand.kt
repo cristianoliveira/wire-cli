@@ -24,10 +24,11 @@ class ConversationSearchCommand(
         val expectedType = parseType(type)
         when (val result = conversationServiceProvider().listConversations()) {
             is ListConversationsResult.Success -> {
-                val conversations = result.view.conversations.filter { conversation ->
-                    conversation.name.contains(query, ignoreCase = true) &&
-                        (expectedType == null || conversation.type == expectedType)
-                }
+                val conversations =
+                    result.view.conversations.filter { conversation ->
+                        conversation.name.contains(query, ignoreCase = true) &&
+                            (expectedType == null || conversation.type == expectedType)
+                    }
                 val formatter = ConversationFormatter()
                 echo(
                     when {
@@ -45,11 +46,12 @@ class ConversationSearchCommand(
         }
     }
 
-    private fun parseType(value: String?): ConversationType? = when (value?.lowercase()) {
-        null -> null
-        "channel" -> ConversationType.TEAM_CHANNEL
-        "group" -> ConversationType.GROUP
-        "direct", "dm", "one-to-one" -> ConversationType.ONE_TO_ONE
-        else -> throw UsageError("Invalid --type '$value'. Use channel, group, or direct.")
-    }
+    private fun parseType(value: String?): ConversationType? =
+        when (value?.lowercase()) {
+            null -> null
+            "channel" -> ConversationType.TEAM_CHANNEL
+            "group" -> ConversationType.GROUP
+            "direct", "dm", "one-to-one" -> ConversationType.ONE_TO_ONE
+            else -> throw UsageError("Invalid --type '$value'. Use channel, group, or direct.")
+        }
 }

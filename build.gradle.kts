@@ -20,9 +20,11 @@ repositories {
 dependencies {
     implementation("com.github.ajalt.clikt:clikt:4.4.0")
     implementation("com.wire:logic")
+    implementation("com.wire:backup")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+    implementation("com.squareup.okio:okio:3.9.0")
 
     // Logging infrastructure: SLF4J + Logback + kotlin-logging
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")

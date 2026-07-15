@@ -24,6 +24,15 @@ teardown() {
   [[ "${output}" == *"Usage:"* ]]
   [[ "${output}" == *"presence"* ]]
   [[ "${output}" == *"daemon"* ]]
+  [[ "${output}" == *"import"* ]]
+}
+
+@test "Given built CLI, when import help is requested, then source format is documented" {
+  run_wire import --help
+
+  assert_status 0
+  [[ "${output}" == *"--from"* ]]
+  [[ "${output}" == *"wire-backup"* ]]
 }
 
 @test "Given built CLI, when message fetch help is requested, then local cache option is documented" {

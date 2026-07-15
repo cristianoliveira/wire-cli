@@ -1,8 +1,11 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
+import wirecli.exporting.ExportInput
 import wirecli.exporting.ExportResult
 import wirecli.exporting.ExportService
+import wirecli.exporting.LocalBackupResult
+import wirecli.exporting.LocalBackupService
 import wirecli.importing.ImportResult
 import wirecli.importing.ImportService
 import wirecli.importing.ImportSource
@@ -20,6 +23,7 @@ class BackupCommandTest {
                 BackupCommand(
                     importServiceProvider = { SuccessfulImportService },
                     exportServiceProvider = { SuccessfulExportService },
+                    localBackupServiceProvider = { SuccessfulLocalBackupService },
                 ),
                 listOf("import", "backup.wbu"),
             )
@@ -36,9 +40,16 @@ class BackupCommandTest {
         ): ImportResult = ImportResult.Success
     }
 
+    private object SuccessfulLocalBackupService : LocalBackupService {
+        override fun create(
+            destination: Path,
+            password: String?,
+        ): LocalBackupResult = LocalBackupResult.Success(destination)
+    }
+
     private object SuccessfulExportService : ExportService {
         override fun export(
-            input: Path,
+            input: ExportInput,
             source: ImportSource,
             destination: Path,
             password: String?,

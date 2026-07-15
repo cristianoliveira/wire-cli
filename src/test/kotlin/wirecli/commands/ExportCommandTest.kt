@@ -1,6 +1,7 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
+import wirecli.exporting.ExportInput
 import wirecli.exporting.ExportResult
 import wirecli.exporting.ExportService
 import wirecli.importing.ImportSource
@@ -13,7 +14,7 @@ import kotlin.test.assertEquals
 
 class ExportCommandTest {
     @Test
-    fun `exports backup as jsonl`() {
+    fun `provided backup selects external backup`() {
         val service = FakeExportService(ExportResult.Success(2, 12, 4, Path("out")))
         val result =
             execute(
@@ -22,16 +23,32 @@ class ExportCommandTest {
             )
 
         assertEquals(0, result.exitCode)
+        assertEquals(ExportInput.ExternalBackup(Path("backup.wbu")), service.input)
         assertEquals("Exported 2 conversations, 12 messages, and 4 users into out", result.stdout.trim())
     }
 
+    @Test
+    fun `omitted backup selects local cache`() {
+        val service = FakeExportService(ExportResult.Success(1, 2, 3, Path("out")))
+
+        val result = execute(ExportCommand { service }, listOf("--format", "jsonl", "--destination", "out"))
+
+        assertEquals(0, result.exitCode)
+        assertEquals(ExportInput.LocalCache, service.input)
+    }
+
     private class FakeExportService(private val result: ExportResult) : ExportService {
+        var input: ExportInput? = null
+
         override fun export(
-            input: Path,
+            input: ExportInput,
             source: ImportSource,
             destination: Path,
             password: String?,
-        ): ExportResult = result
+        ): ExportResult {
+            this.input = input
+            return result
+        }
     }
 
     private data class ExecutionResult(val exitCode: Int, val stdout: String)

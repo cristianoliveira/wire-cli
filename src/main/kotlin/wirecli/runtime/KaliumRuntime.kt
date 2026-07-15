@@ -31,7 +31,10 @@ import wirecli.device.SdkKaliumDeviceRuntime
 import wirecli.device.SessionBackedDeviceService
 import wirecli.device.StubDeviceApiClient
 import wirecli.exporting.DefaultExportService
+import wirecli.exporting.DefaultLocalBackupService
 import wirecli.exporting.ExportService
+import wirecli.exporting.LocalBackupService
+import wirecli.exporting.SdkLocalCacheBackupRuntime
 import wirecli.exporting.WireBackupJsonExporter
 import wirecli.importing.DefaultImportService
 import wirecli.importing.ImportService
@@ -77,6 +80,7 @@ import java.util.Locale
 interface KaliumRuntime : AutoCloseable {
     val authSessionService: AuthSessionService
     val exportService: ExportService
+    val localBackupService: LocalBackupService
     val importService: ImportService
     val profileService: ProfileService
     val presenceService: PresenceService
@@ -137,8 +141,18 @@ private class DefaultKaliumRuntime(
         )
     }
 
+    private val localCacheBackupRuntime by lazy { SdkLocalCacheBackupRuntime(environment) }
+
     override val exportService: ExportService by lazy {
-        DefaultExportService(listOf(WireBackupJsonExporter()))
+        DefaultExportService(
+            sessionProvider = sessionStore,
+            localCacheBackupRuntime = localCacheBackupRuntime,
+            exporters = listOf(WireBackupJsonExporter()),
+        )
+    }
+
+    override val localBackupService: LocalBackupService by lazy {
+        DefaultLocalBackupService(sessionStore, localCacheBackupRuntime)
     }
 
     override val importService: ImportService by lazy {

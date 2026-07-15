@@ -13,6 +13,10 @@ jobs:
   ci:
     name: Build with Nix
     runs-on: ubuntu-latest
+    env:
+      NIX_CONFIG: |
+        max-jobs = 1
+        cores = 1
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -28,11 +32,11 @@ jobs:
 
       - name: Build with Nix
         run: |
-          nix build
+          nix build --max-jobs 1 --cores 1
 
       - name: Nix flake checks
         run: |
-          nix flake check
+          nix flake check --max-jobs 1 --cores 1
 
       - name: Test the built binary
         run: |

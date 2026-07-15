@@ -30,6 +30,13 @@ import wirecli.device.RealKaliumDeviceApiClient
 import wirecli.device.SdkKaliumDeviceRuntime
 import wirecli.device.SessionBackedDeviceService
 import wirecli.device.StubDeviceApiClient
+import wirecli.exporting.DefaultExportService
+import wirecli.exporting.ExportService
+import wirecli.exporting.WireBackupJsonExporter
+import wirecli.importing.DefaultImportService
+import wirecli.importing.ImportService
+import wirecli.importing.SdkWireBackupRuntime
+import wirecli.importing.WireBackupImporter
 import wirecli.message.AuthGuardedMessageService
 import wirecli.message.MessageApiClient
 import wirecli.message.MessageService
@@ -69,6 +76,8 @@ import java.util.Locale
 
 interface KaliumRuntime : AutoCloseable {
     val authSessionService: AuthSessionService
+    val exportService: ExportService
+    val importService: ImportService
     val profileService: ProfileService
     val presenceService: PresenceService
     val deviceService: DeviceService
@@ -125,6 +134,17 @@ private class DefaultKaliumRuntime(
         AuthSessionServiceImpl(
             apiClient = backend.authApiClient,
             sessionStore = sessionStore,
+        )
+    }
+
+    override val exportService: ExportService by lazy {
+        DefaultExportService(listOf(WireBackupJsonExporter()))
+    }
+
+    override val importService: ImportService by lazy {
+        DefaultImportService(
+            sessionProvider = sessionStore,
+            importers = listOf(WireBackupImporter(SdkWireBackupRuntime(environment))),
         )
     }
 

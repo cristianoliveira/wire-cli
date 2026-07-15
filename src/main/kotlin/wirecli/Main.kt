@@ -2,6 +2,7 @@ package wirecli
 
 import com.github.ajalt.clikt.core.subcommands
 import io.github.oshai.kotlinlogging.KotlinLogging
+import wirecli.commands.BackupCommand
 import wirecli.commands.ConnectionCommand
 import wirecli.commands.ConversationCommand
 import wirecli.commands.DaemonCommand
@@ -64,6 +65,10 @@ fun main(args: Array<String>) {
                 LoginCommand(runtime.authSessionService),
                 LogoutCommand(runtime.authSessionService),
                 DaemonCommand(syncServiceProvider = { runtime.syncService }),
+                BackupCommand(
+                    importServiceProvider = { runtime.importService },
+                    exportServiceProvider = { runtime.exportService },
+                ),
                 ProfileCommand { runtime.profileService },
                 PresenceCommand { runtime.presenceService },
                 DeviceCommand { runtime.deviceService },

@@ -20,10 +20,10 @@ private val logger = KotlinLogging.logger {}
 class UserCommand(
     private val userServiceProvider: () -> UserService,
 ) : CliktCommand(
-    name = "user",
-    help = "Discover users (search, get).",
-    invokeWithoutSubcommand = true,
-) {
+        name = "user",
+        help = "Discover users (search, get).",
+        invokeWithoutSubcommand = true,
+    ) {
     init {
         subcommands(
             UserSearchCommand(userServiceProvider),

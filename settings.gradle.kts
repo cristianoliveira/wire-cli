@@ -16,5 +16,6 @@ require(kaliumDirFile.exists()) {
 includeBuild(kaliumDirFile) {
     dependencySubstitution {
         substitute(module("com.wire:logic")).using(project(":logic"))
+        substitute(module("com.wire:backup")).using(project(":domain:backup"))
     }
 }

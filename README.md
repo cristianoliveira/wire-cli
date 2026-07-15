@@ -81,15 +81,15 @@ wire daemon
 wire message fetch --local <conversation-id>
 
 # Restore a Wire client backup into the authenticated user's local cache
-wire import wire-backup.wbu
+wire backup import wire-backup.wbu
 
 # Export a backup as JSON Lines for analysis
-wire export --format jsonl --destination ./analysis wire-backup.wbu
+wire backup export --format jsonl --destination ./analysis wire-backup.wbu
 ```
 
 `wire daemon` runs in the foreground until interrupted. Use systemd, launchd, Docker, or another process supervisor to keep it running. Kalium stores synchronized state under `~/.wire/kalium`.
 
-`wire import` requires an active login and restores backup conversations, messages, users, and reactions into Kalium's local cache. Imported messages can then be read with `wire message fetch --local <conversation-id>`. Wire backup is the default source format; use `--from` only to override source selection.
+`wire backup import` requires an active login and restores backup conversations, messages, users, and reactions into Kalium's local cache. Imported messages can then be read with `wire message fetch --local <conversation-id>`. Wire backup is the default source format; use `--from` only to override source selection.
 
 Presence values are normalized; unsupported or unavailable backend values are surfaced as `unknown`.
 

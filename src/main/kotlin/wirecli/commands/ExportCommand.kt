@@ -16,7 +16,7 @@ class ExportCommand(private val serviceProvider: () -> ExportService) : CliktCom
     help = "Export Wire client data for analysis.",
 ) {
     private val input by argument("BACKUP")
-    private val sourceName by option("--from", help = "Source client format")
+    private val sourceName by option("--from", help = "Source client format (default: wire-backup)")
         .default(ImportSource.WIRE_BACKUP.cliName)
     private val format by option("--format", help = "Output format (jsonl)").required()
     private val destination by option("--destination", help = "Output directory").required()

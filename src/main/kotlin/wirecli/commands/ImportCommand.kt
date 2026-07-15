@@ -20,7 +20,7 @@ class ImportCommand(
 
     private val sourceName by option(
         "--from",
-        help = "Source client format",
+        help = "Source client format (default: wire-backup)",
     ).default(ImportSource.WIRE_BACKUP.cliName)
 
     private val password by option(

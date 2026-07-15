@@ -24,11 +24,11 @@ teardown() {
   [[ "${output}" == *"Usage:"* ]]
   [[ "${output}" == *"presence"* ]]
   [[ "${output}" == *"daemon"* ]]
-  [[ "${output}" == *"import"* ]]
+  [[ "${output}" == *"backup"* ]]
 }
 
-@test "Given built CLI, when import help is requested, then source format is documented" {
-  run_wire import --help
+@test "Given built CLI, when backup import help is requested, then source format is documented" {
+  run_wire backup import --help
 
   assert_status 0
   [[ "${output}" == *"--from"* ]]

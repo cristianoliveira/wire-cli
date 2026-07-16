@@ -77,19 +77,31 @@ internal class SdkKaliumDownloadRuntime(
                 when (assetResult) {
                     is MessageAssetResult.Success -> {
                         val decodedPath = assetResult.decodedAssetPath
+                        val sourcePath = Paths.get(decodedPath.toString())
                         val outputDirPath = Paths.get(outputDir)
                         Files.createDirectories(outputDirPath)
-                        val outputPath = outputDirPath.resolve(assetResult.assetName)
+
+                        val fileName =
+                            assetResult.assetName.ifBlank {
+                                val sourceName = sourcePath.fileName.toString()
+                                if (sourceName.contains('.')) sourceName
+                                else "${messageId.take(8)}.bin"
+                            }
+                        val outputPath = outputDirPath.resolve(fileName)
+
+                        logger.info {
+                            "downloadAsset: copying from $sourcePath to $outputPath"
+                        }
 
                         Files.copy(
-                            Paths.get(decodedPath.toString()),
+                            sourcePath,
                             outputPath,
                             StandardCopyOption.REPLACE_EXISTING,
                         )
 
                         logger.info {
                             "downloadAsset: success conversationId=$conversationId " +
-                                "messageId=$messageId assetName=${assetResult.assetName} " +
+                                "messageId=$messageId assetName=$fileName " +
                                 "outputPath=$outputPath"
                         }
 
@@ -97,7 +109,7 @@ internal class SdkKaliumDownloadRuntime(
                             DownloadedAsset(
                                 path = outputPath.toString(),
                                 size = assetResult.assetSize,
-                                name = assetResult.assetName,
+                                name = fileName,
                             ),
                         )
                     }

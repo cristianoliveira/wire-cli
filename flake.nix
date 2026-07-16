@@ -172,7 +172,7 @@
         in
         {
           default = pkgs.buildGradleApplication {
-            pname = "wire-cli";
+            pname = "wire";
             version = appVersion;
 
             src = srcWithKalium;
@@ -222,7 +222,7 @@
               homepage = "https://github.com/wireapp/wire-cli";
               license = licenses.gpl3Only;
               maintainers = [ ];
-              mainProgram = "wire-cli";
+              mainProgram = "wire";
               platforms = supportedSystems;
             };
           };
@@ -326,7 +326,7 @@
           '';
 
           m2Repository = pkgs.mkM2Repository {
-            pname = "wire-cli-tests";
+            pname = "wire-tests";
             version = appVersion;
             src = srcWithKalium;
             dependencyFilter = depSpec: true;
@@ -351,7 +351,7 @@
         in
         {
           tests = pkgs.stdenvNoCC.mkDerivation {
-            pname = "wire-cli-tests";
+            pname = "wire-tests";
             version = appVersion;
             src = srcWithKalium;
 

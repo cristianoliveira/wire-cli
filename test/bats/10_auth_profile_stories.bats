@@ -4,7 +4,7 @@ load "helpers/common.bash"
 
 setup_file() {
   if [[ -z "${WIRE_BIN:-}" ]]; then
-    WIRE_BIN="${BATS_TEST_DIRNAME}/../../build/install/wire-cli/bin/wire-cli"
+    WIRE_BIN="${BATS_TEST_DIRNAME}/../../build/install/wire/bin/wire"
   fi
   export WIRE_BIN
 }

@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 if [[ -z "${WIRE_BIN:-}" ]]; then
-	WIRE_BIN="${PROJECT_ROOT}/build/install/wire-cli/bin/wire-cli"
+	WIRE_BIN="${PROJECT_ROOT}/build/install/wire/bin/wire"
 fi
 
 export WIRE_BIN

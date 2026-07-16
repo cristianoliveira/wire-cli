@@ -13,7 +13,7 @@ if not wire_bin:
     # Project root is two levels up
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(script_dir))
-    wire_bin = os.path.join(project_root, 'build/install/wire-cli/bin/wire-cli')
+    wire_bin = os.path.join(project_root, 'build/install/wire/bin/wire')
 
 os.environ['WIRE_BIN'] = wire_bin
 

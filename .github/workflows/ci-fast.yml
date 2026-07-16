@@ -38,11 +38,11 @@ jobs:
 
       - name: Test the built binary
         run: |
-          build/install/wire-cli/bin/wire-cli --help
+          build/install/wire/bin/wire --help
 
       - name: Enter Nix dev shell and run integration tests
         run: |
-          nix develop --command bash -c "WIRE_BIN=build/install/wire-cli/bin/wire-cli bats --print-output-on-failure test/bats"
+          nix develop --command bash -c "WIRE_BIN=build/install/wire/bin/wire bats --print-output-on-failure test/bats"
 
       - name: Upload test results
         if: always()

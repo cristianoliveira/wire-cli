@@ -1,4 +1,4 @@
-rootProject.name = "wire-cli"
+rootProject.name = "wire"
 
 // Include Kalium SDK as a composite build, mirroring wiretui.
 // Default location is ./vendor/kalium (git submodule).

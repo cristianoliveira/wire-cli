@@ -14,13 +14,13 @@ gradle installDist
 Run help:
 
 ```bash
-./build/install/wire-cli/bin/wire-cli --help
+./build/install/wire/bin/wire --help
 ```
 
 Optional convenience alias used in examples below:
 
 ```bash
-alias wire="./build/install/wire-cli/bin/wire-cli"
+alias wire="./build/install/wire/bin/wire"
 wire --help
 ```
 

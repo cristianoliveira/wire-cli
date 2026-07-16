@@ -130,6 +130,31 @@ Example:
 WIRECLI_MESSAGE_SEND_TIMEOUT_MS=120000 wire message send --conversation-id <conversation-id> --text "hello"
 ```
 
+## Access policy
+
+Wire CLI reads optional configuration from `$XDG_CONFIG_HOME/wire/config.yaml`, or
+`~/.config/wire/config.yaml` when `XDG_CONFIG_HOME` is unset. Set
+`WIRECLI_CONFIG_FILE` to use another path.
+
+Access control is disabled when the file or `access.enabled` is absent. When enabled,
+every capability is denied unless listed under `allow`:
+
+```yaml
+access:
+  enabled: true
+  allow:
+    - read
+    - auth.login
+```
+
+`read` grants all read-only operations. A domain such as `message` grants all operations
+in that domain. Narrow capabilities such as `message.read` and `message.send` grant only
+that operation. Unknown and future capabilities remain denied.
+
+See [`examples/config-read-only.yaml`](examples/config-read-only.yaml),
+[`examples/config-message-reader.yaml`](examples/config-message-reader.yaml), and
+[`examples/config-message-bot.yaml`](examples/config-message-bot.yaml).
+
 ## Development
 
 ### Quality Checks

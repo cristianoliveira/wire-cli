@@ -15,10 +15,13 @@ import wirecli.commands.ProfileCommand
 import wirecli.commands.RootCommand
 import wirecli.commands.SyncCommand
 import wirecli.commands.UserCommand
+import wirecli.config.AccessPolicyLoader
+import wirecli.config.CommandAccess
 import wirecli.runtime.KaliumRuntimeBootstrap
 import kotlin.system.exitProcess
 
 private const val MAX_ARG_LOG_LENGTH = 20
+private const val ACCESS_DENIED_EXIT_CODE = 11
 
 fun main(args: Array<String>) {
     // Configure logging system properties BEFORE any logger is created.
@@ -38,6 +41,15 @@ fun main(args: Array<String>) {
     logger.debug { "Starting Wire CLI application" }
     logger.debug { "Command line arguments: ${args.joinToString(" ") { it.take(MAX_ARG_LOG_LENGTH) }}" }
     logger.debug { "JSON output mode: $hasJsonOutput" }
+
+    val accessPolicy = AccessPolicyLoader.load()
+    val requiredCapability = CommandAccess.requiredCapability(args)
+    if (requiredCapability != null && !accessPolicy.allows(requiredCapability)) {
+        System.err.println(
+            "Access denied: '$requiredCapability' is not allowed by ${AccessPolicyLoader.configPath()}.",
+        )
+        exitProcess(ACCESS_DENIED_EXIT_CODE)
+    }
 
     val runtime =
         try {

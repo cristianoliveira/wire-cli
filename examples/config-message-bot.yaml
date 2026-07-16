@@ -1,0 +1,10 @@
+# Allow a bot to log in, inspect conversations, and send messages.
+# Domain capability `message` grants all message operations, so this
+# example uses narrower message capabilities instead.
+access:
+  enabled: true
+  allow:
+    - auth.login
+    - conversation.read
+    - message.read
+    - message.send

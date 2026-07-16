@@ -1,0 +1,5 @@
+# Allow every read-only command and deny all mutations.
+access:
+  enabled: true
+  allow:
+    - read

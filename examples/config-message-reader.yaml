@@ -1,0 +1,8 @@
+# Allow authentication plus reading conversations and messages.
+# Everything else is denied.
+access:
+  enabled: true
+  allow:
+    - auth.login
+    - conversation.read
+    - message.read

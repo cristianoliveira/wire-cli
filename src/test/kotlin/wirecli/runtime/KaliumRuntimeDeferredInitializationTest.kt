@@ -14,6 +14,8 @@ import wirecli.device.DeviceDeleteResult
 import wirecli.device.DeviceDetailResult
 import wirecli.device.DeviceListResult
 import wirecli.device.DeviceVerifyResult
+import wirecli.download.DownloadApiClient
+import wirecli.download.StubDownloadApiClient
 import wirecli.message.DeleteMessageResult
 import wirecli.message.DeleteScope
 import wirecli.message.FetchMessagesResult
@@ -118,6 +120,9 @@ private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFac
 
                 override val connectionApiClient: ConnectionApiClient
                     get() = NoopConnectionApiClient.also { counters.connectionApiClientAccesses += 1 }
+
+                override val downloadApiClient: DownloadApiClient
+                    get() = StubDownloadApiClient()
 
                 override fun shutdown() {
                     counters.shutdownCalls += 1

@@ -2,7 +2,6 @@ package wirecli.download
 
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.id.ConversationId
-import com.wire.kalium.logic.feature.asset.GetMessageAssetUseCase
 import com.wire.kalium.logic.feature.asset.MessageAssetResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +23,6 @@ internal class SdkKaliumDownloadRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
 ) : DownloadRuntime {
-
     private val coreLogicLazy =
         lazy {
             CoreLogic(
@@ -84,8 +82,11 @@ internal class SdkKaliumDownloadRuntime(
                         val fileName =
                             assetResult.assetName.ifBlank {
                                 val sourceName = sourcePath.fileName.toString()
-                                if (sourceName.contains('.')) sourceName
-                                else "${messageId.take(8)}.bin"
+                                if (sourceName.contains('.')) {
+                                    sourceName
+                                } else {
+                                    "${messageId.take(8)}.bin"
+                                }
                             }
                         val outputPath = outputDirPath.resolve(fileName)
 

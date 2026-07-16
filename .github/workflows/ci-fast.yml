@@ -11,13 +11,19 @@ on:
 
 jobs:
   ci:
-    name: Build with Nix
-    runs-on: [self-hosted, Linux, X64, ubuntu-latest]
+    name: Build and integration tests
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
@@ -26,21 +32,17 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Build with Nix
+      - name: Build and run unit tests
         run: |
-          nix build
-
-      - name: Nix flake checks
-        run: |
-          nix flake check
+          ./gradlew --no-daemon installDist test
 
       - name: Test the built binary
         run: |
-          ./result/bin/wire-cli --help
+          build/install/wire-cli/bin/wire-cli --help
 
       - name: Enter Nix dev shell and run integration tests
         run: |
-          nix develop --command bash -c "WIRE_BIN=./result/bin/wire-cli bats --print-output-on-failure test/bats"
+          nix develop --command bash -c "WIRE_BIN=build/install/wire-cli/bin/wire-cli bats --print-output-on-failure test/bats"
 
       - name: Upload test results
         if: always()

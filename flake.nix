@@ -13,7 +13,7 @@
     #   flake = false;
     # };
     kalium = {
-      url = "github:cristianoliveira/kalium/4526fdb6077b61b796947915b0afbed0686957e9";
+      url = "github:wireapp/kalium/v0.0.5";
       flake = false;
     };
   };

@@ -663,17 +663,18 @@ private fun renderContent(
 
         is MessageContent.Multipart -> {
             val textPart = content.value?.let { "$it " }.orEmpty()
-            val attachmentParts = content.attachments.joinToString(" ") { attachment ->
-                when (attachment) {
-                    is AssetContent -> {
-                        val assetId = attachment.remoteData.assetId
-                        val name = attachment.name ?: assetId.take(12)
-                        val category = assetCategory(attachment.mimeType)
-                        "[$category $name  $assetId]"
+            val attachmentParts =
+                content.attachments.joinToString(" ") { attachment ->
+                    when (attachment) {
+                        is AssetContent -> {
+                            val assetId = attachment.remoteData.assetId
+                            val name = attachment.name ?: assetId.take(12)
+                            val category = assetCategory(attachment.mimeType)
+                            "[$category $name  $assetId]"
+                        }
+                        else -> "[attachment]"
                     }
-                    else -> "[attachment]"
                 }
-            }
             "$textPart$attachmentParts  msg:$messageId"
         }
 

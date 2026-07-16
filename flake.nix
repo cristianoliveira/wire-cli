@@ -13,7 +13,7 @@
     #   flake = false;
     # };
     kalium = {
-      url = "github:cristianoliveira/kalium/6764d0ff048fd78e02c21feec9636df74303950d";
+      url = "github:cristianoliveira/kalium/4526fdb6077b61b796947915b0afbed0686957e9";
       flake = false;
     };
   };
@@ -62,7 +62,7 @@
           };
 
           # Combine main source with kalium submodule in vendor/kalium
-          srcWithKalium = pkgs.runCommand "wire-cli-source" { buildInputs = [ pkgs.protobuf ]; } ''
+          srcWithKalium = pkgs.runCommand "wire-cli-source" { buildInputs = [ pkgs.protobuf pkgs.python3 ]; } ''
             cp -r ${./.} $out
             # Make everything writable so we can modify files
             chmod -R u+w $out
@@ -161,9 +161,9 @@
                         echo "org.gradle.java.installations.paths=${jdk},${jdk17}" >> $out/gradle.properties
                         echo "org.gradle.java.installations.paths=${jdk},${jdk17}" >> $out/vendor/kalium/gradle.properties
 
-                        # For Nix builds, simply comment out iOS/Apple target creation in logic/build.gradle.kts
-                        # The logic module explicitly creates iOS targets which fail in sandbox without SDK
-                        sed -i '42,52s/^/\/\/ /' $out/vendor/kalium/logic/build.gradle.kts
+                        # For Nix builds, remove iOS/Apple target creation in logic/build.gradle.kts.
+                        # The logic module explicitly creates iOS targets which fail in sandbox without SDK.
+                        sed -i '/    val appleTargets =/,/    sourceSets {/c\    sourceSets {' $out/vendor/kalium/logic/build.gradle.kts
 
             # Also remove the detekt-rules entry from verification-metadata.xml
             # This prevents Gradle from trying to verify and download the non-existent artifact
@@ -199,6 +199,7 @@
               jdk17
               pkgs.git
               pkgs.protobuf
+              pkgs.python3
             ];
 
             # This is a CLI, but Kalium/Gradle plugins can still initialize Android/Kotlin
@@ -252,7 +253,7 @@
             "https://plugins.gradle.org/m2/"
           ];
 
-          srcWithKalium = pkgs.runCommand "wire-cli-source" { buildInputs = [ pkgs.protobuf ]; } ''
+          srcWithKalium = pkgs.runCommand "wire-cli-source" { buildInputs = [ pkgs.protobuf pkgs.python3 ]; } ''
             cp -r ${./.} $out
             chmod -R u+w $out
             mkdir -p $out/vendor

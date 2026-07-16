@@ -19,6 +19,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Install Nix
         uses: cachix/install-nix-action@v31
         with:

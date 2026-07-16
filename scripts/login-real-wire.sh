@@ -30,7 +30,7 @@ fi
 
 wire_bin="${WIRE_BIN:-${repo_root}/build/install/wire/bin/wire}"
 if [[ ! -x "${wire_bin}" ]]; then
-	echo "[error] wire-cli executable not found at ${wire_bin}" >&2
+	echo "[error] wire executable not found at ${wire_bin}" >&2
 	echo "        Build/install first: ./gradlew installDist" >&2
 	exit 1
 fi

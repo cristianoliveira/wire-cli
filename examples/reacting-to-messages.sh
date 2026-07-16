@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-WIRE=${WIRE_CLI:-wire-cli}
+WIRE=${WIRE_CLI:-wire}
 
 # Similar to inotifywait, but for Wire messages.
 # Streams new messages and reacts to each one.

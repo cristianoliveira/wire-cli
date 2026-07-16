@@ -1,6 +1,6 @@
 # GitHub Actions CI Workflows
 
-This directory contains the GitHub Actions CI configuration for the wire-cli project.
+This directory contains the GitHub Actions CI configuration for the wire project.
 
 ## Workflow: CI
 
@@ -34,7 +34,7 @@ To enable Nix store caching with Cachix:
    - Click "New repository secret"
    - Name: `CACHIX_AUTH_TOKEN`
    - Value: Your Cachix authentication token
-3. Update the `name` field in the `Setup Cachix` step from `wire-cli` to your cache name
+3. Update the `name` field in the `Setup Cachix` step from `wire` to your cache name
 
 ### Quality Gates
 

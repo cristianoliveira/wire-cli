@@ -1,6 +1,6 @@
-# Contributing to wire-cli
+# Contributing to wire
 
-Thank you for your interest in contributing to wire-cli!
+Thank you for your interest in contributing to wire!
 
 ## Development Setup
 

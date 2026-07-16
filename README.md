@@ -1,6 +1,6 @@
-# wire-cli
+# wire
 
-`wire-cli` is a Kotlin command-line client for the Wire ecosystem, focused on fast account and presence workflows for local development and real backend integration.
+`wire` is a Kotlin command-line client for the Wire ecosystem, focused on fast account and presence workflows for local development and real backend integration.
 
 ## Quickstart
 
@@ -112,7 +112,7 @@ WIRE_BACKEND=stub wire presence get
 
 ## Kalium Lifecycle And CLI Mode Flags
 
-- `wire-cli` always attempts deterministic shutdown on process exit by closing runtime scopes in `main`.
+- `wire` always attempts deterministic shutdown on process exit by closing runtime scopes in `main`.
 - Kalium currently does not expose a single `CoreLogic.close()` API; this CLI uses a local lifecycle boundary that cancels active session scopes and the global scope.
 
 Optional CLI mode flags for real backend commands:

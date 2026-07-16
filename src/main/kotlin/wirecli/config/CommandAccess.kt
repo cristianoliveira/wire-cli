@@ -15,6 +15,7 @@ object CommandAccess {
             "doctor",
             "user",
             "connection",
+            "download",
         )
 
     fun requiredCapability(args: Array<String>): String? {
@@ -69,6 +70,7 @@ object CommandAccess {
                     "block", "unblock" -> "connection.block"
                     else -> null
                 }
+            "download" -> "download"
             else -> null
         }
     }

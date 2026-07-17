@@ -4,6 +4,7 @@ import com.wire.backup.data.BackupMessage
 import com.wire.backup.data.BackupMessageContent
 import com.wire.backup.data.toLongMilliseconds
 import com.wire.backup.ingest.BackupImportResult
+import com.wire.backup.ingest.ImportResultPager
 import com.wire.backup.ingest.MPBackupImporter
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
@@ -26,6 +27,7 @@ class WireBackupJsonExporter(private val json: Json = Json) : Exporter {
         input: Path,
         destination: Path,
         password: String?,
+        options: ExportOptions,
     ): ExportResult {
         if (!input.exists()) return ExportResult.Failure("backup file not found: $input")
         return runCatching {
@@ -38,7 +40,7 @@ class WireBackupJsonExporter(private val json: Json = Json) : Exporter {
                         work.resolve("unzipped").absolutePathString()
                     }
                 when (val result = runBlocking { importer.importFromFile(input.absolutePathString(), password) }) {
-                    is BackupImportResult.Success -> write(result, destination)
+                    is BackupImportResult.Success -> write(result.pager, destination, options)
                     BackupImportResult.Failure.MissingOrWrongPassphrase -> ExportResult.Failure("missing or wrong backup password")
                     BackupImportResult.Failure.ParsingFailure -> ExportResult.Failure("invalid or unsupported backup")
                     is BackupImportResult.Failure.UnzippingError -> ExportResult.Failure("failed to unzip backup")
@@ -71,16 +73,18 @@ class WireBackupJsonExporter(private val json: Json = Json) : Exporter {
         }
     }
 
-    private fun write(
-        result: BackupImportResult.Success,
+    internal fun write(
+        pager: ImportResultPager,
         destination: Path,
+        options: ExportOptions = ExportOptions.DEFAULT,
     ): ExportResult.Success {
-        val pager = result.pager
         var conversations = 0
         var messages = 0
         var users = 0
+        val names = if (options.includeNames) NameIndex() else null
         Files.newBufferedWriter(destination.resolve("conversations.jsonl")).use { writer ->
             while (pager.conversationsPager.hasMorePages()) pager.conversationsPager.nextPage().forEach {
+                names?.conversations[it.id.toString()] = it.name
                 writer.appendLine(
                     json.encodeToString(
                         buildJsonObject {
@@ -95,6 +99,8 @@ class WireBackupJsonExporter(private val json: Json = Json) : Exporter {
         }
         Files.newBufferedWriter(destination.resolve("users.jsonl")).use { writer ->
             while (pager.usersPager.hasMorePages()) pager.usersPager.nextPage().forEach {
+                names?.userNames[it.id.toString()] = it.name
+                names?.userHandles[it.id.toString()] = it.handle
                 writer.appendLine(
                     json.encodeToString(
                         buildJsonObject {
@@ -109,33 +115,46 @@ class WireBackupJsonExporter(private val json: Json = Json) : Exporter {
         }
         Files.newBufferedWriter(destination.resolve("messages.jsonl")).use { writer ->
             while (pager.messagesPager.hasMorePages()) pager.messagesPager.nextPage().forEach {
-                writer.appendLine(json.encodeToString(messageJson(it)))
+                writer.appendLine(json.encodeToString(messageJson(it, names)))
                 messages++
             }
         }
         return ExportResult.Success(conversations, messages, users, destination)
     }
 
-    private fun messageJson(message: BackupMessage) =
-        buildJsonObject {
-            put("id", message.id)
-            put("conversationId", message.conversationId.toString())
-            put("senderId", message.senderUserId.toString())
-            put("senderClientId", message.senderClientId)
-            put("creationTime", message.creationDate.toLongMilliseconds())
-            when (val content = message.content) {
-                is BackupMessageContent.Text -> {
-                    put("type", "text")
-                    put("content", content.text)
-                }
-                is BackupMessageContent.Asset -> {
-                    put("type", "asset")
-                    put("content", content.name ?: content.assetId)
-                }
-                is BackupMessageContent.Location -> {
-                    put("type", "location")
-                    put("content", content.name ?: "${content.latitude},${content.longitude}")
-                }
+    private class NameIndex {
+        val conversations = mutableMapOf<String, String>()
+        val userNames = mutableMapOf<String, String>()
+        val userHandles = mutableMapOf<String, String>()
+    }
+
+    private fun messageJson(
+        message: BackupMessage,
+        names: NameIndex? = null,
+    ) = buildJsonObject {
+        put("id", message.id)
+        put("conversationId", message.conversationId.toString())
+        put("senderId", message.senderUserId.toString())
+        put("senderClientId", message.senderClientId)
+        put("creationTime", message.creationDate.toLongMilliseconds())
+        val conversationKey = message.conversationId.toString()
+        val senderKey = message.senderUserId.toString()
+        names?.conversations?.get(conversationKey)?.let { put("conversationName", it) }
+        names?.userNames?.get(senderKey)?.let { put("senderName", it) }
+        names?.userHandles?.get(senderKey)?.let { put("senderHandle", it) }
+        when (val content = message.content) {
+            is BackupMessageContent.Text -> {
+                put("type", "text")
+                put("content", content.text)
+            }
+            is BackupMessageContent.Asset -> {
+                put("type", "asset")
+                put("content", content.name ?: content.assetId)
+            }
+            is BackupMessageContent.Location -> {
+                put("type", "location")
+                put("content", content.name ?: "${content.latitude},${content.longitude}")
             }
         }
+    }
 }

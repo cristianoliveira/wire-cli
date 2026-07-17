@@ -79,6 +79,20 @@ sealed interface ExportResult {
     data class Failure(val message: String, val exitCode: Int = 1) : ExportResult
 }
 
+/**
+ * Tuning for [ExportService]/[Exporter] exports.
+ *
+ * [includeNames] resolves the UUIDs in messages.jsonl against the conversation/user pages
+ * so each message also carries conversationName, senderName and senderHandle.
+ */
+data class ExportOptions(
+    val includeNames: Boolean = false,
+) {
+    companion object {
+        val DEFAULT = ExportOptions()
+    }
+}
+
 interface Exporter {
     val source: ImportSource
 
@@ -86,6 +100,7 @@ interface Exporter {
         input: Path,
         destination: Path,
         password: String?,
+        options: ExportOptions = ExportOptions.DEFAULT,
     ): ExportResult
 }
 
@@ -95,6 +110,7 @@ interface ExportService {
         source: ImportSource,
         destination: Path,
         password: String?,
+        options: ExportOptions = ExportOptions.DEFAULT,
     ): ExportResult
 }
 
@@ -108,12 +124,13 @@ class DefaultExportService(
         source: ImportSource,
         destination: Path,
         password: String?,
+        options: ExportOptions,
     ): ExportResult {
         val exporter =
             exporters.firstOrNull { it.source == source }
                 ?: return ExportResult.Failure("unsupported export source: ${source.cliName}")
 
-        if (input is ExportInput.ExternalBackup) return exporter.export(input.path, destination, password)
+        if (input is ExportInput.ExternalBackup) return exporter.export(input.path, destination, password, options)
 
         val session =
             sessionProvider.readActiveSession()
@@ -125,7 +142,7 @@ class DefaultExportService(
             is LocalCacheBackupResult.Failure -> ExportResult.Failure(backup.message)
             is LocalCacheBackupResult.Success -> {
                 try {
-                    exporter.export(backup.path, destination, null)
+                    exporter.export(backup.path, destination, null, options)
                 } finally {
                     Files.deleteIfExists(backup.path)
                 }

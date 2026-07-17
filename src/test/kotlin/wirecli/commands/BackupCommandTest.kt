@@ -2,6 +2,7 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
 import wirecli.exporting.ExportInput
+import wirecli.exporting.ExportOptions
 import wirecli.exporting.ExportResult
 import wirecli.exporting.ExportService
 import wirecli.exporting.LocalBackupResult
@@ -53,6 +54,7 @@ class BackupCommandTest {
             source: ImportSource,
             destination: Path,
             password: String?,
+            options: ExportOptions,
         ): ExportResult = ExportResult.Success(0, 0, 0, destination)
     }
 

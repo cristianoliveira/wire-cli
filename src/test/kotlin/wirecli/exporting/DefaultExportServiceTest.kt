@@ -18,10 +18,18 @@ class DefaultExportServiceTest {
         val exporter = RecordingExporter()
         val service = DefaultExportService(noSessionProvider, FailingLocalCacheRuntime, listOf(exporter))
 
-        val result = service.export(ExportInput.ExternalBackup(backup), ImportSource.WIRE_BACKUP, Path.of("out"), null)
+        val result =
+            service.export(
+                ExportInput.ExternalBackup(backup),
+                ImportSource.WIRE_BACKUP,
+                Path.of("out"),
+                null,
+                ExportOptions(includeNames = true),
+            )
 
         assertEquals(ExportResult.Success(0, 0, 0, Path.of("out")), result)
         assertEquals(backup, exporter.input)
+        assertEquals(ExportOptions(includeNames = true), exporter.options)
     }
 
     @Test
@@ -60,13 +68,16 @@ class DefaultExportServiceTest {
     ) : Exporter {
         override val source = ImportSource.WIRE_BACKUP
         var input: Path? = null
+        var options: ExportOptions = ExportOptions.DEFAULT
 
         override fun export(
             input: Path,
             destination: Path,
             password: String?,
+            options: ExportOptions,
         ): ExportResult {
             this.input = input
+            this.options = options
             return result
         }
     }

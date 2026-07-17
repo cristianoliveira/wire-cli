@@ -27,6 +27,8 @@ class ConnectionCommand(
         subcommands(
             ConnectionRequestCommand(connectionServiceProvider),
             ConnectionAcceptCommand(connectionServiceProvider),
+            ConnectionIgnoreCommand(connectionServiceProvider),
+            ConnectionCancelCommand(connectionServiceProvider),
             ConnectionBlockCommand(connectionServiceProvider),
             ConnectionUnblockCommand(connectionServiceProvider),
             ConnectionListCommand(connectionServiceProvider),
@@ -70,6 +72,38 @@ class ConnectionAcceptCommand(
     override fun run() {
         val validatedUserId = validateUserIdOrExit(userId)
         val result = connectionServiceProvider().acceptRequest(validatedUserId)
+        emitActionResult(result, json)
+    }
+}
+
+class ConnectionIgnoreCommand(
+    private val connectionServiceProvider: () -> ConnectionService,
+) : CliktCommand(
+        name = "ignore",
+        help = "Ignore a connection request from a user by qualified ID (value@domain).",
+    ) {
+    private val userId by argument(name = "user-id", help = "Qualified user ID (value@domain)")
+    private val json by option("--json", help = "Output as JSON").flag(default = false)
+
+    override fun run() {
+        val validatedUserId = validateUserIdOrExit(userId)
+        val result = connectionServiceProvider().ignoreRequest(validatedUserId)
+        emitActionResult(result, json)
+    }
+}
+
+class ConnectionCancelCommand(
+    private val connectionServiceProvider: () -> ConnectionService,
+) : CliktCommand(
+        name = "cancel",
+        help = "Cancel a connection request sent to a user by qualified ID (value@domain).",
+    ) {
+    private val userId by argument(name = "user-id", help = "Qualified user ID (value@domain)")
+    private val json by option("--json", help = "Output as JSON").flag(default = false)
+
+    override fun run() {
+        val validatedUserId = validateUserIdOrExit(userId)
+        val result = connectionServiceProvider().cancelRequest(validatedUserId)
         emitActionResult(result, json)
     }
 }

@@ -58,6 +58,48 @@ class ConnectionServiceTest {
     }
 
     @Test
+    fun `SessionBacked ignore delegates to api client`() {
+        val apiClient = RecordingConnectionApiClient()
+        val service = SessionBackedConnectionService(SessionStore(session), apiClient)
+
+        val result = service.ignoreRequest(target)
+
+        assertIs<ConnectionActionResult.Success>(result)
+        assertEquals(target, apiClient.lastIgnoreUserId)
+    }
+
+    @Test
+    fun `SessionBacked ignore returns unauthorized when no session`() {
+        val service = SessionBackedConnectionService(NoSessionStore, RecordingConnectionApiClient())
+
+        val result = service.ignoreRequest(target)
+
+        val failure = assertIs<ConnectionActionResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), failure.message)
+    }
+
+    @Test
+    fun `SessionBacked cancel delegates to api client`() {
+        val apiClient = RecordingConnectionApiClient()
+        val service = SessionBackedConnectionService(SessionStore(session), apiClient)
+
+        val result = service.cancelRequest(target)
+
+        assertIs<ConnectionActionResult.Success>(result)
+        assertEquals(target, apiClient.lastCancelUserId)
+    }
+
+    @Test
+    fun `SessionBacked cancel returns unauthorized when no session`() {
+        val service = SessionBackedConnectionService(NoSessionStore, RecordingConnectionApiClient())
+
+        val result = service.cancelRequest(target)
+
+        val failure = assertIs<ConnectionActionResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), failure.message)
+    }
+
+    @Test
     fun `SessionBacked request delegates to api client`() {
         val apiClient = RecordingConnectionApiClient()
         val service = SessionBackedConnectionService(SessionStore(session), apiClient)
@@ -184,6 +226,10 @@ class ConnectionServiceTest {
             private set
         var lastAcceptUserId: String? = null
             private set
+        var lastIgnoreUserId: String? = null
+            private set
+        var lastCancelUserId: String? = null
+            private set
         var lastBlockUserId: String? = null
             private set
         var lastUnblockUserId: String? = null
@@ -203,6 +249,22 @@ class ConnectionServiceTest {
         ): ConnectionActionResult {
             lastAcceptUserId = userId
             return ConnectionActionResult.Success(ConnectionMessages.ACCEPT_SUCCESS)
+        }
+
+        override fun ignoreRequest(
+            session: AuthSession,
+            userId: String,
+        ): ConnectionActionResult {
+            lastIgnoreUserId = userId
+            return ConnectionActionResult.Success(ConnectionMessages.IGNORE_SUCCESS)
+        }
+
+        override fun cancelRequest(
+            session: AuthSession,
+            userId: String,
+        ): ConnectionActionResult {
+            lastCancelUserId = userId
+            return ConnectionActionResult.Success(ConnectionMessages.CANCEL_SUCCESS)
         }
 
         override fun blockUser(

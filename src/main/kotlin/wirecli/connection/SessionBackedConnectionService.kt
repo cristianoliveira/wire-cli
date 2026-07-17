@@ -29,6 +29,24 @@ class SessionBackedConnectionService(
         }
     }
 
+    override fun acceptRequest(userId: String): ConnectionActionResult {
+        logger.debug { "Service operation: acceptRequest($userId) started" }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return ConnectionActionResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for acceptRequest($userId)" } }
+
+        return apiClient.acceptRequest(session, userId).also { result ->
+            when (result) {
+                is ConnectionActionResult.Success -> logger.info { "Service: accepted connection request from $userId" }
+                is ConnectionActionResult.Failure -> logger.warn { "Service: failed to accept request from $userId" }
+            }
+        }
+    }
+
     override fun blockUser(userId: String): ConnectionActionResult {
         logger.debug { "Service operation: blockUser($userId) started" }
 

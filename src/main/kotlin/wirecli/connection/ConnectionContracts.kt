@@ -49,6 +49,11 @@ interface ConnectionApiClient {
         userId: String,
     ): ConnectionActionResult
 
+    fun acceptRequest(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult
+
     fun blockUser(
         session: AuthSession,
         userId: String,
@@ -64,6 +69,8 @@ interface ConnectionApiClient {
 
 interface ConnectionService {
     fun sendRequest(userId: String): ConnectionActionResult
+
+    fun acceptRequest(userId: String): ConnectionActionResult
 
     fun blockUser(userId: String): ConnectionActionResult
 
@@ -85,6 +92,7 @@ object ConnectionExitCodes {
 
 internal object ConnectionMessages {
     const val REQUEST_SUCCESS = "Connection request sent."
+    const val ACCEPT_SUCCESS = "Connection request accepted."
     const val BLOCK_SUCCESS = "User blocked."
     const val UNBLOCK_SUCCESS = "User unblocked."
 
@@ -97,6 +105,10 @@ internal object ConnectionMessages {
     const val REQUEST_FEDERATION_DENIED = "Connection request denied: federation is not allowed with this user."
     const val REQUEST_LEGAL_HOLD =
         "Connection request blocked: missing legal hold consent. Contact your administrator."
+
+    const val ACCEPT_NETWORK_FAILURE = "Accept failed: network is unreachable. Check your connection and retry."
+    const val ACCEPT_SERVER_FAILURE = "Accept could not be completed. Retry later or check server settings."
+    const val ACCEPT_UNKNOWN_FAILURE = "Accept failed unexpectedly. Retry and check your setup."
 
     const val BLOCK_NETWORK_FAILURE = "Block failed: network is unreachable. Check your connection and retry."
     const val BLOCK_SERVER_FAILURE = "Block could not be completed. Retry later or check server settings."
@@ -167,6 +179,11 @@ internal interface ConnectionRuntime {
     fun resolveSessionScope(session: AuthSession): ConnectionStepResult<KaliumConnectionSessionScope>
 
     fun sendConnectionRequest(
+        sessionScope: KaliumConnectionSessionScope,
+        userId: String,
+    ): ConnectionStepResult<ConnectionOutcome>
+
+    fun acceptConnectionRequest(
         sessionScope: KaliumConnectionSessionScope,
         userId: String,
     ): ConnectionStepResult<ConnectionOutcome>

@@ -17,6 +17,31 @@ class StubConnectionApiClientTest {
     private val target = "bob-uuid@example.wire.com"
 
     @Test
+    fun `accept succeeds by default`() {
+        val client = StubConnectionApiClient(emptyMap())
+
+        val result = client.acceptRequest(session, target)
+
+        val success = assertIs<ConnectionActionResult.Success>(result)
+        assertEquals(ConnectionMessages.ACCEPT_SUCCESS, success.message)
+    }
+
+    @Test
+    fun `accept maps network and server error modes`() {
+        val network =
+            StubConnectionApiClient(mapOf("WIRE_STUB_MODE" to "connection_accept_network_error"))
+                .acceptRequest(session, target) as ConnectionActionResult.Failure
+        assertEquals(ConnectionMessages.ACCEPT_NETWORK_FAILURE, network.message)
+        assertEquals(ExitCodes.NETWORK_ERROR, network.exitCode)
+
+        val server =
+            StubConnectionApiClient(mapOf("WIRE_STUB_MODE" to "connection_accept_server_error"))
+                .acceptRequest(session, target) as ConnectionActionResult.Failure
+        assertEquals(ConnectionMessages.ACCEPT_SERVER_FAILURE, server.message)
+        assertEquals(ExitCodes.SERVER_ERROR, server.exitCode)
+    }
+
+    @Test
     fun `request succeeds by default`() {
         val client = StubConnectionApiClient(emptyMap())
 

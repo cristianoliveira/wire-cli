@@ -3,9 +3,6 @@ name: wire-explorer
 description: >
   Find account, conversation, message, user, device, presence, backup, and sync information in Wire through wire-cli.
   Use when user asks to investigate Wire data, inspect a conversation, find messages or users, check account health, or explore locally cached Wire information.
-  Triggers: "explore Wire", "find this in Wire", "inspect Wire conversation", "search Wire messages", "check Wire sync".
-  Works with the installed `wire` CLI and an authenticated local session.
-  Do NOT use for changing Wire state, browser-based Wire exploration, or source-code investigation of wire-cli.
 ---
 
 # Wire Explorer
@@ -66,17 +63,3 @@ Before answering, verify:
 - local versus synchronized freshness is stated;
 - no secret or unnecessary personal data is included;
 - no mutating command ran without explicit request.
-
-## Trigger Calibration
-
-Should trigger:
-- "Find messages mentioning deployment in Wire."
-- "Explore this Wire conversation."
-- "Who is this Wire user?"
-- "Check whether my Wire account is synchronized."
-- "What devices does this Wire user have?"
-
-Should not trigger:
-- "Implement message search in wire-cli."
-- "Send a Wire message to the team."
-- "Explore this website in a browser."

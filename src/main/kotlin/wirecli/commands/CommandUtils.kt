@@ -17,6 +17,12 @@ import wirecli.auth.ExitCodes
  * @return The result of the validation block if successful
  * @throws ProgramResult with the specified exit code if validation fails
  */
+internal fun CliktCommand.failWithUsage(message: String = "no subcommand specified"): Nothing {
+    echo("Error: $message", err = true)
+    echoFormattedHelp()
+    throw ProgramResult(1)
+}
+
 internal inline fun <T> CliktCommand.validateOrExit(
     exitCode: Int = ExitCodes.VALIDATION_ERROR,
     defaultMessage: String = "Invalid input.",

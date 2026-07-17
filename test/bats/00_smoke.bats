@@ -27,6 +27,27 @@ teardown() {
   [[ "${output}" == *"backup"* ]]
 }
 
+@test "Given command group has no subcommand, when command fails, then error and usage are printed" {
+  run_wire user
+
+  assert_status 1
+  [[ "${output}" == *"Error: no subcommand specified"* ]]
+  [[ "${output}" == *"Usage: wire user"* ]]
+  [[ "${output}" == *"Commands:"* ]]
+  [[ "${output}" == *"search"* ]]
+  [[ "${output}" == *"get"* ]]
+}
+
+@test "Given command arguments are missing, when command fails, then error and usage are printed" {
+  run_wire message send
+
+  assert_status 1
+  [[ "${output}" == *"Error: missing argument <conversation>"* ]]
+  [[ "${output}" == *"Usage: wire message send"* ]]
+  [[ "${output}" == *"<conversation>"* ]]
+  [[ "${output}" == *"[<message>]"* ]]
+}
+
 @test "Given built CLI, when backup import help is requested, then source format is documented" {
   run_wire backup import --help
 

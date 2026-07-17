@@ -33,10 +33,7 @@ class UserCommand(
 
     override fun run() {
         logger.debug { "Current subcommand: ${currentContext.invokedSubcommand}" }
-        if (currentContext.invokedSubcommand == null) {
-            echo("No subcommand specified. Use 'wire user --help' for available commands.")
-            throw ProgramResult(0)
-        }
+        if (currentContext.invokedSubcommand == null) failWithUsage()
     }
 }
 

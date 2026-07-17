@@ -37,10 +37,7 @@ class ConnectionCommand(
 
     override fun run() {
         logger.debug { "Current subcommand: ${currentContext.invokedSubcommand}" }
-        if (currentContext.invokedSubcommand == null) {
-            echo("No subcommand specified. Use 'wire connection --help' for available commands.")
-            throw ProgramResult(0)
-        }
+        if (currentContext.invokedSubcommand == null) failWithUsage()
     }
 }
 

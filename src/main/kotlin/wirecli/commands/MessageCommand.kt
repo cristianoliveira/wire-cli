@@ -1,7 +1,6 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.message.MessageService
@@ -33,8 +32,7 @@ class MessageCommand(
 
         if (currentContext.invokedSubcommand == null) {
             logger.warn { "No subcommand specified for message command" }
-            echo("No subcommand specified. Use 'wire message --help' for available commands.")
-            throw ProgramResult(0)
+            failWithUsage()
         }
 
         logger.debug { "Message subcommand routing to: ${currentContext.invokedSubcommand}" }

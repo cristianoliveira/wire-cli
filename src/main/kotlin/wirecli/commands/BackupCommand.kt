@@ -1,7 +1,6 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
 import wirecli.exporting.ExportService
 import wirecli.exporting.LocalBackupService
@@ -26,8 +25,7 @@ class BackupCommand(
 
     override fun run() {
         if (currentContext.invokedSubcommand == null) {
-            echo("No subcommand specified. Use 'wire backup --help' for available commands.")
-            throw ProgramResult(0)
+            failWithUsage()
         }
     }
 }

@@ -6,8 +6,10 @@ import com.wire.kalium.logic.data.user.UserId
 import com.wire.kalium.logic.feature.user.DisplayNameUpdateResult
 import com.wire.kalium.logic.feature.user.SetUserHandleResult
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
@@ -15,6 +17,7 @@ import wirecli.config.KaliumCliMode
 import wirecli.config.kaliumCliConfigs
 
 private val logger = KotlinLogging.logger {}
+private const val DEFAULT_PROFILE_SYNC_TIMEOUT_MS = 10_000L
 
 internal class RealKaliumProfileApiClient(
     private val runtime: ProfileRuntime,
@@ -92,6 +95,8 @@ internal typealias RealKaliumProfileRuntime = ProfileRuntime
 internal class SdkKaliumProfileRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
+    private val syncTimeoutMs: Long = DEFAULT_PROFILE_SYNC_TIMEOUT_MS,
+    private val sessionSyncWait: (suspend (UserId) -> Unit)? = null,
 ) : ProfileRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
@@ -122,8 +127,15 @@ internal class SdkKaliumProfileRuntime(
         return runBlocking {
             try {
                 if (!cliMode.disableSessionSyncWait) {
-                    coreLogic.sessionScope(qualifiedId) {
-                        syncExecutor.request { waitUntilLiveOrFailure() }
+                    withTimeout(syncTimeoutMs) {
+                        val injectedSyncWait = sessionSyncWait
+                        if (injectedSyncWait != null) {
+                            injectedSyncWait(qualifiedId)
+                        } else {
+                            coreLogic.sessionScope(qualifiedId) {
+                                syncExecutor.request { waitUntilLiveOrFailure() }
+                            }
+                        }
                     }
                 }
                 logger.debug { "Profile session scope resolved successfully for user: ${session.userId}" }
@@ -133,6 +145,9 @@ internal class SdkKaliumProfileRuntime(
                         server = session.server,
                     ),
                 )
+            } catch (_: TimeoutCancellationException) {
+                logger.warn { "Timed out waiting for profile sync for user: ${session.userId}" }
+                ProfileStepResult.Failure(ProfileFailureCategory.TIMEOUT)
             } catch (
                 @Suppress("TooGenericExceptionCaught") error: Throwable,
             ) {
@@ -294,6 +309,7 @@ private fun ProfileStepResult.Failure.toProfileFailure(): ProfileResult.Failure 
     val message =
         when (category) {
             ProfileFailureCategory.NETWORK -> "Profile fetch failed: network is unreachable. Check your connection and retry."
+            ProfileFailureCategory.TIMEOUT -> "Profile fetch timed out waiting for sync. Check your connection and retry."
             ProfileFailureCategory.SERVER -> "Profile service is unavailable. Retry later or check server settings."
             ProfileFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
             ProfileFailureCategory.UNKNOWN -> "Profile fetch failed unexpectedly. Retry and check your setup."
@@ -301,7 +317,9 @@ private fun ProfileStepResult.Failure.toProfileFailure(): ProfileResult.Failure 
 
     val exitCode =
         when (category) {
-            ProfileFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
+            ProfileFailureCategory.NETWORK,
+            ProfileFailureCategory.TIMEOUT,
+            -> ExitCodes.NETWORK_ERROR
             ProfileFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             ProfileFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
             ProfileFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
@@ -314,6 +332,7 @@ private fun ProfileStepResult.Failure.toProfileUpdateFailure(): ProfileUpdateRes
     val message =
         when (category) {
             ProfileFailureCategory.NETWORK -> "Profile update failed: network is unreachable. Check your connection and retry."
+            ProfileFailureCategory.TIMEOUT -> "Profile update timed out waiting for sync. Check your connection and retry."
             ProfileFailureCategory.SERVER -> "Profile update service is unavailable. Retry later or check server settings."
             ProfileFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
             ProfileFailureCategory.UNKNOWN -> "Profile update failed unexpectedly. Retry and check your setup."
@@ -321,7 +340,9 @@ private fun ProfileStepResult.Failure.toProfileUpdateFailure(): ProfileUpdateRes
 
     val exitCode =
         when (category) {
-            ProfileFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
+            ProfileFailureCategory.NETWORK,
+            ProfileFailureCategory.TIMEOUT,
+            -> ExitCodes.NETWORK_ERROR
             ProfileFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
             ProfileFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
             ProfileFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR

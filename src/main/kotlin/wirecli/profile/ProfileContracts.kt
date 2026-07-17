@@ -54,6 +54,7 @@ internal sealed interface ProfileStepResult<out T> {
 // Failure categories for runtime-level profile operations
 internal enum class ProfileFailureCategory {
     NETWORK,
+    TIMEOUT,
     SERVER,
     UNAUTHORIZED,
     UNKNOWN,

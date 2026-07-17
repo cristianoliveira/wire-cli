@@ -1,5 +1,6 @@
 package wirecli.profile
 
+import kotlinx.coroutines.awaitCancellation
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
@@ -41,6 +42,41 @@ class RealKaliumProfileApiClientTest {
         val failure = assertIs<ProfileResult.Failure>(result)
         assertEquals(
             "Profile fetch failed: network is unreachable. Check your connection and retry.",
+            failure.message,
+        )
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+    }
+
+    @Test
+    fun `profile session scope resolves when sync completes`() {
+        val runtime =
+            SdkKaliumProfileRuntime(
+                environment = mapOf("HOME" to System.getProperty("java.io.tmpdir")),
+                syncTimeoutMs = 100,
+                sessionSyncWait = {},
+            )
+
+        val result = runtime.resolveSessionScope(session)
+
+        val success = assertIs<ProfileStepResult.Success<KaliumProfileSessionScope>>(result)
+        assertEquals(session.userId, success.value.userId)
+    }
+
+    @Test
+    fun `profile sync timeout returns actionable failure`() {
+        val runtime =
+            SdkKaliumProfileRuntime(
+                environment = mapOf("HOME" to System.getProperty("java.io.tmpdir")),
+                syncTimeoutMs = 1,
+                sessionSyncWait = { awaitCancellation() },
+            )
+        val client = RealKaliumProfileApiClient(runtime)
+
+        val result = client.fetchProfile(session)
+
+        val failure = assertIs<ProfileResult.Failure>(result)
+        assertEquals(
+            "Profile fetch timed out waiting for sync. Check your connection and retry.",
             failure.message,
         )
         assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)

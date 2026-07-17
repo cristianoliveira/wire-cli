@@ -13,6 +13,56 @@ import kotlin.test.assertTrue
 
 class ConnectionCommandTest {
     @Test
+    fun `accept command prints success message`() {
+        val service = StubConnectionService()
+        val result = execute(ConnectionAcceptCommand { service }, listOf("bob-uuid@example.wire.com"))
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("Connection request accepted."))
+        assertEquals("bob-uuid@example.wire.com", service.lastAcceptUserId)
+    }
+
+    @Test
+    fun `accept command rejects invalid user id`() {
+        val service = StubConnectionService()
+        val result = execute(ConnectionAcceptCommand { service }, listOf("not-a-qualified-id"))
+
+        assertEquals(14, result.exitCode)
+        assertTrue(result.stderr.contains("validation error", ignoreCase = true))
+        assertEquals(null, service.lastAcceptUserId)
+    }
+
+    @Test
+    fun `accept command surfaces failure with exit code`() {
+        val service =
+            StubConnectionService(
+                acceptResult =
+                    ConnectionActionResult.Failure(
+                        message = "Accept failed unexpectedly.",
+                        exitCode = 13,
+                    ),
+            )
+        val result = execute(ConnectionAcceptCommand { service }, listOf("bob-uuid@example.wire.com"))
+
+        assertEquals(13, result.exitCode)
+        assertTrue(result.stderr.contains("Accept failed unexpectedly."))
+    }
+
+    @Test
+    fun `accept command supports json output`() {
+        val service = StubConnectionService()
+        val result =
+            execute(
+                ConnectionAcceptCommand { service },
+                listOf("bob-uuid@example.wire.com", "--json"),
+            )
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("\"ok\":true"))
+        assertTrue(result.stdout.contains("\"message\":\"Connection request accepted.\""))
+    }
+
+    @Test
     fun `request command prints success message`() {
         val service = StubConnectionService()
         val result = execute(ConnectionRequestCommand { service }, listOf("bob-uuid@example.wire.com"))
@@ -246,6 +296,8 @@ class ConnectionCommandTest {
     private class StubConnectionService(
         private val requestResult: ConnectionActionResult =
             ConnectionActionResult.Success("Connection request sent."),
+        private val acceptResult: ConnectionActionResult =
+            ConnectionActionResult.Success("Connection request accepted."),
         private val blockResult: ConnectionActionResult =
             ConnectionActionResult.Success("User blocked."),
         private val unblockResult: ConnectionActionResult =
@@ -255,6 +307,8 @@ class ConnectionCommandTest {
     ) : ConnectionService {
         var lastRequestUserId: String? = null
             private set
+        var lastAcceptUserId: String? = null
+            private set
         var lastBlockUserId: String? = null
             private set
         var lastUnblockUserId: String? = null
@@ -263,6 +317,11 @@ class ConnectionCommandTest {
         override fun sendRequest(userId: String): ConnectionActionResult {
             lastRequestUserId = userId
             return requestResult
+        }
+
+        override fun acceptRequest(userId: String): ConnectionActionResult {
+            lastAcceptUserId = userId
+            return acceptResult
         }
 
         override fun blockUser(userId: String): ConnectionActionResult {

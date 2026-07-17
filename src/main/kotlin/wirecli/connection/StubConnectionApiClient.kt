@@ -49,6 +49,41 @@ class StubConnectionApiClient(
         }
     }
 
+    override fun acceptRequest(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "connection_not_found" ->
+                ConnectionActionResult.Failure(
+                    message = ConnectionMessages.USER_NOT_FOUND,
+                    exitCode = ConnectionExitCodes.NOT_FOUND,
+                )
+
+            "connection_accept_network_error" ->
+                ConnectionActionResult.Failure(
+                    message = ConnectionMessages.ACCEPT_NETWORK_FAILURE,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            "connection_accept_server_error" ->
+                ConnectionActionResult.Failure(
+                    message = ConnectionMessages.ACCEPT_SERVER_FAILURE,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            "connection_unauthorized" ->
+                ConnectionActionResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            else -> ConnectionActionResult.Success(message = ConnectionMessages.ACCEPT_SUCCESS)
+        }
+    }
+
     override fun blockUser(
         session: AuthSession,
         userId: String,

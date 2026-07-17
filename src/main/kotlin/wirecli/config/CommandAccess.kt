@@ -8,6 +8,7 @@ object CommandAccess {
             "daemon",
             "backup",
             "profile",
+            "me",
             "presence",
             "device",
             "conversation",
@@ -31,6 +32,7 @@ object CommandAccess {
             "logout" -> "auth.logout"
             "daemon" -> "daemon.run"
             "backup" -> childCapability("backup", child, setOf("import", "export", "create"))
+            "me" -> "profile.read"
             "profile" ->
                 if (child == null) {
                     "profile.read"

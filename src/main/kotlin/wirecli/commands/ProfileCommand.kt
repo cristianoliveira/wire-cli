@@ -29,25 +29,39 @@ class ProfileCommand(
     }
 
     override fun run() {
-        logger.info { "Profile command started" }
-        val profileService = profileServiceProvider()
-        when (val result = profileService.getCurrentProfile()) {
-            is ProfileResult.Success -> {
-                logger.info {
-                    "Successfully retrieved profile: name=${result.profile.name}, " +
-                        "handle=${result.profile.handle}"
-                }
-                echo("Name: ${result.profile.name ?: "-"}")
-                echo("Email: ${result.profile.email ?: "-"}")
-                echo("Handle: ${result.profile.handle ?: "-"}")
-                echo("Presence: ${result.profile.presence}")
-            }
+        showCurrentProfile(profileServiceProvider)
+    }
+}
 
-            is ProfileResult.Failure -> {
-                logger.warn { "Failed to retrieve profile: ${AuthRedactor.redact(result.message)}" }
-                echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+class MeCommand(
+    private val profileServiceProvider: () -> ProfileService,
+) : CliktCommand(
+        name = "me",
+        help = "Show current user profile.",
+    ) {
+    override fun run() {
+        showCurrentProfile(profileServiceProvider)
+    }
+}
+
+private fun CliktCommand.showCurrentProfile(profileServiceProvider: () -> ProfileService) {
+    logger.info { "Profile command started" }
+    when (val result = profileServiceProvider().getCurrentProfile()) {
+        is ProfileResult.Success -> {
+            logger.info {
+                "Successfully retrieved profile: name=${result.profile.name}, " +
+                    "handle=${result.profile.handle}"
             }
+            echo("Name: ${result.profile.name ?: "-"}")
+            echo("Email: ${result.profile.email ?: "-"}")
+            echo("Handle: ${result.profile.handle ?: "-"}")
+            echo("Presence: ${result.profile.presence}")
+        }
+
+        is ProfileResult.Failure -> {
+            logger.warn { "Failed to retrieve profile: ${AuthRedactor.redact(result.message)}" }
+            echo(AuthRedactor.redact(result.message), err = true)
+            throw ProgramResult(result.exitCode)
         }
     }
 }

@@ -17,6 +17,7 @@ class CommandAccessTest {
         )
         assertEquals("sync.read", CommandAccess.requiredCapability(arrayOf("doctor", "diagnose")))
         assertEquals("profile.read", CommandAccess.requiredCapability(arrayOf("profile")))
+        assertEquals("profile.read", CommandAccess.requiredCapability(arrayOf("me")))
     }
 
     @Test

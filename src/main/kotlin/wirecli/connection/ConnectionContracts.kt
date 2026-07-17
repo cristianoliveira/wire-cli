@@ -1,6 +1,7 @@
 package wirecli.connection
 
 import wirecli.auth.AuthSession
+import wirecli.user.UserConnectionState
 
 /**
  * Result of a connection lifecycle action (request, block, unblock).
@@ -11,6 +12,35 @@ sealed interface ConnectionActionResult {
     data class Success(val message: String) : ConnectionActionResult
 
     data class Failure(val message: String, val exitCode: Int) : ConnectionActionResult
+}
+
+/**
+ * User-facing view of a single connection.
+ */
+data class ConnectionView(
+    val userId: String,
+    val userName: String?,
+    val handle: String?,
+    val status: UserConnectionState,
+    val lastUpdate: String?,
+)
+
+/**
+ * Versioned list view for script-friendly JSON output.
+ */
+data class ConnectionListView(
+    val connections: List<ConnectionView>,
+    val schemaVersion: Int = SCHEMA_VERSION,
+) {
+    companion object {
+        const val SCHEMA_VERSION = 1
+    }
+}
+
+sealed interface ConnectionListResult {
+    data class Success(val view: ConnectionListView) : ConnectionListResult
+
+    data class Failure(val message: String, val exitCode: Int) : ConnectionListResult
 }
 
 interface ConnectionApiClient {
@@ -28,6 +58,8 @@ interface ConnectionApiClient {
         session: AuthSession,
         userId: String,
     ): ConnectionActionResult
+
+    fun listConnections(session: AuthSession): ConnectionListResult
 }
 
 interface ConnectionService {
@@ -36,6 +68,8 @@ interface ConnectionService {
     fun blockUser(userId: String): ConnectionActionResult
 
     fun unblockUser(userId: String): ConnectionActionResult
+
+    fun listConnections(): ConnectionListResult
 }
 
 // Exit codes for connection operations following standard CLI conventions.
@@ -71,6 +105,13 @@ internal object ConnectionMessages {
     const val UNBLOCK_NETWORK_FAILURE = "Unblock failed: network is unreachable. Check your connection and retry."
     const val UNBLOCK_SERVER_FAILURE = "Unblock could not be completed. Retry later or check server settings."
     const val UNBLOCK_UNKNOWN_FAILURE = "Unblock failed unexpectedly. Retry and check your setup."
+
+    const val LIST_NETWORK_FAILURE =
+        "Connection list failed: network is unreachable. Check your connection and retry."
+    const val LIST_SERVER_FAILURE =
+        "Connection list could not be retrieved. Retry later or check server settings."
+    const val LIST_UNKNOWN_FAILURE = "Connection list failed unexpectedly. Retry and check your setup."
+    const val NO_CONNECTIONS = "No connections found."
 }
 
 // Step result for runtime-level operations (SDK adapter layer)
@@ -88,6 +129,9 @@ internal enum class ConnectionFailureCategory {
     USER_NOT_FOUND,
     FEDERATION_DENIED,
     LEGAL_HOLD,
+    LIST_NETWORK,
+    LIST_SERVER,
+    LIST_UNKNOWN,
     UNKNOWN,
 }
 
@@ -109,6 +153,15 @@ internal data class KaliumConnectionSessionScope(
     val server: String?,
 )
 
+// Runtime-level data for a single connection
+internal data class KaliumConnectionEntry(
+    val userId: String,
+    val userName: String?,
+    val handle: String?,
+    val status: UserConnectionState,
+    val lastUpdate: String?,
+)
+
 // Runtime-level interface for SDK adapters
 internal interface ConnectionRuntime {
     fun resolveSessionScope(session: AuthSession): ConnectionStepResult<KaliumConnectionSessionScope>
@@ -127,6 +180,8 @@ internal interface ConnectionRuntime {
         sessionScope: KaliumConnectionSessionScope,
         userId: String,
     ): ConnectionStepResult<ConnectionOutcome>
+
+    fun listConnections(sessionScope: KaliumConnectionSessionScope): ConnectionStepResult<List<KaliumConnectionEntry>>
 
     fun close() {
         shutdown()

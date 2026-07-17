@@ -7,6 +7,7 @@ import wirecli.auth.ExitCodes
 import wirecli.auth.LoginInput
 import wirecli.connection.ConnectionActionResult
 import wirecli.connection.ConnectionApiClient
+import wirecli.connection.ConnectionListResult
 import wirecli.conversation.ConversationApiClient
 import wirecli.conversation.StubConversationApiClient
 import wirecli.device.DeviceApiClient
@@ -274,6 +275,9 @@ private object NoopConnectionApiClient : ConnectionApiClient {
     ): ConnectionActionResult {
         return ConnectionActionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
+
+    override fun listConnections(session: AuthSession): ConnectionListResult =
+        ConnectionListResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
 }
 
 private object NoopMessageApiClient : MessageApiClient {

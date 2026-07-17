@@ -2,9 +2,13 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
 import wirecli.connection.ConnectionActionResult
+import wirecli.connection.ConnectionListResult
+import wirecli.connection.ConnectionListView
 import wirecli.connection.ConnectionService
+import wirecli.connection.ConnectionView
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ConnectionCommandTest {
@@ -89,6 +93,122 @@ class ConnectionCommandTest {
         assertTrue(result.stdout.contains("\"message\":\"Connection request sent.\""))
     }
 
+    @Test
+    fun `list command shows connections in table format`() {
+        val service =
+            StubConnectionService(
+                listResult =
+                    ConnectionListResult.Success(
+                        ConnectionListView(
+                            listOf(
+                                ConnectionView(
+                                    userId = "alice-uuid@example.wire.com",
+                                    userName = "Alice",
+                                    handle = "@alice",
+                                    status = wirecli.user.UserConnectionState.ACCEPTED,
+                                    lastUpdate = "2025-01-15T10:30:00Z",
+                                ),
+                                ConnectionView(
+                                    userId = "bob-uuid@example.wire.com",
+                                    userName = "Bob",
+                                    handle = null,
+                                    status = wirecli.user.UserConnectionState.PENDING,
+                                    lastUpdate = "2025-01-14T08:00:00Z",
+                                ),
+                            ),
+                        ),
+                    ),
+            )
+        val result = execute(ConnectionListCommand { service }, emptyList())
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("alice-uuid@example.wire.com"))
+        assertTrue(result.stdout.contains("Alice"))
+        assertTrue(result.stdout.contains("@alice"))
+        assertTrue(result.stdout.contains("accepted"))
+        assertTrue(result.stdout.contains("bob-uuid@example.wire.com"))
+        assertTrue(result.stdout.contains("Bob"))
+        assertTrue(result.stdout.contains("pending"))
+    }
+
+    @Test
+    fun `list command shows empty state when no connections`() {
+        val service = StubConnectionService()
+        val result = execute(ConnectionListCommand { service }, emptyList())
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("No connections found."))
+    }
+
+    @Test
+    fun `list command supports json output`() {
+        val service =
+            StubConnectionService(
+                listResult =
+                    ConnectionListResult.Success(
+                        ConnectionListView(
+                            listOf(
+                                ConnectionView(
+                                    userId = "alice-uuid@example.wire.com",
+                                    userName = "Alice",
+                                    handle = "@alice",
+                                    status = wirecli.user.UserConnectionState.ACCEPTED,
+                                    lastUpdate = null,
+                                ),
+                            ),
+                        ),
+                    ),
+            )
+        val result = execute(ConnectionListCommand { service }, listOf("--json"))
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("\"schemaVersion\":1"))
+        assertTrue(result.stdout.contains("\"userId\":\"alice-uuid@example.wire.com\""))
+        assertTrue(result.stdout.contains("\"status\":\"accepted\""))
+    }
+
+    @Test
+    fun `list command supports json-lines output`() {
+        val service =
+            StubConnectionService(
+                listResult =
+                    ConnectionListResult.Success(
+                        ConnectionListView(
+                            listOf(
+                                ConnectionView(
+                                    userId = "alice-uuid@example.wire.com",
+                                    userName = "Alice",
+                                    handle = null,
+                                    status = wirecli.user.UserConnectionState.ACCEPTED,
+                                    lastUpdate = null,
+                                ),
+                            ),
+                        ),
+                    ),
+            )
+        val result = execute(ConnectionListCommand { service }, listOf("--json-lines"))
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("\"userId\":\"alice-uuid@example.wire.com\""))
+        assertFalse(result.stdout.contains("\"schemaVersion\""))
+    }
+
+    @Test
+    fun `list command surfaces failure with exit code`() {
+        val service =
+            StubConnectionService(
+                listResult =
+                    ConnectionListResult.Failure(
+                        message = "Connection list failed unexpectedly.",
+                        exitCode = 13,
+                    ),
+            )
+        val result = execute(ConnectionListCommand { service }, emptyList())
+
+        assertEquals(13, result.exitCode)
+        assertTrue(result.stderr.contains("Connection list failed unexpectedly."))
+    }
+
     private data class ExecutionResult(
         val exitCode: Int,
         val stdout: String,
@@ -130,6 +250,8 @@ class ConnectionCommandTest {
             ConnectionActionResult.Success("User blocked."),
         private val unblockResult: ConnectionActionResult =
             ConnectionActionResult.Success("User unblocked."),
+        private val listResult: ConnectionListResult =
+            ConnectionListResult.Success(ConnectionListView(emptyList())),
     ) : ConnectionService {
         var lastRequestUserId: String? = null
             private set
@@ -152,5 +274,7 @@ class ConnectionCommandTest {
             lastUnblockUserId = userId
             return unblockResult
         }
+
+        override fun listConnections(): ConnectionListResult = listResult
     }
 }

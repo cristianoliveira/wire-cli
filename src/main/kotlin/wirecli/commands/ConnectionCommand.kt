@@ -10,7 +10,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.auth.AuthRedactor
 import wirecli.auth.ExitCodes
 import wirecli.connection.ConnectionActionResult
+import wirecli.connection.ConnectionListResult
 import wirecli.connection.ConnectionService
+import wirecli.connection.ConnectionView
 
 private val logger = KotlinLogging.logger {}
 
@@ -26,6 +28,7 @@ class ConnectionCommand(
             ConnectionRequestCommand(connectionServiceProvider),
             ConnectionBlockCommand(connectionServiceProvider),
             ConnectionUnblockCommand(connectionServiceProvider),
+            ConnectionListCommand(connectionServiceProvider),
         )
     }
 
@@ -118,3 +121,73 @@ internal fun escapeJson(value: String): String =
         .replace("\n", "\\n")
         .replace("\r", "\\r")
         .replace("\t", "\\t")
+
+class ConnectionListCommand(
+    private val connectionServiceProvider: () -> ConnectionService,
+) : CliktCommand(
+        name = "list",
+        help = "List all connections.",
+    ) {
+    private val json by option("--json", help = "Output as JSON").flag(default = false)
+    private val jsonLines by option("--json-lines", help = "Output as JSON lines").flag(default = false)
+
+    override fun run() {
+        val connectionService = connectionServiceProvider()
+
+        when (val result = connectionService.listConnections()) {
+            is ConnectionListResult.Success -> {
+                val connections = result.view.connections
+                val output =
+                    when {
+                        jsonLines -> toJsonLines(connections)
+                        json -> toJson(connections)
+                        else -> toTable(connections)
+                    }
+                echo(output)
+            }
+
+            is ConnectionListResult.Failure -> {
+                echo(AuthRedactor.redact(result.message), err = true)
+                throw ProgramResult(result.exitCode)
+            }
+        }
+    }
+
+    private fun toTable(connections: List<ConnectionView>): String {
+        if (connections.isEmpty()) return "No connections found."
+
+        val header = "%-42s %-20s %-22s %-14s".format("USER ID", "NAME", "HANDLE", "STATUS")
+        val rows =
+            connections.joinToString("\n") { conn ->
+                "%-42s %-20s %-22s %-14s".format(
+                    conn.userId,
+                    conn.userName ?: "-",
+                    conn.handle ?: "-",
+                    conn.status.value,
+                )
+            }
+        return "$header\n$rows"
+    }
+
+    private fun toJson(connections: List<ConnectionView>): String {
+        val items =
+            connections.joinToString(",") { conn ->
+                """{"userId":"${escapeJson(
+                    conn.userId,
+                )}","userName":"${escapeJson(
+                    conn.userName ?: "",
+                )}","handle":"${escapeJson(conn.handle ?: "")}","status":"${conn.status.value}"}"""
+            }
+        return """{"schemaVersion":1,"connections":[$items]}"""
+    }
+
+    private fun toJsonLines(connections: List<ConnectionView>): String {
+        return connections.joinToString("\n") { conn ->
+            """{"userId":"${escapeJson(
+                conn.userId,
+            )}","userName":"${escapeJson(
+                conn.userName ?: "",
+            )}","handle":"${escapeJson(conn.handle ?: "")}","status":"${conn.status.value}"}"""
+        }
+    }
+}

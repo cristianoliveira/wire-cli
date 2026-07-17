@@ -64,4 +64,22 @@ class SessionBackedConnectionService(
             }
         }
     }
+
+    override fun listConnections(): ConnectionListResult {
+        logger.debug { "Service operation: listConnections() started" }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return ConnectionListResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for listConnections()" } }
+
+        return apiClient.listConnections(session).also { result ->
+            when (result) {
+                is ConnectionListResult.Success -> logger.info { "Service: listed ${result.view.connections.size} connection(s)" }
+                is ConnectionListResult.Failure -> logger.warn { "Service: failed to list connections" }
+            }
+        }
+    }
 }

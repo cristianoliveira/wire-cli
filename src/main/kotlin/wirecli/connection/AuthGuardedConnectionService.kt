@@ -39,4 +39,15 @@ class AuthGuardedConnectionService(
                 )
         }
     }
+
+    override fun listConnections(): ConnectionListResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.listConnections()
+            is AuthResult.Failure ->
+                ConnectionListResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
 }

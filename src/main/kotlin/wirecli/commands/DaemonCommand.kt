@@ -20,6 +20,7 @@ class DaemonCommand(
             is SyncStatusResult.Success -> {
                 processMarkerProvider().use { marker ->
                     marker.start()
+                    marker.recordUpdate()
                     echo("Message sync daemon is active.")
                     awaitTermination()
                 }

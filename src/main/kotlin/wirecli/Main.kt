@@ -10,8 +10,8 @@ import wirecli.commands.DeviceCommand
 import wirecli.commands.DownloadCommand
 import wirecli.commands.LoginCommand
 import wirecli.commands.LogoutCommand
-import wirecli.commands.MessageCommand
 import wirecli.commands.MeCommand
+import wirecli.commands.MessageCommand
 import wirecli.commands.PresenceCommand
 import wirecli.commands.ProfileCommand
 import wirecli.commands.RootCommand
@@ -19,6 +19,7 @@ import wirecli.commands.SyncCommand
 import wirecli.commands.UserCommand
 import wirecli.config.AccessPolicyLoader
 import wirecli.config.CommandAccess
+import wirecli.runtime.FileDaemonProcessMarker
 import wirecli.runtime.KaliumRuntimeBootstrap
 import kotlin.system.exitProcess
 
@@ -78,7 +79,10 @@ fun main(args: Array<String>) {
             .subcommands(
                 LoginCommand(runtime.authSessionService),
                 LogoutCommand(runtime.authSessionService),
-                DaemonCommand(syncServiceProvider = { runtime.syncService }),
+                DaemonCommand(
+                    syncServiceProvider = { runtime.syncService },
+                    processMarkerProvider = { FileDaemonProcessMarker() },
+                ),
                 BackupCommand(
                     importServiceProvider = { runtime.importService },
                     exportServiceProvider = { runtime.exportService },

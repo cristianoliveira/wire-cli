@@ -48,6 +48,7 @@ import wirecli.importing.ImportService
 import wirecli.importing.SdkWireBackupRuntime
 import wirecli.importing.WireBackupImporter
 import wirecli.message.AuthGuardedMessageService
+import wirecli.message.DaemonBackedMessageService
 import wirecli.message.MessageApiClient
 import wirecli.message.MessageService
 import wirecli.message.RealKaliumMessageApiClient
@@ -227,13 +228,18 @@ private class DefaultKaliumRuntime(
     }
 
     override val messageService: MessageService by lazy {
-        AuthGuardedMessageService(
-            authSessionService = authSessionService,
-            delegate =
-                SessionBackedMessageService(
-                    sessionStore = sessionStore,
-                    apiClient = backend.messageApiClient,
-                ),
+        DaemonBackedMessageService(
+            delegateProvider = {
+                AuthGuardedMessageService(
+                    authSessionService = authSessionService,
+                    delegate =
+                        SessionBackedMessageService(
+                            sessionStore = sessionStore,
+                            apiClient = backend.messageApiClient,
+                        ),
+                )
+            },
+            daemonStatus = FileDaemonProcessMarker(DaemonMarkerPath.resolve(environment)),
         )
     }
 

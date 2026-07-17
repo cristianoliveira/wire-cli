@@ -35,10 +35,10 @@ teardown() {
   [[ "${output}" == *"wire-backup"* ]]
 }
 
-@test "Given built CLI, when message fetch help is requested, then local cache option is documented" {
+@test "Given built CLI, when message fetch help is requested, then cache bypass is documented" {
   run_wire message fetch --help
 
   assert_status 0
-  [[ "${output}" == *"--local"* ]]
-  [[ "${output}" == *"local Kalium cache"* ]]
+  [[ "${output}" == *"--no-cache"* ]]
+  [[ "${output}" != *"--local"* ]]
 }

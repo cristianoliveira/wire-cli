@@ -2,12 +2,14 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import wirecli.runtime.DaemonProcessMarker
 import wirecli.sync.SyncService
 import wirecli.sync.SyncStatusResult
 import java.util.concurrent.CountDownLatch
 
 class DaemonCommand(
     private val syncServiceProvider: () -> SyncService,
+    private val processMarkerProvider: () -> DaemonProcessMarker,
     private val awaitTermination: () -> Unit = { CountDownLatch(1).await() },
 ) : CliktCommand(
         name = "daemon",
@@ -16,8 +18,11 @@ class DaemonCommand(
     override fun run() {
         when (val result = syncServiceProvider().startContinuousSync()) {
             is SyncStatusResult.Success -> {
-                echo("Message sync daemon is active.")
-                awaitTermination()
+                processMarkerProvider().use { marker ->
+                    marker.start()
+                    echo("Message sync daemon is active.")
+                    awaitTermination()
+                }
             }
 
             is SyncStatusResult.Failure -> {

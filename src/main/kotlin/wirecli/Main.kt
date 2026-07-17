@@ -7,6 +7,7 @@ import wirecli.commands.ConnectionCommand
 import wirecli.commands.ConversationCommand
 import wirecli.commands.DaemonCommand
 import wirecli.commands.DeviceCommand
+import wirecli.commands.DownloadCommand
 import wirecli.commands.LoginCommand
 import wirecli.commands.LogoutCommand
 import wirecli.commands.MessageCommand
@@ -90,6 +91,7 @@ fun main(args: Array<String>) {
                 SyncCommand { runtime.syncService },
                 UserCommand { runtime.userService },
                 ConnectionCommand { runtime.connectionService },
+                DownloadCommand { runtime.downloadService },
             )
             .main(args)
         completed = true

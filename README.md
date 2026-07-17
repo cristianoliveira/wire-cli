@@ -77,8 +77,11 @@ wire presence set offline
 # Keep message sync active and cache messages locally
 wire daemon
 
-# Read cached messages without waiting for network sync
-wire message fetch --local <conversation-id>
+# Read cached messages while daemon is active
+wire message fetch <conversation-id>
+
+# Bypass daemon-backed cache and fetch from Wire
+wire message fetch --no-cache <conversation-id>
 
 # Restore a Wire client backup into the authenticated user's local cache
 wire backup import wire-backup.wbu
@@ -89,7 +92,7 @@ wire backup export --format jsonl --destination ./analysis wire-backup.wbu
 
 `wire daemon` runs in the foreground until interrupted. Use systemd, launchd, Docker, or another process supervisor to keep it running. Kalium stores synchronized state under `~/.wire/kalium`.
 
-`wire backup import` requires an active login and restores backup conversations, messages, users, and reactions into Kalium's local cache. Imported messages can then be read with `wire message fetch --local <conversation-id>`. Wire backup is the default source format; use `--from` only to override source selection.
+`wire backup import` requires an active login and restores backup conversations, messages, users, and reactions into Kalium's local cache. Imported messages can then be read with `wire message fetch <conversation-id>`. Wire backup is the default source format; use `--from` only to override source selection.
 
 Presence values are normalized; unsupported or unavailable backend values are surfaced as `unknown`.
 

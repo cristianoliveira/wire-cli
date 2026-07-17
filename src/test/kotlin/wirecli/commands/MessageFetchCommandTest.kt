@@ -44,20 +44,17 @@ class MessageFetchCommandTest {
     }
 
     @Test
-    fun `fetch command reads only the local cache when local flag is set`() {
-        var localConversationId: String? = null
-        val command =
-            MessageFetchCommand {
-                FakeMessageService(
-                    fetchResult = FetchMessagesResult.Success(FetchMessagesView("conv-123", emptyList())),
-                    onLocalFetch = { localConversationId = it },
-                )
-            }
+    fun `no-cache flag bypasses daemon cache`() {
+        val service =
+            FakeMessageService(
+                fetchResult = FetchMessagesResult.Success(FetchMessagesView("conv-123", emptyList())),
+            )
+        val command = MessageFetchCommand { service }
 
-        val result = execute(command, listOf("--local", "conv-123"))
+        val result = execute(command, listOf("--no-cache", "conv-123"))
 
         assertEquals(0, result.exitCode)
-        assertEquals("conv-123", localConversationId)
+        assertEquals("conv-123", service.serverConversationId)
     }
 
     @Test
@@ -128,8 +125,10 @@ class MessageFetchCommandTest {
 
     private class FakeMessageService(
         private val fetchResult: FetchMessagesResult,
-        private val onLocalFetch: (String) -> Unit = {},
     ) : MessageService {
+        var serverConversationId: String? = null
+            private set
+
         override fun sendMessage(
             conversationId: String,
             text: String,
@@ -139,8 +138,8 @@ class MessageFetchCommandTest {
 
         override fun fetchMessages(conversationId: String): FetchMessagesResult = fetchResult
 
-        override fun fetchLocalMessages(conversationId: String): FetchMessagesResult {
-            onLocalFetch(conversationId)
+        override fun fetchServerMessages(conversationId: String): FetchMessagesResult {
+            serverConversationId = conversationId
             return fetchResult
         }
 

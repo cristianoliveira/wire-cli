@@ -1,6 +1,7 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
+import wirecli.runtime.DaemonProcessMarker
 import wirecli.sync.ConversationSyncStatusResult
 import wirecli.sync.DiagnosticsResult
 import wirecli.sync.HealthMetrics
@@ -27,9 +28,11 @@ class DaemonCommandTest {
                         ),
                     ),
             )
+        val endpoint = FakeDaemonProcessMarker()
         val command =
             DaemonCommand(
                 syncServiceProvider = { service },
+                processMarkerProvider = { endpoint },
                 awaitTermination = { awaitedTermination = true },
             )
 
@@ -38,6 +41,8 @@ class DaemonCommandTest {
         assertEquals(0, result.exitCode)
         assertEquals(1, service.startCalls)
         assertEquals(true, awaitedTermination)
+        assertEquals(1, endpoint.startCalls)
+        assertEquals(1, endpoint.closeCalls)
         assertEquals("Message sync daemon is active.", result.stdout.trim())
     }
 
@@ -48,9 +53,11 @@ class DaemonCommandTest {
             FakeSyncService(
                 startResult = SyncStatusResult.Failure("unable to start sync", 12),
             )
+        val endpoint = FakeDaemonProcessMarker()
         val command =
             DaemonCommand(
                 syncServiceProvider = { service },
+                processMarkerProvider = { endpoint },
                 awaitTermination = { awaitedTermination = true },
             )
 
@@ -59,6 +66,7 @@ class DaemonCommandTest {
         assertEquals(12, result.exitCode)
         assertEquals(1, service.startCalls)
         assertEquals(false, awaitedTermination)
+        assertEquals(0, endpoint.startCalls)
         assertEquals("unable to start sync", result.stderr.trim())
     }
 
@@ -92,6 +100,21 @@ class DaemonCommandTest {
         val stdout: String,
         val stderr: String,
     )
+
+    private class FakeDaemonProcessMarker : DaemonProcessMarker {
+        var startCalls = 0
+        var closeCalls = 0
+
+        override fun start() {
+            startCalls++
+        }
+
+        override fun isRunning(): Boolean = true
+
+        override fun close() {
+            closeCalls++
+        }
+    }
 
     private class FakeSyncService(
         private val startResult: SyncStatusResult,

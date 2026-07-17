@@ -20,9 +20,9 @@ class MessageFetchCommand(
         help = "The conversation ID to fetch messages from",
     )
 
-    private val local by option(
-        "--local",
-        help = "Read messages from the local Kalium cache without waiting for network sync.",
+    private val noCache by option(
+        "--no-cache",
+        help = "Bypass the daemon cache and fetch from Wire.",
     ).flag(default = false)
 
     override fun run() {
@@ -35,8 +35,8 @@ class MessageFetchCommand(
 
         val messageService = messageServiceProvider()
         val result =
-            if (local) {
-                messageService.fetchLocalMessages(validatedConversationId)
+            if (noCache) {
+                messageService.fetchServerMessages(validatedConversationId)
             } else {
                 messageService.fetchMessages(validatedConversationId)
             }

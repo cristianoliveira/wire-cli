@@ -196,6 +196,8 @@ interface MessageService {
 
     fun fetchMessages(conversationId: String): FetchMessagesResult
 
+    fun fetchServerMessages(conversationId: String): FetchMessagesResult = fetchMessages(conversationId)
+
     fun fetchLocalMessages(conversationId: String): FetchMessagesResult = fetchMessages(conversationId)
 
     fun observeMessages(conversationId: String): Flow<FetchMessagesResult> = flowOf(fetchMessages(conversationId))

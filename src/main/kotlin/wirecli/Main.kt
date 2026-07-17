@@ -12,6 +12,7 @@ import wirecli.commands.LoginCommand
 import wirecli.commands.LogoutCommand
 import wirecli.commands.MeCommand
 import wirecli.commands.MessageCommand
+import wirecli.commands.MeCommand
 import wirecli.commands.PresenceCommand
 import wirecli.commands.ProfileCommand
 import wirecli.commands.RootCommand

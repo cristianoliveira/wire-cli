@@ -3,6 +3,7 @@ package wirecli.connection
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
+import wirecli.user.UserConnectionState
 
 /**
  * Deterministic in-memory connection API client used by the stub backend
@@ -103,6 +104,54 @@ class StubConnectionApiClient(
                 )
 
             else -> ConnectionActionResult.Success(message = ConnectionMessages.UNBLOCK_SUCCESS)
+        }
+    }
+
+    override fun listConnections(session: AuthSession): ConnectionListResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "connection_list_network_error" ->
+                ConnectionListResult.Failure(
+                    message = ConnectionMessages.LIST_NETWORK_FAILURE,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            "connection_list_server_error" ->
+                ConnectionListResult.Failure(
+                    message = ConnectionMessages.LIST_SERVER_FAILURE,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            "connection_unauthorized" ->
+                ConnectionListResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            else ->
+                ConnectionListResult.Success(
+                    view =
+                        ConnectionListView(
+                            connections =
+                                listOf(
+                                    ConnectionView(
+                                        userId = "alice-uuid@example.wire.com",
+                                        userName = "Alice",
+                                        handle = "@alice",
+                                        status = UserConnectionState.ACCEPTED,
+                                        lastUpdate = "2025-01-15T10:30:00Z",
+                                    ),
+                                    ConnectionView(
+                                        userId = "bob-uuid@example.wire.com",
+                                        userName = "Bob",
+                                        handle = "@bob",
+                                        status = UserConnectionState.PENDING,
+                                        lastUpdate = "2025-01-14T08:00:00Z",
+                                    ),
+                                ),
+                        ),
+                )
         }
     }
 }

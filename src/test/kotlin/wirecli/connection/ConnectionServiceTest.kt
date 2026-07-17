@@ -10,6 +10,7 @@ import wirecli.auth.SessionProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class ConnectionServiceTest {
     private val session =
@@ -90,6 +91,42 @@ class ConnectionServiceTest {
         assertEquals(AuthMessages.noActiveSession(), result.message)
     }
 
+    @Test
+    fun `SessionBacked list delegates to api client`() {
+        val apiClient = RecordingConnectionApiClient()
+        val service = SessionBackedConnectionService(SessionStore(session), apiClient)
+
+        val result = service.listConnections()
+
+        assertIs<ConnectionListResult.Success>(result)
+        assertTrue(result.view.connections.isEmpty())
+    }
+
+    @Test
+    fun `SessionBacked list returns unauthorized when no session`() {
+        val service = SessionBackedConnectionService(NoSessionStore, RecordingConnectionApiClient())
+
+        val result = service.listConnections()
+
+        val failure = assertIs<ConnectionListResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `AuthGuarded list returns auth failure when session missing`() {
+        val service =
+            AuthGuardedConnectionService(
+                FailingAuthSessionService,
+                SessionBackedConnectionService(NoSessionStore, RecordingConnectionApiClient()),
+            )
+
+        val result = service.listConnections()
+
+        assertIs<ConnectionListResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), result.message)
+    }
+
     private object NoSessionStore : SessionProvider {
         override fun readActiveSession(): AuthSession? = null
     }
@@ -137,5 +174,10 @@ class ConnectionServiceTest {
             lastUnblockUserId = userId
             return ConnectionActionResult.Success(ConnectionMessages.UNBLOCK_SUCCESS)
         }
+
+        override fun listConnections(session: AuthSession): ConnectionListResult =
+            ConnectionListResult.Success(
+                ConnectionListView(emptyList()),
+            )
     }
 }

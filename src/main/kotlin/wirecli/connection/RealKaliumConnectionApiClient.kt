@@ -3,19 +3,24 @@ package wirecli.connection
 import com.wire.kalium.common.error.CoreFailure
 import com.wire.kalium.common.error.NetworkFailure
 import com.wire.kalium.logic.CoreLogic
+import com.wire.kalium.logic.data.conversation.ConversationDetails
+import com.wire.kalium.logic.data.conversation.ConversationFilter
 import com.wire.kalium.logic.data.id.QualifiedID
+import com.wire.kalium.logic.data.user.ConnectionState
 import com.wire.kalium.logic.data.user.UserId
 import com.wire.kalium.logic.feature.connection.BlockUserResult
 import com.wire.kalium.logic.feature.connection.SendConnectionRequestResult
 import com.wire.kalium.logic.feature.connection.UnblockUserResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.config.KaliumCliMode
 import wirecli.config.kaliumCliConfigs
+import wirecli.user.UserConnectionState
 
 private val logger = KotlinLogging.logger {}
 
@@ -105,9 +110,47 @@ internal class RealKaliumConnectionApiClient(
             }
         }
     }
+
+    override fun listConnections(session: AuthSession): ConnectionListResult {
+        logger.debug { "RealKaliumConnectionApiClient: listing connections" }
+
+        val sessionScope =
+            when (val scope = runtime.resolveSessionScope(session)) {
+                is ConnectionStepResult.Success -> scope.value
+                is ConnectionStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope for list: ${scope.category}" }
+                    return scope.toListFailure()
+                }
+            }
+
+        return when (val result = runtime.listConnections(sessionScope)) {
+            is ConnectionStepResult.Success -> {
+                logger.info { "Connection list returned ${result.value.size} connection(s)" }
+                val view =
+                    ConnectionListView(
+                        connections =
+                            result.value.map { entry ->
+                                ConnectionView(
+                                    userId = entry.userId,
+                                    userName = entry.userName,
+                                    handle = entry.handle,
+                                    status = entry.status,
+                                    lastUpdate = entry.lastUpdate,
+                                )
+                            },
+                    )
+                ConnectionListResult.Success(view = view)
+            }
+
+            is ConnectionStepResult.Failure -> {
+                logger.warn { "Failed to list connections: ${result.category}" }
+                result.toListFailure()
+            }
+        }
+    }
 }
 
-private enum class ActionKind { REQUEST, BLOCK, UNBLOCK }
+private enum class ActionKind { REQUEST, BLOCK, UNBLOCK, LIST }
 
 private fun ConnectionOutcome.toRequestActionResult(): ConnectionActionResult =
     when (this) {
@@ -149,8 +192,14 @@ private fun ConnectionStepResult.Failure.toActionFailure(kind: ActionKind): Conn
             ActionKind.REQUEST -> ConnectionFailureMapper.toRequestFailureInfo(category)
             ActionKind.BLOCK -> ConnectionFailureMapper.toBlockFailureInfo(category)
             ActionKind.UNBLOCK -> ConnectionFailureMapper.toUnblockFailureInfo(category)
+            ActionKind.LIST -> ConnectionFailureMapper.toListFailureInfo(category)
         }
     return ConnectionActionResult.Failure(message = message, exitCode = exitCode)
+}
+
+private fun ConnectionStepResult.Failure.toListFailure(): ConnectionListResult.Failure {
+    val (message, exitCode) = ConnectionFailureMapper.toListFailureInfo(category)
+    return ConnectionListResult.Failure(message = message, exitCode = exitCode)
 }
 
 internal object ConnectionFailureMapper {
@@ -166,7 +215,11 @@ internal object ConnectionFailureMapper {
                     ConnectionFailureCategory.USER_NOT_FOUND -> ConnectionMessages.USER_NOT_FOUND
                     ConnectionFailureCategory.FEDERATION_DENIED -> ConnectionMessages.REQUEST_FEDERATION_DENIED
                     ConnectionFailureCategory.LEGAL_HOLD -> ConnectionMessages.REQUEST_LEGAL_HOLD
-                    ConnectionFailureCategory.UNKNOWN -> ConnectionMessages.REQUEST_UNKNOWN_FAILURE
+                    ConnectionFailureCategory.UNKNOWN,
+                    ConnectionFailureCategory.LIST_NETWORK,
+                    ConnectionFailureCategory.LIST_SERVER,
+                    ConnectionFailureCategory.LIST_UNKNOWN,
+                    -> ConnectionMessages.REQUEST_UNKNOWN_FAILURE
                 },
             exitCode = categoryToExitCode(category),
         )
@@ -182,6 +235,9 @@ internal object ConnectionFailureMapper {
                     ConnectionFailureCategory.FEDERATION_DENIED,
                     ConnectionFailureCategory.LEGAL_HOLD,
                     ConnectionFailureCategory.UNKNOWN,
+                    ConnectionFailureCategory.LIST_NETWORK,
+                    ConnectionFailureCategory.LIST_SERVER,
+                    ConnectionFailureCategory.LIST_UNKNOWN,
                     -> ConnectionMessages.BLOCK_UNKNOWN_FAILURE
                 },
             exitCode = categoryToExitCode(category),
@@ -198,19 +254,52 @@ internal object ConnectionFailureMapper {
                     ConnectionFailureCategory.FEDERATION_DENIED,
                     ConnectionFailureCategory.LEGAL_HOLD,
                     ConnectionFailureCategory.UNKNOWN,
+                    ConnectionFailureCategory.LIST_NETWORK,
+                    ConnectionFailureCategory.LIST_SERVER,
+                    ConnectionFailureCategory.LIST_UNKNOWN,
                     -> ConnectionMessages.UNBLOCK_UNKNOWN_FAILURE
+                },
+            exitCode = categoryToExitCode(category),
+        )
+
+    fun toListFailureInfo(category: ConnectionFailureCategory): FailureInfo =
+        FailureInfo(
+            message =
+                when (category) {
+                    ConnectionFailureCategory.NETWORK,
+                    ConnectionFailureCategory.LIST_NETWORK,
+                    -> ConnectionMessages.LIST_NETWORK_FAILURE
+
+                    ConnectionFailureCategory.SERVER,
+                    ConnectionFailureCategory.LIST_SERVER,
+                    -> ConnectionMessages.LIST_SERVER_FAILURE
+
+                    ConnectionFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+                    ConnectionFailureCategory.USER_NOT_FOUND -> ConnectionMessages.USER_NOT_FOUND
+                    ConnectionFailureCategory.FEDERATION_DENIED,
+                    ConnectionFailureCategory.LEGAL_HOLD,
+                    ConnectionFailureCategory.LIST_UNKNOWN,
+                    ConnectionFailureCategory.UNKNOWN,
+                    -> ConnectionMessages.LIST_UNKNOWN_FAILURE
                 },
             exitCode = categoryToExitCode(category),
         )
 
     private fun categoryToExitCode(category: ConnectionFailureCategory): Int =
         when (category) {
-            ConnectionFailureCategory.NETWORK -> ExitCodes.NETWORK_ERROR
-            ConnectionFailureCategory.SERVER -> ExitCodes.SERVER_ERROR
+            ConnectionFailureCategory.NETWORK,
+            ConnectionFailureCategory.LIST_NETWORK,
+            -> ExitCodes.NETWORK_ERROR
+
+            ConnectionFailureCategory.SERVER,
+            ConnectionFailureCategory.LIST_SERVER,
+            -> ExitCodes.SERVER_ERROR
+
             ConnectionFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
             ConnectionFailureCategory.USER_NOT_FOUND -> ConnectionExitCodes.NOT_FOUND
             ConnectionFailureCategory.FEDERATION_DENIED,
             ConnectionFailureCategory.LEGAL_HOLD,
+            ConnectionFailureCategory.LIST_UNKNOWN,
             -> ConnectionExitCodes.CONFLICT
             ConnectionFailureCategory.UNKNOWN -> ExitCodes.UNKNOWN_ERROR
         }
@@ -370,6 +459,64 @@ internal class SdkKaliumConnectionRuntime(
         }
     }
 
+    override fun listConnections(sessionScope: KaliumConnectionSessionScope): ConnectionStepResult<List<KaliumConnectionEntry>> {
+        val qualifiedId =
+            sessionScope.userId.toQualifiedIdOrNull()
+                ?: return ConnectionStepResult.Failure(ConnectionFailureCategory.UNAUTHORIZED)
+
+        return runBlocking {
+            try {
+                val conversationDetails =
+                    coreLogic.sessionScope(qualifiedId) {
+                        conversations.observeConversationListDetailsWithEvents(
+                            fromArchive = false,
+                            conversationFilter = ConversationFilter.All,
+                        )
+                            .firstOrNull()
+                            ?.map { it.conversationDetails }
+                            ?: emptyList()
+                    }
+
+                val entries =
+                    conversationDetails
+                        .flatMap { details ->
+                            when (details) {
+                                is ConversationDetails.Connection ->
+                                    listOf(
+                                        KaliumConnectionEntry(
+                                            userId = details.connection.qualifiedToId.toString(),
+                                            userName = details.otherUser?.name,
+                                            handle = details.otherUser?.handle,
+                                            status = details.connection.status.toUserConnectionState(),
+                                            lastUpdate = details.connection.lastUpdate.toString(),
+                                        ),
+                                    )
+
+                                is ConversationDetails.OneOne ->
+                                    listOf(
+                                        KaliumConnectionEntry(
+                                            userId = details.otherUser.id.toString(),
+                                            userName = details.otherUser.name,
+                                            handle = details.otherUser.handle,
+                                            status = details.otherUser.connectionStatus.toUserConnectionState(),
+                                            lastUpdate = details.conversation.lastModifiedDate?.toString(),
+                                        ),
+                                    )
+
+                                else -> emptyList()
+                            }
+                        }
+
+                ConnectionStepResult.Success(entries)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
+                logger.error(error) { "Failed to list connections" }
+                ConnectionStepResult.Failure(categoryFromThrowable(error))
+            }
+        }
+    }
+
     override fun shutdown() {
         if (!coreLogicLazy.isInitialized()) return
 
@@ -418,6 +565,18 @@ internal class SdkKaliumConnectionRuntime(
         return System.getProperty("user.home")
     }
 }
+
+private fun ConnectionState.toUserConnectionState(): UserConnectionState =
+    when (this) {
+        ConnectionState.NOT_CONNECTED -> UserConnectionState.NOT_CONNECTED
+        ConnectionState.PENDING -> UserConnectionState.PENDING
+        ConnectionState.SENT -> UserConnectionState.SENT
+        ConnectionState.ACCEPTED -> UserConnectionState.ACCEPTED
+        ConnectionState.BLOCKED -> UserConnectionState.BLOCKED
+        ConnectionState.IGNORED -> UserConnectionState.IGNORED
+        ConnectionState.CANCELLED -> UserConnectionState.CANCELLED
+        ConnectionState.MISSING_LEGALHOLD_CONSENT -> UserConnectionState.UNKNOWN
+    }
 
 private fun String.toQualifiedIdOrNull(): UserId? {
     val trimmed = trim()

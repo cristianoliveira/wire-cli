@@ -13,13 +13,6 @@ import wirecli.connection.AuthGuardedConnectionService
 import wirecli.connection.ConnectionApiClient
 import wirecli.connection.ConnectionService
 import wirecli.connection.RealKaliumConnectionApiClient
-import wirecli.download.AuthGuardedDownloadService
-import wirecli.download.DownloadApiClient
-import wirecli.download.DownloadService
-import wirecli.download.RealKaliumDownloadApiClient
-import wirecli.download.SdkKaliumDownloadRuntime
-import wirecli.download.SessionBackedDownloadService
-import wirecli.download.StubDownloadApiClient
 import wirecli.connection.SdkKaliumConnectionRuntime
 import wirecli.connection.SessionBackedConnectionService
 import wirecli.connection.StubConnectionApiClient
@@ -37,6 +30,13 @@ import wirecli.device.RealKaliumDeviceApiClient
 import wirecli.device.SdkKaliumDeviceRuntime
 import wirecli.device.SessionBackedDeviceService
 import wirecli.device.StubDeviceApiClient
+import wirecli.download.AuthGuardedDownloadService
+import wirecli.download.DownloadApiClient
+import wirecli.download.DownloadService
+import wirecli.download.RealKaliumDownloadApiClient
+import wirecli.download.SdkKaliumDownloadRuntime
+import wirecli.download.SessionBackedDownloadService
+import wirecli.download.StubDownloadApiClient
 import wirecli.exporting.DefaultExportService
 import wirecli.exporting.DefaultLocalBackupService
 import wirecli.exporting.ExportService

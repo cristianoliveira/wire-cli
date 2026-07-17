@@ -26,6 +26,7 @@ class ConnectionCommand(
     init {
         subcommands(
             ConnectionRequestCommand(connectionServiceProvider),
+            ConnectionAcceptCommand(connectionServiceProvider),
             ConnectionBlockCommand(connectionServiceProvider),
             ConnectionUnblockCommand(connectionServiceProvider),
             ConnectionListCommand(connectionServiceProvider),
@@ -53,6 +54,22 @@ class ConnectionRequestCommand(
     override fun run() {
         val validatedUserId = validateUserIdOrExit(userId)
         val result = connectionServiceProvider().sendRequest(validatedUserId)
+        emitActionResult(result, json)
+    }
+}
+
+class ConnectionAcceptCommand(
+    private val connectionServiceProvider: () -> ConnectionService,
+) : CliktCommand(
+        name = "accept",
+        help = "Accept a connection request from a user by qualified ID (value@domain).",
+    ) {
+    private val userId by argument(name = "user-id", help = "Qualified user ID (value@domain)")
+    private val json by option("--json", help = "Output as JSON").flag(default = false)
+
+    override fun run() {
+        val validatedUserId = validateUserIdOrExit(userId)
+        val result = connectionServiceProvider().acceptRequest(validatedUserId)
         emitActionResult(result, json)
     }
 }

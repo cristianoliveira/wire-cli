@@ -22,6 +22,42 @@ class ConnectionServiceTest {
     private val target = "bob-uuid@example.wire.com"
 
     @Test
+    fun `SessionBacked accept delegates to api client`() {
+        val apiClient = RecordingConnectionApiClient()
+        val service = SessionBackedConnectionService(SessionStore(session), apiClient)
+
+        val result = service.acceptRequest(target)
+
+        assertIs<ConnectionActionResult.Success>(result)
+        assertEquals(target, apiClient.lastAcceptUserId)
+    }
+
+    @Test
+    fun `SessionBacked accept returns unauthorized when no session`() {
+        val service = SessionBackedConnectionService(NoSessionStore, RecordingConnectionApiClient())
+
+        val result = service.acceptRequest(target)
+
+        val failure = assertIs<ConnectionActionResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `AuthGuarded accept returns auth failure when session missing`() {
+        val service =
+            AuthGuardedConnectionService(
+                FailingAuthSessionService,
+                SessionBackedConnectionService(NoSessionStore, RecordingConnectionApiClient()),
+            )
+
+        val result = service.acceptRequest(target)
+
+        assertIs<ConnectionActionResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), result.message)
+    }
+
+    @Test
     fun `SessionBacked request delegates to api client`() {
         val apiClient = RecordingConnectionApiClient()
         val service = SessionBackedConnectionService(SessionStore(session), apiClient)
@@ -146,6 +182,8 @@ class ConnectionServiceTest {
     private class RecordingConnectionApiClient : ConnectionApiClient {
         var lastRequestUserId: String? = null
             private set
+        var lastAcceptUserId: String? = null
+            private set
         var lastBlockUserId: String? = null
             private set
         var lastUnblockUserId: String? = null
@@ -157,6 +195,14 @@ class ConnectionServiceTest {
         ): ConnectionActionResult {
             lastRequestUserId = userId
             return ConnectionActionResult.Success(ConnectionMessages.REQUEST_SUCCESS)
+        }
+
+        override fun acceptRequest(
+            session: AuthSession,
+            userId: String,
+        ): ConnectionActionResult {
+            lastAcceptUserId = userId
+            return ConnectionActionResult.Success(ConnectionMessages.ACCEPT_SUCCESS)
         }
 
         override fun blockUser(

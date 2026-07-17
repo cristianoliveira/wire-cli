@@ -8,6 +8,7 @@ import com.wire.kalium.logic.data.conversation.ConversationFilter
 import com.wire.kalium.logic.data.id.QualifiedID
 import com.wire.kalium.logic.data.user.ConnectionState
 import com.wire.kalium.logic.data.user.UserId
+import com.wire.kalium.logic.feature.connection.AcceptConnectionRequestUseCaseResult
 import com.wire.kalium.logic.feature.connection.BlockUserResult
 import com.wire.kalium.logic.feature.connection.SendConnectionRequestResult
 import com.wire.kalium.logic.feature.connection.UnblockUserResult
@@ -51,6 +52,34 @@ internal class RealKaliumConnectionApiClient(
             is ConnectionStepResult.Failure -> {
                 logger.warn { "Failed to send connection request: ${result.category}" }
                 result.toActionFailure(ActionKind.REQUEST)
+            }
+        }
+    }
+
+    override fun acceptRequest(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult {
+        logger.debug { "RealKaliumConnectionApiClient: accepting connection request from $userId" }
+
+        val sessionScope =
+            when (val scope = runtime.resolveSessionScope(session)) {
+                is ConnectionStepResult.Success -> scope.value
+                is ConnectionStepResult.Failure -> {
+                    logger.warn { "Failed to resolve session scope for accept: ${scope.category}" }
+                    return scope.toActionFailure(ActionKind.ACCEPT)
+                }
+            }
+
+        return when (val result = runtime.acceptConnectionRequest(sessionScope, userId)) {
+            is ConnectionStepResult.Success -> {
+                logger.info { "Accept handled with outcome ${result.value}" }
+                result.value.toAcceptActionResult()
+            }
+
+            is ConnectionStepResult.Failure -> {
+                logger.warn { "Failed to accept connection request from $userId: ${result.category}" }
+                result.toActionFailure(ActionKind.ACCEPT)
             }
         }
     }
@@ -150,7 +179,7 @@ internal class RealKaliumConnectionApiClient(
     }
 }
 
-private enum class ActionKind { REQUEST, BLOCK, UNBLOCK, LIST }
+private enum class ActionKind { REQUEST, ACCEPT, BLOCK, UNBLOCK, LIST }
 
 private fun ConnectionOutcome.toRequestActionResult(): ConnectionActionResult =
     when (this) {
@@ -162,6 +191,16 @@ private fun ConnectionOutcome.toRequestActionResult(): ConnectionActionResult =
         ConnectionOutcome.FAILURE ->
             ConnectionActionResult.Failure(
                 ConnectionMessages.REQUEST_UNKNOWN_FAILURE,
+                ExitCodes.UNKNOWN_ERROR,
+            )
+    }
+
+private fun ConnectionOutcome.toAcceptActionResult(): ConnectionActionResult =
+    when (this) {
+        ConnectionOutcome.SUCCESS -> ConnectionActionResult.Success(ConnectionMessages.ACCEPT_SUCCESS)
+        else ->
+            ConnectionActionResult.Failure(
+                ConnectionMessages.ACCEPT_UNKNOWN_FAILURE,
                 ExitCodes.UNKNOWN_ERROR,
             )
     }
@@ -190,6 +229,7 @@ private fun ConnectionStepResult.Failure.toActionFailure(kind: ActionKind): Conn
     val (message, exitCode) =
         when (kind) {
             ActionKind.REQUEST -> ConnectionFailureMapper.toRequestFailureInfo(category)
+            ActionKind.ACCEPT -> ConnectionFailureMapper.toAcceptFailureInfo(category)
             ActionKind.BLOCK -> ConnectionFailureMapper.toBlockFailureInfo(category)
             ActionKind.UNBLOCK -> ConnectionFailureMapper.toUnblockFailureInfo(category)
             ActionKind.LIST -> ConnectionFailureMapper.toListFailureInfo(category)
@@ -220,6 +260,25 @@ internal object ConnectionFailureMapper {
                     ConnectionFailureCategory.LIST_SERVER,
                     ConnectionFailureCategory.LIST_UNKNOWN,
                     -> ConnectionMessages.REQUEST_UNKNOWN_FAILURE
+                },
+            exitCode = categoryToExitCode(category),
+        )
+
+    fun toAcceptFailureInfo(category: ConnectionFailureCategory): FailureInfo =
+        FailureInfo(
+            message =
+                when (category) {
+                    ConnectionFailureCategory.NETWORK -> ConnectionMessages.ACCEPT_NETWORK_FAILURE
+                    ConnectionFailureCategory.SERVER -> ConnectionMessages.ACCEPT_SERVER_FAILURE
+                    ConnectionFailureCategory.UNAUTHORIZED -> AuthMessages.invalidOrExpiredSession()
+                    ConnectionFailureCategory.USER_NOT_FOUND -> ConnectionMessages.USER_NOT_FOUND
+                    ConnectionFailureCategory.FEDERATION_DENIED,
+                    ConnectionFailureCategory.LEGAL_HOLD,
+                    ConnectionFailureCategory.UNKNOWN,
+                    ConnectionFailureCategory.LIST_NETWORK,
+                    ConnectionFailureCategory.LIST_SERVER,
+                    ConnectionFailureCategory.LIST_UNKNOWN,
+                    -> ConnectionMessages.ACCEPT_UNKNOWN_FAILURE
                 },
             exitCode = categoryToExitCode(category),
         )
@@ -386,6 +445,40 @@ internal class SdkKaliumConnectionRuntime(
                 @Suppress("TooGenericExceptionCaught") error: Throwable,
             ) {
                 logger.error(error) { "Failed to send connection request to $userId" }
+                ConnectionStepResult.Failure(categoryFromThrowable(error))
+            }
+        }
+    }
+
+    override fun acceptConnectionRequest(
+        sessionScope: KaliumConnectionSessionScope,
+        userId: String,
+    ): ConnectionStepResult<ConnectionOutcome> {
+        val qualifiedId =
+            sessionScope.userId.toQualifiedIdOrNull()
+                ?: return ConnectionStepResult.Failure(ConnectionFailureCategory.UNAUTHORIZED)
+        val targetId =
+            userId.toQualifiedIdOrNull()
+                ?: return ConnectionStepResult.Failure(ConnectionFailureCategory.USER_NOT_FOUND)
+
+        return runBlocking {
+            try {
+                val result =
+                    coreLogic.sessionScope(qualifiedId) {
+                        connection.acceptConnectionRequest(targetId)
+                    }
+
+                when (result) {
+                    is AcceptConnectionRequestUseCaseResult.Success ->
+                        ConnectionStepResult.Success(ConnectionOutcome.SUCCESS)
+
+                    is AcceptConnectionRequestUseCaseResult.Failure ->
+                        ConnectionStepResult.Failure(categoryFromCoreFailure(result.coreFailure))
+                }
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
+                logger.error(error) { "Failed to accept connection request from $userId" }
                 ConnectionStepResult.Failure(categoryFromThrowable(error))
             }
         }

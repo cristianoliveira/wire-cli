@@ -84,6 +84,76 @@ class StubConnectionApiClient(
         }
     }
 
+    override fun ignoreRequest(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "connection_not_found" ->
+                ConnectionActionResult.Failure(
+                    message = ConnectionMessages.USER_NOT_FOUND,
+                    exitCode = ConnectionExitCodes.NOT_FOUND,
+                )
+
+            "connection_ignore_network_error" ->
+                ConnectionActionResult.Failure(
+                    message = ConnectionMessages.IGNORE_NETWORK_FAILURE,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            "connection_ignore_server_error" ->
+                ConnectionActionResult.Failure(
+                    message = ConnectionMessages.IGNORE_SERVER_FAILURE,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            "connection_unauthorized" ->
+                ConnectionActionResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            else -> ConnectionActionResult.Success(message = ConnectionMessages.IGNORE_SUCCESS)
+        }
+    }
+
+    override fun cancelRequest(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "connection_not_found" ->
+                ConnectionActionResult.Failure(
+                    message = ConnectionMessages.USER_NOT_FOUND,
+                    exitCode = ConnectionExitCodes.NOT_FOUND,
+                )
+
+            "connection_cancel_network_error" ->
+                ConnectionActionResult.Failure(
+                    message = ConnectionMessages.CANCEL_NETWORK_FAILURE,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+
+            "connection_cancel_server_error" ->
+                ConnectionActionResult.Failure(
+                    message = ConnectionMessages.CANCEL_SERVER_FAILURE,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            "connection_unauthorized" ->
+                ConnectionActionResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            else -> ConnectionActionResult.Success(message = ConnectionMessages.CANCEL_SUCCESS)
+        }
+    }
+
     override fun blockUser(
         session: AuthSession,
         userId: String,

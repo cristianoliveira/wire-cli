@@ -63,6 +63,66 @@ class ConnectionCommandTest {
     }
 
     @Test
+    fun `ignore command prints success message`() {
+        val service = StubConnectionService()
+        val result = execute(ConnectionIgnoreCommand { service }, listOf("bob-uuid@example.wire.com"))
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("Connection request ignored."))
+        assertEquals("bob-uuid@example.wire.com", service.lastIgnoreUserId)
+    }
+
+    @Test
+    fun `ignore command rejects invalid user id`() {
+        val service = StubConnectionService()
+        val result = execute(ConnectionIgnoreCommand { service }, listOf("not-a-qualified-id"))
+
+        assertEquals(14, result.exitCode)
+        assertEquals(null, service.lastIgnoreUserId)
+    }
+
+    @Test
+    fun `ignore command supports json output`() {
+        val service = StubConnectionService()
+        val result =
+            execute(ConnectionIgnoreCommand { service }, listOf("bob-uuid@example.wire.com", "--json"))
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("\"ok\":true"))
+        assertTrue(result.stdout.contains("\"message\":\"Connection request ignored.\""))
+    }
+
+    @Test
+    fun `cancel command prints success message`() {
+        val service = StubConnectionService()
+        val result = execute(ConnectionCancelCommand { service }, listOf("bob-uuid@example.wire.com"))
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("Connection request cancelled."))
+        assertEquals("bob-uuid@example.wire.com", service.lastCancelUserId)
+    }
+
+    @Test
+    fun `cancel command rejects invalid user id`() {
+        val service = StubConnectionService()
+        val result = execute(ConnectionCancelCommand { service }, listOf("not-a-qualified-id"))
+
+        assertEquals(14, result.exitCode)
+        assertEquals(null, service.lastCancelUserId)
+    }
+
+    @Test
+    fun `cancel command supports json output`() {
+        val service = StubConnectionService()
+        val result =
+            execute(ConnectionCancelCommand { service }, listOf("bob-uuid@example.wire.com", "--json"))
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("\"ok\":true"))
+        assertTrue(result.stdout.contains("\"message\":\"Connection request cancelled.\""))
+    }
+
+    @Test
     fun `request command prints success message`() {
         val service = StubConnectionService()
         val result = execute(ConnectionRequestCommand { service }, listOf("bob-uuid@example.wire.com"))
@@ -298,6 +358,10 @@ class ConnectionCommandTest {
             ConnectionActionResult.Success("Connection request sent."),
         private val acceptResult: ConnectionActionResult =
             ConnectionActionResult.Success("Connection request accepted."),
+        private val ignoreResult: ConnectionActionResult =
+            ConnectionActionResult.Success("Connection request ignored."),
+        private val cancelResult: ConnectionActionResult =
+            ConnectionActionResult.Success("Connection request cancelled."),
         private val blockResult: ConnectionActionResult =
             ConnectionActionResult.Success("User blocked."),
         private val unblockResult: ConnectionActionResult =
@@ -308,6 +372,10 @@ class ConnectionCommandTest {
         var lastRequestUserId: String? = null
             private set
         var lastAcceptUserId: String? = null
+            private set
+        var lastIgnoreUserId: String? = null
+            private set
+        var lastCancelUserId: String? = null
             private set
         var lastBlockUserId: String? = null
             private set
@@ -322,6 +390,16 @@ class ConnectionCommandTest {
         override fun acceptRequest(userId: String): ConnectionActionResult {
             lastAcceptUserId = userId
             return acceptResult
+        }
+
+        override fun ignoreRequest(userId: String): ConnectionActionResult {
+            lastIgnoreUserId = userId
+            return ignoreResult
+        }
+
+        override fun cancelRequest(userId: String): ConnectionActionResult {
+            lastCancelUserId = userId
+            return cancelResult
         }
 
         override fun blockUser(userId: String): ConnectionActionResult {

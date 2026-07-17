@@ -42,6 +42,52 @@ class StubConnectionApiClientTest {
     }
 
     @Test
+    fun `ignore succeeds by default`() {
+        val client = StubConnectionApiClient(emptyMap())
+
+        val result = client.ignoreRequest(session, target)
+
+        val success = assertIs<ConnectionActionResult.Success>(result)
+        assertEquals(ConnectionMessages.IGNORE_SUCCESS, success.message)
+    }
+
+    @Test
+    fun `ignore maps network and server error modes`() {
+        val network =
+            StubConnectionApiClient(mapOf("WIRE_STUB_MODE" to "connection_ignore_network_error"))
+                .ignoreRequest(session, target) as ConnectionActionResult.Failure
+        assertEquals(ConnectionMessages.IGNORE_NETWORK_FAILURE, network.message)
+
+        val server =
+            StubConnectionApiClient(mapOf("WIRE_STUB_MODE" to "connection_ignore_server_error"))
+                .ignoreRequest(session, target) as ConnectionActionResult.Failure
+        assertEquals(ConnectionMessages.IGNORE_SERVER_FAILURE, server.message)
+    }
+
+    @Test
+    fun `cancel succeeds by default`() {
+        val client = StubConnectionApiClient(emptyMap())
+
+        val result = client.cancelRequest(session, target)
+
+        val success = assertIs<ConnectionActionResult.Success>(result)
+        assertEquals(ConnectionMessages.CANCEL_SUCCESS, success.message)
+    }
+
+    @Test
+    fun `cancel maps network and server error modes`() {
+        val network =
+            StubConnectionApiClient(mapOf("WIRE_STUB_MODE" to "connection_cancel_network_error"))
+                .cancelRequest(session, target) as ConnectionActionResult.Failure
+        assertEquals(ConnectionMessages.CANCEL_NETWORK_FAILURE, network.message)
+
+        val server =
+            StubConnectionApiClient(mapOf("WIRE_STUB_MODE" to "connection_cancel_server_error"))
+                .cancelRequest(session, target) as ConnectionActionResult.Failure
+        assertEquals(ConnectionMessages.CANCEL_SERVER_FAILURE, server.message)
+    }
+
+    @Test
     fun `request succeeds by default`() {
         val client = StubConnectionApiClient(emptyMap())
 

@@ -35,6 +35,12 @@ run_wire_with_stdin() {
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
+@test "Given no session, when me runs, then access is denied" {
+  run_wire me
+  assert_status 11
+  [[ "${output}" == *"Run wire login to re-authenticate"* ]]
+}
+
 @test "Given no session, when presence runs, then access is denied" {
   run_wire presence
   assert_status 11
@@ -115,6 +121,23 @@ run_wire_with_stdin() {
   [[ "${output}" == *"Email: jane@example.com"* ]]
   [[ "${output}" == *"Presence: online"* ]]
   [[ "${output}" != *"Run wire login"* ]]
+}
+
+@test "Given persisted session, when me runs, then current profile is shown" {
+  export WIRE_STUB_MODE="login_ok"
+  run_wire login --email "jane@example.com" --password "CorrectHorse1"
+  assert_status 0
+
+  run_wire profile
+  assert_status 0
+  profile_output="${output}"
+
+  run_wire me
+  assert_status 0
+  [ "${output}" = "${profile_output}" ]
+  [[ "${output}" == *"Name: Jane Doe"* ]]
+  [[ "${output}" == *"Email: jane@example.com"* ]]
+  [[ "${output}" == *"Presence: online"* ]]
 }
 
 @test "Given multiple persisted valid sessions, when profile runs, then active account selection is deterministic" {

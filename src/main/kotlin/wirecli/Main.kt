@@ -11,6 +11,7 @@ import wirecli.commands.DownloadCommand
 import wirecli.commands.LoginCommand
 import wirecli.commands.LogoutCommand
 import wirecli.commands.MessageCommand
+import wirecli.commands.MeCommand
 import wirecli.commands.PresenceCommand
 import wirecli.commands.ProfileCommand
 import wirecli.commands.RootCommand
@@ -84,6 +85,7 @@ fun main(args: Array<String>) {
                     localBackupServiceProvider = { runtime.localBackupService },
                 ),
                 ProfileCommand { runtime.profileService },
+                MeCommand { runtime.profileService },
                 PresenceCommand { runtime.presenceService },
                 DeviceCommand { runtime.deviceService },
                 ConversationCommand { runtime.conversationService },

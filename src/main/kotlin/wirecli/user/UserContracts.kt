@@ -18,6 +18,10 @@ enum class UserConnectionState(val value: String) {
     ;
 
     override fun toString(): String = value
+
+    companion object {
+        fun fromValueOrNull(value: String): UserConnectionState? = entries.firstOrNull { it.value == value }
+    }
 }
 
 /**

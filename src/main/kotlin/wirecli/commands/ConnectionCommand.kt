@@ -13,7 +13,6 @@ import wirecli.connection.ConnectionActionResult
 import wirecli.connection.ConnectionListResult
 import wirecli.connection.ConnectionService
 import wirecli.connection.ConnectionView
-import wirecli.user.UserConnectionState
 
 private val logger = KotlinLogging.logger {}
 
@@ -180,10 +179,6 @@ class ConnectionListCommand(
         name = "list",
         help = "List all connections.",
     ) {
-    private val filter by option(
-        "--filter",
-        help = "Filter by status: pending, sent, accepted, blocked, ignored, cancelled",
-    )
     private val json by option("--json", help = "Output as JSON").flag(default = false)
     private val jsonLines by option("--json-lines", help = "Output as JSON lines").flag(default = false)
 
@@ -192,20 +187,7 @@ class ConnectionListCommand(
 
         when (val result = connectionService.listConnections()) {
             is ConnectionListResult.Success -> {
-                var connections = result.view.connections
-
-                if (filter != null) {
-                    val parsedFilter = UserConnectionState.fromValueOrNull(filter!!)
-                    if (parsedFilter == null) {
-                        echo(
-                            "Invalid filter value: '$filter'. Valid: ${UserConnectionState.entries.joinToString(", ") { it.value }}",
-                            err = true,
-                        )
-                        throw ProgramResult(ExitCodes.VALIDATION_ERROR)
-                    }
-                    connections = connections.filter { it.status == parsedFilter }
-                }
-
+                val connections = result.view.connections
                 val output =
                     when {
                         jsonLines -> toJsonLines(connections)

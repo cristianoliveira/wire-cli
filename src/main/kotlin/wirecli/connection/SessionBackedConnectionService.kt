@@ -47,6 +47,42 @@ class SessionBackedConnectionService(
         }
     }
 
+    override fun ignoreRequest(userId: String): ConnectionActionResult {
+        logger.debug { "Service operation: ignoreRequest($userId) started" }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return ConnectionActionResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for ignoreRequest($userId)" } }
+
+        return apiClient.ignoreRequest(session, userId).also { result ->
+            when (result) {
+                is ConnectionActionResult.Success -> logger.info { "Service: ignored connection request from $userId" }
+                is ConnectionActionResult.Failure -> logger.warn { "Service: failed to ignore request from $userId" }
+            }
+        }
+    }
+
+    override fun cancelRequest(userId: String): ConnectionActionResult {
+        logger.debug { "Service operation: cancelRequest($userId) started" }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return ConnectionActionResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for cancelRequest($userId)" } }
+
+        return apiClient.cancelRequest(session, userId).also { result ->
+            when (result) {
+                is ConnectionActionResult.Success -> logger.info { "Service: cancelled connection request to $userId" }
+                is ConnectionActionResult.Failure -> logger.warn { "Service: failed to cancel request to $userId" }
+            }
+        }
+    }
+
     override fun blockUser(userId: String): ConnectionActionResult {
         logger.debug { "Service operation: blockUser($userId) started" }
 

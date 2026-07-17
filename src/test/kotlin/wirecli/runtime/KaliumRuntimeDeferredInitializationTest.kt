@@ -269,6 +269,20 @@ private object NoopConnectionApiClient : ConnectionApiClient {
         return ConnectionActionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 
+    override fun ignoreRequest(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult {
+        return ConnectionActionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun cancelRequest(
+        session: AuthSession,
+        userId: String,
+    ): ConnectionActionResult {
+        return ConnectionActionResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
     override fun blockUser(
         session: AuthSession,
         userId: String,

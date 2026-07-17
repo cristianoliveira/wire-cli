@@ -11,8 +11,10 @@ import wirecli.sync.SyncService
 import wirecli.sync.SyncStatus
 import wirecli.sync.SyncStatusResult
 import wirecli.sync.SyncStatusView
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class DaemonCommandTest {
     @Test
@@ -70,6 +72,53 @@ class DaemonCommandTest {
         assertEquals("unable to start sync", result.stderr.trim())
     }
 
+    @Test
+    fun `daemon records update timestamp after sync starts`() {
+        var awaitedTermination = false
+        val service =
+            FakeSyncService(
+                startResult =
+                    SyncStatusResult.Success(
+                        SyncStatusView(
+                            status = SyncStatus.READY,
+                            metrics = HealthMetrics(0L, 0, 100, "2026-07-14T10:00:00Z"),
+                        ),
+                    ),
+            )
+        val endpoint = FakeDaemonProcessMarker()
+        val command =
+            DaemonCommand(
+                syncServiceProvider = { service },
+                processMarkerProvider = { endpoint },
+                awaitTermination = { awaitedTermination = true },
+            )
+
+        execute(command)
+
+        assertEquals(1, endpoint.recordUpdateCalls, "daemon should record an update after sync starts")
+        assertNotNull(endpoint.lastUpdateTimestamp(), "last update timestamp should be set")
+    }
+
+    @Test
+    fun `daemon does not record update when sync fails to start`() {
+        var awaitedTermination = false
+        val service =
+            FakeSyncService(
+                startResult = SyncStatusResult.Failure("unable to start sync", 12),
+            )
+        val endpoint = FakeDaemonProcessMarker()
+        val command =
+            DaemonCommand(
+                syncServiceProvider = { service },
+                processMarkerProvider = { endpoint },
+                awaitTermination = { awaitedTermination = true },
+            )
+
+        execute(command)
+
+        assertEquals(0, endpoint.recordUpdateCalls, "no update recorded on sync failure")
+    }
+
     private fun execute(command: DaemonCommand): ExecutionResult {
         val stdoutBuffer = java.io.ByteArrayOutputStream()
         val stderrBuffer = java.io.ByteArrayOutputStream()
@@ -104,12 +153,21 @@ class DaemonCommandTest {
     private class FakeDaemonProcessMarker : DaemonProcessMarker {
         var startCalls = 0
         var closeCalls = 0
+        var recordUpdateCalls = 0
+        private var recordedTimestamp: Instant? = null
 
         override fun start() {
             startCalls++
         }
 
         override fun isRunning(): Boolean = true
+
+        override fun recordUpdate() {
+            recordUpdateCalls++
+            recordedTimestamp = Instant.now()
+        }
+
+        override fun lastUpdateTimestamp(): Instant? = recordedTimestamp
 
         override fun close() {
             closeCalls++

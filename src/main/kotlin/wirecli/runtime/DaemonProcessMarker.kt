@@ -3,9 +3,12 @@ package wirecli.runtime
 import wirecli.message.DaemonStatus
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 
 interface DaemonProcessMarker : DaemonStatus, AutoCloseable {
     fun start()
+
+    fun recordUpdate()
 }
 
 class FileDaemonProcessMarker(
@@ -15,6 +18,9 @@ class FileDaemonProcessMarker(
         ProcessHandle.of(processId).map(ProcessHandle::isAlive).orElse(false)
     },
 ) : DaemonProcessMarker {
+    private val updateTimestampPath: Path
+        get() = markerPath.parent.resolve("${markerPath.fileName}-last-update")
+
     override fun start() {
         Files.createDirectories(markerPath.parent)
         Files.writeString(markerPath, currentProcessId.toString())
@@ -26,6 +32,16 @@ class FileDaemonProcessMarker(
 
         Files.deleteIfExists(markerPath)
         return false
+    }
+
+    override fun lastUpdateTimestamp(): Instant? {
+        val text = runCatching { Files.readString(updateTimestampPath).trim() }.getOrNull()
+        return text?.let { runCatching { Instant.parse(it) }.getOrNull() }
+    }
+
+    override fun recordUpdate() {
+        Files.createDirectories(updateTimestampPath.parent)
+        Files.writeString(updateTimestampPath, Instant.now().toString())
     }
 
     override fun close() {

@@ -1,7 +1,11 @@
 package wirecli.message
 
+import java.time.Instant
+
 fun interface DaemonStatus {
     fun isRunning(): Boolean
+
+    fun lastUpdateTimestamp(): Instant? = null
 }
 
 class DaemonBackedMessageService(

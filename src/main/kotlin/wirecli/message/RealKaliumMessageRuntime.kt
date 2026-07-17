@@ -3,6 +3,7 @@ package wirecli.message
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.conversation.Conversation
 import com.wire.kalium.logic.data.id.ConversationId
+import com.wire.kalium.logic.data.message.AssetContent
 import com.wire.kalium.logic.data.message.Message
 import com.wire.kalium.logic.data.message.MessageContent
 import com.wire.kalium.logic.data.user.UserId
@@ -609,17 +610,13 @@ internal class SdkKaliumMessageRuntime(
 
 private fun mapFetchedMessages(result: List<Message>?): List<ConversationMessage> {
     return result
-        ?.mapNotNull { message -> message.toConversationMessageOrNull() }
+        ?.map { message -> message.toConversationMessage() }
         ?.sortedWith(compareBy<ConversationMessage> { it.timestamp }.thenBy { it.id })
         ?: emptyList()
 }
 
-private fun Message.toConversationMessageOrNull(): ConversationMessage? {
-    val text =
-        when (val messageContent = content) {
-            is MessageContent.Text -> messageContent.value
-            else -> return null
-        }
+private fun Message.toConversationMessage(): ConversationMessage {
+    val contentText = renderContent(content, id)
 
     val senderDisplayName =
         when (this) {
@@ -633,8 +630,170 @@ private fun Message.toConversationMessageOrNull(): ConversationMessage? {
         senderId = senderUserId.toString(),
         senderName = senderDisplayName ?: sender?.name ?: senderUserId.toString(),
         timestamp = date.toString(),
-        content = text,
+        content = contentText,
     )
+}
+
+@Suppress("ComplexMethod", "LongMethod")
+private fun renderContent(
+    content: MessageContent,
+    messageId: String,
+): String {
+    return when (content) {
+        is MessageContent.Text -> content.value
+
+        is MessageContent.Asset -> {
+            val assetContent = content.value
+            val name = assetContent.name ?: assetContent.remoteData.assetId.take(12)
+            val category = assetCategory(assetContent.mimeType)
+            "[$category $name  ${assetContent.remoteData.assetId}]  msg:$messageId"
+        }
+
+        is MessageContent.RestrictedAsset -> {
+            val name = content.name.ifBlank { "?" }
+            "[restricted: $name]  msg:$messageId"
+        }
+
+        is MessageContent.Knock -> if (content.hotKnock) "[hot knock]" else "[knock]"
+
+        is MessageContent.Location -> {
+            val label = content.name ?: "${content.latitude}, ${content.longitude}"
+            "[location: $label]"
+        }
+
+        is MessageContent.Multipart -> {
+            val textPart = content.value?.let { "$it " }.orEmpty()
+            val attachmentParts =
+                content.attachments.joinToString(" ") { attachment ->
+                    when (attachment) {
+                        is AssetContent -> {
+                            val assetId = attachment.remoteData.assetId
+                            val name = attachment.name ?: assetId.take(12)
+                            val category = assetCategory(attachment.mimeType)
+                            "[$category $name  $assetId]"
+                        }
+                        else -> "[attachment]"
+                    }
+                }
+            "$textPart$attachmentParts  msg:$messageId"
+        }
+
+        is MessageContent.Composite -> {
+            val text = content.textContent?.value ?: ""
+            val buttons = content.buttonList.joinToString(", ") { it.text }
+            "[composite: $text] [$buttons]  msg:$messageId"
+        }
+
+        is MessageContent.FailedDecryption -> "[encrypted message]"
+
+        is MessageContent.Unknown -> {
+            val label = content.typeName ?: "unknown"
+            "[$label]"
+        }
+
+        is MessageContent.MissedCall -> "[missed call]"
+
+        is MessageContent.ConversationRenamed -> "[renamed conversation to \"${content.conversationName}\"]"
+
+        is MessageContent.MemberChange.Added ->
+            "[${content.members.joinToString(", ")} added]"
+
+        is MessageContent.MemberChange.Removed ->
+            "[${content.members.joinToString(", ")} removed]"
+
+        is MessageContent.MemberChange.RemovedFromTeam ->
+            "[${content.members.joinToString(", ")} removed from team]"
+
+        is MessageContent.MemberChange.FailedToAdd ->
+            "[${content.members.joinToString(", ")} failed to add: ${content.type}]"
+
+        is MessageContent.MemberChange.CreationAdded ->
+            "[${content.members.joinToString(", ")} added at creation]"
+
+        is MessageContent.MemberChange.FederationRemoved ->
+            "[${content.members.joinToString(", ")} federation removed]"
+
+        is MessageContent.MemberChange.UserPromotedToAdmin ->
+            "[${content.members.joinToString(", ")} promoted to admin]"
+
+        is MessageContent.FederationStopped.Removed ->
+            "[federation stopped with ${content.domain}]"
+
+        is MessageContent.FederationStopped.ConnectionRemoved ->
+            "[federation connections removed: ${content.domainList.joinToString(", ")}]"
+
+        is MessageContent.ConversationProtocolChanged ->
+            "[protocol changed to ${content.protocol}]"
+
+        is MessageContent.ConversationMessageTimerChanged ->
+            "[message timer: ${content.messageTimer}]"
+
+        is MessageContent.ConversationReceiptModeChanged ->
+            "[read receipts: ${content.receiptMode}]"
+
+        is MessageContent.CryptoSessionReset -> "[crypto session reset]"
+        is MessageContent.HistoryLost -> "[history lost]"
+        is MessageContent.ConversationCreated -> "[conversation created]"
+        is MessageContent.ConversationStartedUnverifiedWarning -> "[unverified conversation]"
+        is MessageContent.ConversationDegradedMLS -> "[MLS degraded]"
+        is MessageContent.ConversationVerifiedMLS -> "[MLS verified]"
+        is MessageContent.ConversationDegradedProteus -> "[Proteus degraded]"
+        is MessageContent.ConversationVerifiedProteus -> "[Proteus verified]"
+        is MessageContent.MLSWrongEpochWarning -> "[MLS epoch warning]"
+
+        is MessageContent.TeamMemberRemoved -> "[${content.userName} removed from team]"
+
+        is MessageContent.NewConversationReceiptMode ->
+            "[receipt mode: ${content.receiptMode}]"
+
+        is MessageContent.NewConversationWithCellMessage ->
+            "[conversation with Cell]"
+
+        is MessageContent.NewConversationWithCellSelfDeleteDisabledMessage ->
+            "[Cell self-delete disabled]"
+
+        is MessageContent.ConversationAppsEnabledChanged ->
+            "[apps: ${if (content.isEnabled) "enabled" else "disabled"}]"
+
+        // Signaling and ephemeral messages — skip rendering
+        is MessageContent.DeleteMessage,
+        is MessageContent.DeleteForMe,
+        is MessageContent.Reaction,
+        is MessageContent.Receipt,
+        is MessageContent.TextEdited,
+        is MessageContent.LastRead,
+        is MessageContent.Calling,
+        is MessageContent.Cleared,
+        is MessageContent.Availability,
+        is MessageContent.ClientAction,
+        is MessageContent.Ignored,
+        is MessageContent.DataTransfer,
+        is MessageContent.InCallEmoji,
+        is MessageContent.ButtonAction,
+        is MessageContent.ButtonActionConfirmation,
+        is MessageContent.CompositeEdited,
+        is MessageContent.MultipartEdited,
+        is MessageContent.ConversationProtocolChangedDuringACall,
+        is MessageContent.HistoryLostProtocolChanged,
+        is MessageContent.LegalHold.ForConversation.Enabled,
+        is MessageContent.LegalHold.ForConversation.Disabled,
+        is MessageContent.LegalHold.ForMembers.Enabled,
+        is MessageContent.LegalHold.ForMembers.Disabled,
+        is MessageContent.History.ClientsRequest,
+        is MessageContent.History.ClientsResponse,
+        is MessageContent.History.NewClientAvailable,
+        -> ""
+    }
+}
+
+private fun assetCategory(mimeType: String): String {
+    return when {
+        mimeType.startsWith("image/") -> "image"
+        mimeType.startsWith("video/") -> "video"
+        mimeType.startsWith("audio/") -> "audio"
+        mimeType == "application/pdf" -> "pdf"
+        else -> "file"
+    }
 }
 
 private fun mapSearchResults(
@@ -642,12 +801,8 @@ private fun mapSearchResults(
     query: String,
 ): List<MessageSearchResult> {
     return result.mapNotNull { message ->
-        val text =
-            when (val messageContent = message.content) {
-                is MessageContent.Text -> messageContent.value
-                is MessageContent.System -> return@mapNotNull null
-                else -> return@mapNotNull null
-            }
+        val text = renderContent(message.content, message.id)
+        if (text.isBlank()) return@mapNotNull null
 
         val senderDisplayName = (message as? Message.Regular)?.senderUserName
 

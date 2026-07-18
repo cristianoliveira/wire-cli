@@ -9,12 +9,11 @@ on:
       - main
       - develop
 
-# Quick lane: linters and unit tests run as parallel jobs. Shares one Gradle
-# cache (keyed on gradle inputs) with the integration-tests workflow so the
-# Kalium cold build is paid once across runs.
+# Quick lane: linters and unit tests run as parallel jobs. All cache keys are
+# built at the step level because hashFiles() and runner.os are not available
+# in workflow-level env. GRADLE_USER_HOME is shared so the cache covers it.
 env:
   GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
-  GRADLE_CACHE_KEY: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/settings.gradle*', '**/gradle.lockfile', '**/libs.versions.toml') }}
 
 jobs:
   lint:
@@ -37,7 +36,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.gradle
-          key: ${{ env.GRADLE_CACHE_KEY }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/settings.gradle*', '**/gradle.lockfile', '**/libs.versions.toml') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
@@ -70,7 +69,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.gradle
-          key: ${{ env.GRADLE_CACHE_KEY }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/settings.gradle*', '**/gradle.lockfile', '**/libs.versions.toml') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 

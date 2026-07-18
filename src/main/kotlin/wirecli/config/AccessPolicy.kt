@@ -28,6 +28,9 @@ object AccessPolicyLoader {
         return Path.of(environment["HOME"] ?: ".", ".config", "wire", "config.yaml")
     }
 
+    /** Human-facing denial text. Intentionally omits the config file path so the file location is not surfaced. */
+    fun denialMessage(capability: String): String = "Access denied: '$capability' is not permitted by the access policy."
+
     fun load(path: Path = configPath()): AccessPolicy {
         if (!Files.exists(path)) return AccessPolicy()
 

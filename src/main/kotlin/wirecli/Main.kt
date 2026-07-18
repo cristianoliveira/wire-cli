@@ -48,9 +48,7 @@ fun main(args: Array<String>) {
     val accessPolicy = AccessPolicyLoader.load()
     val requiredCapability = CommandAccess.requiredCapability(args)
     if (requiredCapability != null && !accessPolicy.allows(requiredCapability)) {
-        System.err.println(
-            "Access denied: '$requiredCapability' is not allowed by ${AccessPolicyLoader.configPath()}.",
-        )
+        System.err.println(AccessPolicyLoader.denialMessage(requiredCapability))
         exitProcess(ACCESS_DENIED_EXIT_CODE)
     }
 

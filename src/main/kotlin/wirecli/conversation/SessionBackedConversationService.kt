@@ -117,4 +117,28 @@ class SessionBackedConversationService(
             }
         }
     }
+
+    override fun getMembers(conversationId: String): GetMembersResult {
+        logger.debug { "Service operation: getMembers($conversationId) started" }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return GetMembersResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for getMembers($conversationId)" } }
+
+        logger.debug { "Active session found, calling API client for members" }
+        return apiClient.getMembers(session, conversationId).also { result ->
+            when (result) {
+                is GetMembersResult.Success -> {
+                    logger.info { "Service: Retrieved ${result.view.members.size} member(s) for conversation $conversationId" }
+                }
+                is GetMembersResult.Failure ->
+                    logger.warn {
+                        "Service: Failed to get members for conversation $conversationId"
+                    }
+            }
+        }
+    }
 }

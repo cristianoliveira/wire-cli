@@ -179,4 +179,10 @@ class FakeConversationService(
                 message = "Not configured",
                 exitCode = ConversationExitCodes.SERVER_ERROR,
             )
+
+    override fun getMembers(conversationId: String): GetMembersResult =
+        GetMembersResult.Failure(
+            message = "Not configured",
+            exitCode = ConversationExitCodes.SERVER_ERROR,
+        )
 }

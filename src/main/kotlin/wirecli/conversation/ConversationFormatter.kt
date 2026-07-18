@@ -7,6 +7,11 @@ class ConversationFormatter {
         private const val TYPE_TRUNCATE_LENGTH = 14
         private const val STATUS_TRUNCATE_LENGTH = 9
         private const val TABLE_WIDTH = 105
+        private const val MEMBER_ID_WIDTH = 42
+        private const val MEMBER_NAME_WIDTH = 24
+        private const val MEMBER_HANDLE_WIDTH = 20
+        private const val MEMBER_ROLE_WIDTH = 10
+        private const val MEMBER_TABLE_WIDTH = 96
     }
 
     fun toTable(conversations: List<Conversation>): String {
@@ -102,6 +107,74 @@ class ConversationFormatter {
             |"memberCount":$memberCount,
             |"createdAt":"$createdAt",
             |"updatedAt":"$updatedAt"
+            |}
+            """.trimMargin().replace("\n", "")
+    }
+
+    fun toMembersTable(members: List<Member>): String {
+        if (members.isEmpty()) {
+            return "No members found."
+        }
+
+        val sb = StringBuilder()
+
+        sb.append(
+            String.format(
+                java.util.Locale.US,
+                "%-${MEMBER_ID_WIDTH}s %-${MEMBER_NAME_WIDTH}s %-${MEMBER_HANDLE_WIDTH}s %-${MEMBER_ROLE_WIDTH}s\n",
+                "ID",
+                "NAME",
+                "HANDLE",
+                "ROLE",
+            ),
+        )
+        sb.append("-".repeat(MEMBER_TABLE_WIDTH)).append("\n")
+
+        for (member in members) {
+            val id = member.id.take(MEMBER_ID_WIDTH)
+            val name = member.name.take(MEMBER_NAME_WIDTH)
+            val handle = (member.handle ?: "-").take(MEMBER_HANDLE_WIDTH)
+            val role = member.role.toString().take(MEMBER_ROLE_WIDTH)
+
+            sb.append(
+                String.format(
+                    java.util.Locale.US,
+                    "%-${MEMBER_ID_WIDTH}s %-${MEMBER_NAME_WIDTH}s %-${MEMBER_HANDLE_WIDTH}s %-${MEMBER_ROLE_WIDTH}s\n",
+                    id,
+                    name,
+                    handle,
+                    role,
+                ),
+            )
+        }
+
+        return sb.toString().trimEnd()
+    }
+
+    fun membersToJson(members: List<Member>): String {
+        if (members.isEmpty()) {
+            return "[]"
+        }
+
+        val jsonItems =
+            members
+                .map { buildMemberJsonObject(it) }
+                .joinToString(",")
+
+        return "[$jsonItems]"
+    }
+
+    private fun buildMemberJsonObject(member: Member): String {
+        val id = escapeJson(member.id)
+        val name = escapeJson(member.name)
+        val handle = escapeJson(member.handle ?: "")
+        val role = escapeJson(member.role.toString())
+
+        return """{
+            |"id":"$id",
+            |"name":"$name",
+            |"handle":"$handle",
+            |"role":"$role"
             |}
             """.trimMargin().replace("\n", "")
     }

@@ -19,6 +19,7 @@ class ConversationCommand(
             ConversationListCommand(conversationServiceProvider),
             ConversationSearchCommand(conversationServiceProvider),
             ConversationGetCommand(conversationServiceProvider),
+            ConversationMembersCommand(conversationServiceProvider),
         )
     }
 

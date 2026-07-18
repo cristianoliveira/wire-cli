@@ -194,6 +194,53 @@ class ConversationContractsTest {
     }
 
     @Test
+    fun `creates members list success result`() {
+        val members =
+            listOf(
+                Member(
+                    id = "user-1",
+                    name = "Alice",
+                    handle = "alice",
+                    role = MemberRole.ADMIN,
+                ),
+                Member(
+                    id = "user-2",
+                    name = "Bob",
+                    handle = null,
+                    role = MemberRole.MEMBER,
+                ),
+            )
+
+        val result = GetMembersResult.Success(view = MemberListView(members = members))
+
+        assertIs<GetMembersResult.Success>(result)
+        assertEquals(2, result.view.members.size)
+        assertEquals("user-1", result.view.members[0].id)
+        assertEquals("Alice", result.view.members[0].name)
+        assertEquals("alice", result.view.members[0].handle)
+        assertEquals(MemberRole.ADMIN, result.view.members[0].role)
+    }
+
+    @Test
+    fun `creates members list failure result`() {
+        val result =
+            GetMembersResult.Failure(
+                message = "Network error",
+                exitCode = 12,
+            )
+
+        assertIs<GetMembersResult.Failure>(result)
+        assertEquals("Network error", result.message)
+        assertEquals(12, result.exitCode)
+    }
+
+    @Test
+    fun `member role values are correct`() {
+        assertEquals("admin", MemberRole.ADMIN.value)
+        assertEquals("member", MemberRole.MEMBER.value)
+    }
+
+    @Test
     fun `conversation messages are non-empty`() {
         assertEquals(
             "Conversation not found. Check conversation ID and try again.",

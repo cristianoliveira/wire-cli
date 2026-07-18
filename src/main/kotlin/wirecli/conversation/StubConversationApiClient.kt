@@ -269,6 +269,73 @@ class StubConversationApiClient(
         }
     }
 
+    override fun getMembers(
+        session: AuthSession,
+        conversationId: String,
+    ): GetMembersResult {
+        val mode = environment["WIRE_STUB_MODE"]
+
+        return when (mode) {
+            "not_found" ->
+                GetMembersResult.Failure(
+                    message = ConversationMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = ConversationExitCodes.NOT_FOUND,
+                )
+
+            "server_error" ->
+                GetMembersResult.Failure(
+                    message = ConversationMessages.MEMBERS_SERVER_FAILURE,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+
+            "unauthorized" ->
+                GetMembersResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+            else -> {
+                val isGroupOrChannel =
+                    allConversations.any {
+                        it.id == conversationId &&
+                            (it.type == ConversationType.GROUP || it.type == ConversationType.TEAM_CHANNEL)
+                    }
+                if (!isGroupOrChannel) {
+                    return GetMembersResult.Failure(
+                        message = ConversationMessages.CONVERSATION_NOT_FOUND,
+                        exitCode = ConversationExitCodes.NOT_FOUND,
+                    )
+                }
+
+                val members =
+                    listOf(
+                        Member(
+                            id = "user-001@wire.com",
+                            name = "Alice Johnson",
+                            handle = "alice",
+                            role = MemberRole.ADMIN,
+                        ),
+                        Member(
+                            id = "user-002@wire.com",
+                            name = "Bob Smith",
+                            handle = "bob",
+                            role = MemberRole.MEMBER,
+                        ),
+                        Member(
+                            id = "user-003@wire.com",
+                            name = "Charlie Brown",
+                            handle = null,
+                            role = MemberRole.MEMBER,
+                        ),
+                    )
+
+                GetMembersResult.Success(
+                    view = MemberListView(members = members),
+                )
+            }
+        }
+    }
+
     override fun getMemberCount(
         session: AuthSession,
         conversationId: String,

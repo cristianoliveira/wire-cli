@@ -3,6 +3,7 @@ package wirecli.conversation
 import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.conversation.ConversationDetails
 import com.wire.kalium.logic.data.conversation.ConversationFilter
+import com.wire.kalium.logic.data.conversation.MemberDetails
 import com.wire.kalium.logic.data.id.ConversationId
 import com.wire.kalium.logic.data.user.UserId
 import com.wire.kalium.logic.feature.conversation.ObserveConversationDetailsUseCase
@@ -60,6 +61,39 @@ internal class SdkKaliumConversationRuntime(
                     }
 
                 ConversationStepResult.Success(conversationDetails)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
+                ConversationStepResult.Failure(categoryFromThrowable(error))
+            }
+        }
+    }
+
+    override fun getMembers(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationStepResult<List<MemberDetails>> {
+        val qualifiedId =
+            session.userId.toQualifiedIdOrNull()
+                ?: return ConversationStepResult.Failure(ConversationFailureCategory.UNAUTHORIZED)
+        activeSessionUserIds += qualifiedId
+
+        return runBlocking {
+            try {
+                val kaliumConvId =
+                    ConversationId(
+                        value = conversationId,
+                        domain = "wire.com",
+                    )
+
+                val members =
+                    coreLogic.sessionScope(qualifiedId) {
+                        conversations.observeConversationMembers(kaliumConvId)
+                            .firstOrNull()
+                            ?: emptyList()
+                    }
+
+                ConversationStepResult.Success(members)
             } catch (
                 @Suppress("TooGenericExceptionCaught") error: Throwable,
             ) {

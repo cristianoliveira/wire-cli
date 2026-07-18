@@ -170,6 +170,93 @@ class ConversationFormatterTest {
     }
 
     @Test
+    fun `toMembersTable returns empty message for empty list`() {
+        val result = formatter.toMembersTable(emptyList())
+
+        assertEquals("No members found.", result)
+    }
+
+    @Test
+    fun `toMembersTable formats members as ASCII table`() {
+        val members =
+            listOf(
+                Member(
+                    id = "user-001@wire.com",
+                    name = "Alice Johnson",
+                    handle = "alice",
+                    role = MemberRole.ADMIN,
+                ),
+                Member(
+                    id = "user-002@wire.com",
+                    name = "Bob Smith",
+                    handle = null,
+                    role = MemberRole.MEMBER,
+                ),
+            )
+
+        val result = formatter.toMembersTable(members)
+
+        assertTrue(result.contains("ID"))
+        assertTrue(result.contains("NAME"))
+        assertTrue(result.contains("HANDLE"))
+        assertTrue(result.contains("ROLE"))
+        assertTrue(result.contains("user-001@wire.com"))
+        assertTrue(result.contains("Alice Johnson"))
+        assertTrue(result.contains("alice"))
+        assertTrue(result.contains("admin"))
+        assertTrue(result.contains("user-002@wire.com"))
+        assertTrue(result.contains("Bob Smith"))
+        assertTrue(result.contains("-"))
+        assertTrue(result.contains("member"))
+    }
+
+    @Test
+    fun `membersToJson returns empty array for empty list`() {
+        val result = formatter.membersToJson(emptyList())
+
+        assertEquals("[]", result)
+    }
+
+    @Test
+    fun `membersToJson formats members as JSON array`() {
+        val members =
+            listOf(
+                Member(
+                    id = "user-001@wire.com",
+                    name = "Alice",
+                    handle = "alice",
+                    role = MemberRole.ADMIN,
+                ),
+            )
+
+        val result = formatter.membersToJson(members)
+
+        assertTrue(result.startsWith("["))
+        assertTrue(result.endsWith("]"))
+        assertTrue(result.contains("\"id\":\"user-001@wire.com\""))
+        assertTrue(result.contains("\"name\":\"Alice\""))
+        assertTrue(result.contains("\"handle\":\"alice\""))
+        assertTrue(result.contains("\"role\":\"admin\""))
+    }
+
+    @Test
+    fun `membersToJson handles null handle as empty string`() {
+        val members =
+            listOf(
+                Member(
+                    id = "user-001@wire.com",
+                    name = "Alice",
+                    handle = null,
+                    role = MemberRole.MEMBER,
+                ),
+            )
+
+        val result = formatter.membersToJson(members)
+
+        assertTrue(result.contains("\"handle\":\"\""))
+    }
+
+    @Test
     fun `toTable shows ID as first column with full 36-character UUID`() {
         val longId = "550e8400-e29b-41d4-a716-446655440000" // 36 chars (UUID length)
         val conversations =

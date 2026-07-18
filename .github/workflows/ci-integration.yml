@@ -1,4 +1,4 @@
-name: CI Build and Integration Tests
+name: CI integration tests
 
 on:
   push:
@@ -9,49 +9,14 @@ on:
       - main
       - develop
 
-# Unit tests and bats integration tests run as parallel jobs. Each builds what
-# it needs, but all jobs share one Gradle cache (keyed on gradle inputs) so the
-# expensive Kalium cold build happens once across runs, not per run.
+# Slow lane: installed-CLI integration tests via Bats. Shares one Gradle cache
+# (keyed on gradle inputs) with the quick-checks workflow so the Kalium cold
+# build is paid once across runs.
 env:
   GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
   GRADLE_CACHE_KEY: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/settings.gradle*', '**/gradle.lockfile', '**/libs.versions.toml') }}
 
 jobs:
-  unit-tests:
-    name: Build and unit tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Cache Gradle
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/.gradle
-          key: ${{ env.GRADLE_CACHE_KEY }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
-
-      - name: Build and run unit tests
-        run: ./gradlew --no-daemon test
-
-      - name: Upload unit test results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: unit-test-results
-          path: |
-            build/reports/tests/
-            build/test-results/
-
   integration-tests:
     name: Build and integration tests (bats)
     runs-on: ubuntu-latest

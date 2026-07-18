@@ -4,23 +4,28 @@ This directory contains the GitHub Actions CI configuration for the wire project
 
 ## Workflows
 
-Two workflows run on every push to `main` and on PRs targeting `main`/`develop`.
+CI is split into two pipelines by speed so quick feedback (linters and unit
+tests) is not blocked by the slower integration suite. Both pipelines run on
+every push to `main` and on PRs targeting `main`/`develop`, and they share one
+Gradle cache (keyed on gradle inputs) so the Kalium cold build is paid once
+across runs instead of every run.
 
-### `ci.yml` - Quick checks (parallel with the build/test workflow)
+### `ci.yml` - Quick checks
 
-Single job running `ktlintCheck` and `detekt`.
+Fast lane. Two parallel jobs:
 
-### `ci-fast.yml` - Build and tests (two parallel jobs)
+1. **lint** - `ktlintCheck` and `detekt` (under the Nix dev shell)
+2. **unit-tests** - `./gradlew test`
 
-Both jobs share one Gradle cache (keyed on gradle inputs) so the Kalium cold
-build is paid once across runs instead of every run.
+### `ci-integration.yml` - Integration tests
 
-1. **unit-tests** - `./gradlew test`
-2. **integration-tests** - `./gradlew installDist`, smoke `wire --help`, then
+Slow lane. Builds the distributable and exercises it through Bats:
+
+1. **integration-tests** - `./gradlew installDist`, smoke `wire --help`, then
    Bats integration tests under the Nix dev shell
 
-Splitting the suite into parallel jobs cut wall-clock from ~30 min (single
-sequential job) toward `max(unit, integration)`.
+Splitting the suite by speed lane cut wall-clock from ~30 min (single
+sequential job) toward `max(quick lane, integration)`.
 
 ### Nix Integration
 

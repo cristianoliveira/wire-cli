@@ -72,6 +72,19 @@ class AccessPolicyTest {
     }
 
     @Test
+    fun `denial message reports capability without revealing the config file path`() {
+        val message = AccessPolicyLoader.denialMessage("backup.export")
+
+        assertTrue(message.contains("backup.export"), "denial message should name the denied capability")
+        assertFalse(
+            message.contains(AccessPolicyLoader.configPath().toString()),
+            "denial message should not expose the config file location",
+        )
+        assertFalse(message.contains("config.yaml"), "denial message should not name the config file")
+        assertFalse(message.contains(".config"), "denial message should not hint at the config directory")
+    }
+
+    @Test
     fun `resolves xdg config path and environment override`() {
         assertEquals(
             java.nio.file.Path.of("/tmp/config.yaml"),

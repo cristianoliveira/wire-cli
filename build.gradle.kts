@@ -105,3 +105,10 @@ detekt {
 kotlin {
     jvmToolchain(21)
 }
+
+tasks.test {
+    // Unit tests use deterministic stubs (no real network or fixed ports), so
+    // spreading test classes across all CPU forks is safe and cuts CI time
+    // from serial single-fork execution. Each fork runs a disjoint set of classes.
+    maxParallelForks = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+}

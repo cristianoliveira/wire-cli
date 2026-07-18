@@ -51,6 +51,26 @@ data class MessageSearchResult(
     val matchSnippet: String,
 )
 
+data class RecentMessageItem(
+    val conversationId: String,
+    val conversationName: String,
+    val messageId: String,
+    val senderId: String,
+    val senderName: String,
+    val timestamp: String,
+    val content: String,
+)
+
+data class RecentMessagesView(
+    val messages: List<RecentMessageItem>,
+)
+
+sealed interface ListRecentMessagesResult {
+    data class Success(val view: RecentMessagesView) : ListRecentMessagesResult
+
+    data class Failure(val message: String, val exitCode: Int) : ListRecentMessagesResult
+}
+
 sealed interface SearchMessagesResult {
     data class Success(val results: List<MessageSearchResult>) : SearchMessagesResult
 
@@ -202,6 +222,16 @@ interface MessageService {
 
     fun observeMessages(conversationId: String): Flow<FetchMessagesResult> = flowOf(fetchMessages(conversationId))
 
+    fun listRecentMessages(
+        limit: Int = 10,
+        receivedOnly: Boolean = false,
+        localOnly: Boolean = false,
+    ): ListRecentMessagesResult =
+        ListRecentMessagesResult.Failure(
+            message = MessageUserMessages.RECENT_LIST_UNSUPPORTED,
+            exitCode = MessageExitCodes.SERVER_ERROR,
+        )
+
     fun searchMessages(
         query: String,
         conversationId: String? = null,
@@ -265,6 +295,9 @@ internal object MessageUserMessages {
     const val SEARCH_NETWORK_ERROR = "network error while searching messages"
     const val SEARCH_SERVER_ERROR = "server error while searching messages"
     const val SEARCH_EMPTY_QUERY = "search query cannot be blank"
+    const val RECENT_LIST_NETWORK_ERROR = "network error while listing recent messages"
+    const val RECENT_LIST_SERVER_ERROR = "server error while listing recent messages"
+    const val RECENT_LIST_UNSUPPORTED = "recent message listing is not supported by this backend"
     const val REACTION_NETWORK_ERROR = "network error while toggling reaction"
     const val REACTION_SERVER_ERROR = "server error while toggling reaction"
     const val REACTION_UNKNOWN_ERROR = "unknown error while toggling reaction"

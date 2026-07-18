@@ -2,19 +2,25 @@
 
 This directory contains the GitHub Actions CI configuration for the wire project.
 
-## Workflow: CI
+## Workflows
 
-The `ci.yml` workflow runs on every push to `main` and on all pull requests targeting `main`.
+Two workflows run on every push to `main` and on PRs targeting `main`/`develop`.
 
-### Jobs
+### `ci.yml` - Quick checks (parallel with the build/test workflow)
 
-The workflow consists of 5 parallel jobs:
+Single job running `ktlintCheck` and `detekt`.
 
-1. **format-check** - Runs ktlint to verify code formatting
-2. **lint** - Runs detekt for static analysis
-3. **test-unit** - Executes unit tests via Gradle
-4. **test-integration** - Executes Bats integration tests
-5. **build** - Verifies the project builds successfully with Nix
+### `ci-fast.yml` - Build and tests (two parallel jobs)
+
+Both jobs share one Gradle cache (keyed on gradle inputs) so the Kalium cold
+build is paid once across runs instead of every run.
+
+1. **unit-tests** - `./gradlew test`
+2. **integration-tests** - `./gradlew installDist`, smoke `wire --help`, then
+   Bats integration tests under the Nix dev shell
+
+Splitting the suite into parallel jobs cut wall-clock from ~30 min (single
+sequential job) toward `max(unit, integration)`.
 
 ### Nix Integration
 
@@ -43,8 +49,8 @@ The CI enforces the following quality gates (matching the Makefile):
 - **Format**: `./gradlew ktlintCheck`
 - **Lint**: `./gradlew detekt`
 - **Unit Tests**: `./gradlew test`
-- **Integration Tests**: `./gradlew batsTest`
-- **Build**: `nix build .#cli`
+- **Integration Tests**: `bats --print-output-on-failure test/bats` (via the Nix dev shell)
+- **Build**: `./gradlew installDist`
 
 ### Test Results
 

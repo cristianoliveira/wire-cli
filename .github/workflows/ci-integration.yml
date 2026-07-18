@@ -9,12 +9,12 @@ on:
       - main
       - develop
 
-# Slow lane: installed-CLI integration tests via Bats. Shares one Gradle cache
-# (keyed on gradle inputs) with the quick-checks workflow so the Kalium cold
-# build is paid once across runs.
+# Slow lane: installed-CLI integration tests via Bats. All cache keys are built
+# at the step level because hashFiles() and runner.os are not available in
+# workflow-level env. GRADLE_USER_HOME is shared with the quick-checks
+# workflow so the Kalium cold build is paid once across runs.
 env:
   GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
-  GRADLE_CACHE_KEY: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/settings.gradle*', '**/gradle.lockfile', '**/libs.versions.toml') }}
 
 jobs:
   integration-tests:
@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.gradle
-          key: ${{ env.GRADLE_CACHE_KEY }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/settings.gradle*', '**/gradle.lockfile', '**/libs.versions.toml') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 

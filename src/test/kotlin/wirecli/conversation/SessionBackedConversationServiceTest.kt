@@ -125,6 +125,63 @@ class SessionBackedConversationServiceTest {
 
         assertEquals(expected, result)
     }
+
+    @Test
+    fun `returns unauthorized when no session is persisted for getMembers`() {
+        val service =
+            SessionBackedConversationService(
+                sessionStore = FakeSessionStore(activeSession = null),
+                apiClient =
+                    FakeConversationApiClient(
+                        membersResult =
+                            GetMembersResult.Failure(
+                                message = "Not found",
+                                exitCode = ConversationExitCodes.NOT_FOUND,
+                            ),
+                    ),
+            )
+
+        val result = service.getMembers("conv-001")
+
+        val failure = assertIs<GetMembersResult.Failure>(result)
+        assertEquals(AuthMessages.noActiveSession(), failure.message)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `returns backend members result for persisted session`() {
+        val expected: GetMembersResult =
+            GetMembersResult.Success(
+                MemberListView(
+                    members =
+                        listOf(
+                            Member(
+                                id = "user-001@wire.com",
+                                name = "Alice",
+                                handle = "alice",
+                                role = MemberRole.ADMIN,
+                            ),
+                        ),
+                ),
+            )
+        val service =
+            SessionBackedConversationService(
+                sessionStore =
+                    FakeSessionStore(
+                        activeSession =
+                            AuthSession(
+                                userId = "alice@example.com",
+                                accessToken = "token-123",
+                                server = null,
+                            ),
+                    ),
+                apiClient = FakeConversationApiClient(membersResult = expected),
+            )
+
+        val result = service.getMembers("conv-001")
+
+        assertEquals(expected, result)
+    }
 }
 
 // Fake implementations for testing
@@ -139,6 +196,7 @@ class FakeConversationApiClient(
     private val getResult: GetConversationResult? = null,
     private val createResult: CreateConversationResult? = null,
     private val deleteResult: DeleteConversationResult? = null,
+    private val membersResult: GetMembersResult? = null,
 ) : ConversationApiClient {
     override fun listConversations(session: AuthSession): ListConversationsResult =
         listResult
@@ -184,6 +242,16 @@ class FakeConversationApiClient(
     ): GetConversationResult =
         getResult
             ?: GetConversationResult.Failure(
+                message = "Not configured",
+                exitCode = ConversationExitCodes.SERVER_ERROR,
+            )
+
+    override fun getMembers(
+        session: AuthSession,
+        conversationId: String,
+    ): GetMembersResult =
+        membersResult
+            ?: GetMembersResult.Failure(
                 message = "Not configured",
                 exitCode = ConversationExitCodes.SERVER_ERROR,
             )

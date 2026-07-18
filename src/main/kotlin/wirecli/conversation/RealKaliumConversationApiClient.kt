@@ -1,6 +1,7 @@
 package wirecli.conversation
 
 import com.wire.kalium.logic.data.conversation.ConversationDetails
+import com.wire.kalium.logic.data.conversation.MemberDetails
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.Instant
 import wirecli.auth.AuthMessages
@@ -94,6 +95,29 @@ internal class RealKaliumConversationApiClient(
         ).also { logger.warn { "Conversation deletion not yet implemented with real backend" } }
     }
 
+    override fun getMembers(
+        session: AuthSession,
+        conversationId: String,
+    ): GetMembersResult {
+        logger.info { "Getting members for conversation: $conversationId" }
+        logger.debug { "API call: GET /conversations/$conversationId/members" }
+
+        return when (val result = runtime.getMembers(session, conversationId)) {
+            is ConversationStepResult.Success -> {
+                val members = mapMembersInfoToDomain(result.value)
+                logger.info { "Successfully retrieved ${members.size} member(s) for conversation: $conversationId" }
+                GetMembersResult.Success(
+                    MemberListView(members = members),
+                )
+            }
+
+            is ConversationStepResult.Failure -> {
+                logger.warn { "Failed to get members for conversation $conversationId: ${result.category}" }
+                result.toGetMembersFailure()
+            }
+        }
+    }
+
     override fun getMemberCount(
         session: AuthSession,
         conversationId: String,
@@ -102,6 +126,28 @@ internal class RealKaliumConversationApiClient(
         logger.debug { "API call: GET /conversations/$conversationId (member count)" }
         return getConversation(session, conversationId)
     }
+
+    // ============ Domain Mapping ============
+
+    /**
+     * Maps Kalium MemberDetails list to domain Member list.
+     */
+    private fun mapMembersInfoToDomain(details: List<MemberDetails>): List<Member> =
+        details.map { detail ->
+            Member(
+                id = detail.user.id.toLogString(),
+                name = detail.user.name ?: detail.user.id.value,
+                handle = detail.user.handle,
+                role = mapKaliumMemberRole(detail.role),
+            )
+        }
+
+    private fun mapKaliumMemberRole(role: com.wire.kalium.logic.data.conversation.Conversation.Member.Role): MemberRole =
+        when (role) {
+            is com.wire.kalium.logic.data.conversation.Conversation.Member.Role.Admin -> MemberRole.ADMIN
+            is com.wire.kalium.logic.data.conversation.Conversation.Member.Role.Member -> MemberRole.MEMBER
+            is com.wire.kalium.logic.data.conversation.Conversation.Member.Role.Unknown -> MemberRole.MEMBER
+        }
 
     // ============ Helper Functions ============
 
@@ -233,6 +279,32 @@ private fun ConversationStepResult.Failure.toListConversationsFailure(): ListCon
 
                 else ->
                     ConversationMessages.SERVER_FAILURE
+            },
+        exitCode =
+            when (this.category) {
+                ConversationFailureCategory.UNAUTHORIZED -> ExitCodes.UNAUTHORIZED
+                ConversationFailureCategory.NETWORK -> ConversationExitCodes.NETWORK_ERROR
+                ConversationFailureCategory.NOT_FOUND -> ConversationExitCodes.NOT_FOUND
+                else -> ConversationExitCodes.SERVER_ERROR
+            },
+    )
+}
+
+private fun ConversationStepResult.Failure.toGetMembersFailure(): GetMembersResult.Failure {
+    return GetMembersResult.Failure(
+        message =
+            when (this.category) {
+                ConversationFailureCategory.UNAUTHORIZED ->
+                    AuthMessages.invalidOrExpiredSession()
+
+                ConversationFailureCategory.NETWORK ->
+                    ConversationMessages.MEMBERS_NETWORK_FAILURE
+
+                ConversationFailureCategory.NOT_FOUND ->
+                    ConversationMessages.CONVERSATION_NOT_FOUND
+
+                else ->
+                    ConversationMessages.MEMBERS_SERVER_FAILURE
             },
         exitCode =
             when (this.category) {

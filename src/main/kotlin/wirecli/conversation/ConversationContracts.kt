@@ -22,6 +22,23 @@ enum class ConversationStatus(val value: String) {
     override fun toString(): String = value
 }
 
+// Member role
+enum class MemberRole(val value: String) {
+    ADMIN("admin"),
+    MEMBER("member"),
+    ;
+
+    override fun toString(): String = value
+}
+
+// Member of a conversation
+data class Member(
+    val id: String,
+    val name: String,
+    val handle: String?,
+    val role: MemberRole,
+)
+
 // Comprehensive conversation data class
 data class Conversation(
     val id: String,
@@ -41,6 +58,11 @@ data class ConversationListView(
 // View model for single conversation
 data class ConversationDetailView(
     val conversation: Conversation,
+)
+
+// View model for members list
+data class MemberListView(
+    val members: List<Member>,
 )
 
 // Sealed interface for list conversations result
@@ -71,6 +93,13 @@ sealed interface DeleteConversationResult {
     data class Failure(val message: String, val exitCode: Int) : DeleteConversationResult
 }
 
+// Sealed interface for get members result
+sealed interface GetMembersResult {
+    data class Success(val view: MemberListView) : GetMembersResult
+
+    data class Failure(val message: String, val exitCode: Int) : GetMembersResult
+}
+
 // API Client interface defining contract for conversation operations
 interface ConversationApiClient {
     fun listConversations(session: AuthSession): ListConversationsResult
@@ -95,6 +124,11 @@ interface ConversationApiClient {
         session: AuthSession,
         conversationId: String,
     ): GetConversationResult
+
+    fun getMembers(
+        session: AuthSession,
+        conversationId: String,
+    ): GetMembersResult
 }
 
 // Service interface for conversation operations
@@ -111,6 +145,8 @@ interface ConversationService {
     fun deleteConversation(conversationId: String): DeleteConversationResult
 
     fun getMemberCount(conversationId: String): GetConversationResult
+
+    fun getMembers(conversationId: String): GetMembersResult
 }
 
 // Exit codes for conversation operations
@@ -139,6 +175,10 @@ internal object ConversationMessages {
     const val DELETE_UNKNOWN_FAILURE = "Conversation deletion failed unexpectedly. Retry and check your setup."
 
     const val INVALID_INPUT = "Invalid conversation name or parameters provided."
+
+    const val MEMBERS_NETWORK_FAILURE = "Members fetch failed: network is unreachable. Check your connection and retry."
+    const val MEMBERS_SERVER_FAILURE = "Members service is unavailable. Retry later or check server settings."
+    const val MEMBERS_UNKNOWN_FAILURE = "Members operation failed unexpectedly. Retry and check your setup."
 }
 
 // Conversation-specific exceptions for error handling
@@ -185,6 +225,11 @@ internal interface ConversationRuntime {
         session: AuthSession,
         conversationId: String,
     ): ConversationStepResult<com.wire.kalium.logic.data.conversation.ConversationDetails>
+
+    fun getMembers(
+        session: AuthSession,
+        conversationId: String,
+    ): ConversationStepResult<List<com.wire.kalium.logic.data.conversation.MemberDetails>>
 
     fun close() {
         shutdown()

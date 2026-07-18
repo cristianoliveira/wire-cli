@@ -64,4 +64,15 @@ class AuthGuardedConversationService(
                 )
         }
     }
+
+    override fun getMembers(conversationId: String): GetMembersResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.getMembers(conversationId)
+            is AuthResult.Failure ->
+                GetMembersResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
 }

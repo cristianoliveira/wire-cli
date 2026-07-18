@@ -90,5 +90,7 @@ class ConversationSearchCommandTest {
         override fun deleteConversation(conversationId: String) = DeleteConversationResult.Failure("unsupported", 1)
 
         override fun getMemberCount(conversationId: String) = getConversation(conversationId)
+
+        override fun getMembers(conversationId: String) = wirecli.conversation.GetMembersResult.Failure("unsupported", 1)
     }
 }

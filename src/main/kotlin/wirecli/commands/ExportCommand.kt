@@ -5,9 +5,11 @@ import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import wirecli.exporting.ExportInput
+import wirecli.exporting.ExportOptions
 import wirecli.exporting.ExportResult
 import wirecli.exporting.ExportService
 import wirecli.importing.ImportSource
@@ -23,6 +25,10 @@ class ExportCommand(private val serviceProvider: () -> ExportService) : CliktCom
     private val format by option("--format", help = "Output format (jsonl)").required()
     private val destination by option("--destination", help = "Output directory").required()
     private val password by option("--password")
+    private val includeNames by option(
+        "--include-names",
+        help = "Resolve conversation and sender names in messages.jsonl",
+    ).flag(default = false)
 
     override fun run() {
         val source = ImportSource.fromCliName(sourceName)
@@ -31,7 +37,7 @@ class ExportCommand(private val serviceProvider: () -> ExportService) : CliktCom
             throw ProgramResult(1)
         }
         val exportInput = input?.let { ExportInput.ExternalBackup(Path(it)) } ?: ExportInput.LocalCache
-        when (val result = serviceProvider().export(exportInput, source, Path(destination), password)) {
+        when (val result = serviceProvider().export(exportInput, source, Path(destination), password, ExportOptions(includeNames))) {
             is ExportResult.Success ->
                 echo(
                     "Exported ${result.conversations} conversations, ${result.messages} messages, " +

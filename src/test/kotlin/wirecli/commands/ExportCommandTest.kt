@@ -2,6 +2,7 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
 import wirecli.exporting.ExportInput
+import wirecli.exporting.ExportOptions
 import wirecli.exporting.ExportResult
 import wirecli.exporting.ExportService
 import wirecli.importing.ImportSource
@@ -35,18 +36,36 @@ class ExportCommandTest {
 
         assertEquals(0, result.exitCode)
         assertEquals(ExportInput.LocalCache, service.input)
+        assertEquals(ExportOptions.DEFAULT, service.options)
+    }
+
+    @Test
+    fun `include-names flag threads resolver option to service`() {
+        val service = FakeExportService(ExportResult.Success(1, 2, 3, Path("out")))
+
+        val result =
+            execute(
+                ExportCommand { service },
+                listOf("--format", "jsonl", "--destination", "out", "backup.wbu", "--include-names"),
+            )
+
+        assertEquals(0, result.exitCode)
+        assertEquals(ExportOptions(includeNames = true), service.options)
     }
 
     private class FakeExportService(private val result: ExportResult) : ExportService {
         var input: ExportInput? = null
+        var options: ExportOptions = ExportOptions.DEFAULT
 
         override fun export(
             input: ExportInput,
             source: ImportSource,
             destination: Path,
             password: String?,
+            options: ExportOptions,
         ): ExportResult {
             this.input = input
+            this.options = options
             return result
         }
     }

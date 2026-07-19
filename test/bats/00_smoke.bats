@@ -27,6 +27,16 @@ teardown() {
   [[ "${output}" == *"backup"* ]]
 }
 
+@test "Given built CLI, when no arguments are passed, then compact live state is shown" {
+  run_wire
+
+  assert_status 0
+  [[ "${output}" == *"wire:"* ]]
+  [[ "${output}" == *"next:"* ]]
+  # output must not be the full help (should be compact)
+  [[ "${#lines[@]}" -le 5 ]]
+}
+
 @test "Given built CLI, when running --help, then root description covers full CLI scope" {
   run_wire --help
 

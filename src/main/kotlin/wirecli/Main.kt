@@ -78,7 +78,7 @@ fun main(args: Array<String>) {
 
     try {
         logger.debug { "Setting up Wire CLI command structure" }
-        RootCommand()
+        RootCommand { runtime.profileService }
             .subcommands(
                 LoginCommand(runtime.authSessionService),
                 LogoutCommand(runtime.authSessionService),

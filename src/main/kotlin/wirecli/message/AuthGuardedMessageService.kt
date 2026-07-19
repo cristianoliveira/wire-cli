@@ -43,6 +43,21 @@ class AuthGuardedMessageService(
         }
     }
 
+    override fun listRecentMessages(
+        limit: Int,
+        receivedOnly: Boolean,
+        localOnly: Boolean,
+    ): ListRecentMessagesResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.listRecentMessages(limit, receivedOnly, localOnly)
+            is AuthResult.Failure ->
+                ListRecentMessagesResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
+
     override fun searchMessages(
         query: String,
         conversationId: String?,

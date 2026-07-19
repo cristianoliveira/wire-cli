@@ -236,6 +236,7 @@ private class DefaultKaliumRuntime(
                         SessionBackedMessageService(
                             sessionStore = sessionStore,
                             apiClient = backend.messageApiClient,
+                            conversationApiClient = backend.conversationApiClient,
                         ),
                 )
             },

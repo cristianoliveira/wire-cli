@@ -18,6 +18,7 @@ class MessageCommand(
         subcommands(
             MessageSendCommand(messageServiceProvider),
             MessageFetchCommand(messageServiceProvider),
+            MessageListCommand(messageServiceProvider),
             MessageWatchCommand(messageServiceProvider),
             MessageTypingCommand(messageServiceProvider),
             MessageSearchCommand(messageServiceProvider),

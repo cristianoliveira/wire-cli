@@ -6,12 +6,16 @@ import kotlinx.coroutines.flow.flowOf
 import wirecli.auth.AuthMessages
 import wirecli.auth.ExitCodes
 import wirecli.auth.SessionProvider
+import wirecli.conversation.ConversationApiClient
+import wirecli.conversation.ListConversationsResult
+import java.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
 class SessionBackedMessageService(
     private val sessionStore: SessionProvider,
     private val apiClient: MessageApiClient,
+    private val conversationApiClient: ConversationApiClient? = null,
     private val typingApiClient: MessageTypingApiClient? = apiClient as? MessageTypingApiClient,
     private val watchApiClient: MessageWatchApiClient? = apiClient as? MessageWatchApiClient,
 ) : MessageService {
@@ -107,6 +111,94 @@ class SessionBackedMessageService(
         }
         return watchApiClient?.observeMessages(session, conversationId)
             ?: flowOf(apiClient.fetchMessages(session, conversationId))
+    }
+
+    override fun listRecentMessages(
+        limit: Int,
+        receivedOnly: Boolean,
+        localOnly: Boolean,
+    ): ListRecentMessagesResult {
+        logger.debug {
+            "Service operation: listRecentMessages(limit=$limit, receivedOnly=$receivedOnly, localOnly=$localOnly) started"
+        }
+
+        val session =
+            sessionStore.readActiveSession()
+                ?: return ListRecentMessagesResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                ).also { logger.warn { "No active session found for listRecentMessages" } }
+
+        val conversationClient =
+            conversationApiClient
+                ?: return ListRecentMessagesResult.Failure(
+                    message = MessageUserMessages.RECENT_LIST_UNSUPPORTED,
+                    exitCode = MessageExitCodes.SERVER_ERROR,
+                )
+
+        val conversations =
+            when (val result = conversationClient.listConversations(session)) {
+                is ListConversationsResult.Success -> result.view.conversations
+                is ListConversationsResult.Failure -> {
+                    val message =
+                        if (result.exitCode == ExitCodes.NETWORK_ERROR) {
+                            MessageUserMessages.RECENT_LIST_NETWORK_ERROR
+                        } else {
+                            result.message
+                        }
+                    return ListRecentMessagesResult.Failure(message = message, exitCode = result.exitCode)
+                }
+            }
+
+        val aggregated = mutableListOf<RecentMessageItem>()
+        for (conversation in conversations) {
+            val fetchResult =
+                if (localOnly) {
+                    apiClient.fetchLocalMessages(session, conversation.id)
+                } else {
+                    apiClient.fetchMessages(session, conversation.id)
+                }
+
+            when (fetchResult) {
+                is FetchMessagesResult.Success -> {
+                    aggregated +=
+                        fetchResult.view.messages.map { message ->
+                            RecentMessageItem(
+                                conversationId = conversation.id,
+                                conversationName = conversation.name,
+                                messageId = message.id,
+                                senderId = message.senderId,
+                                senderName = message.senderName,
+                                timestamp = message.timestamp,
+                                content = message.content,
+                            )
+                        }
+                }
+                is FetchMessagesResult.Failure -> {
+                    val message =
+                        if (fetchResult.exitCode == ExitCodes.NETWORK_ERROR) {
+                            MessageUserMessages.RECENT_LIST_NETWORK_ERROR
+                        } else {
+                            fetchResult.message
+                        }
+                    return ListRecentMessagesResult.Failure(message = message, exitCode = fetchResult.exitCode)
+                }
+            }
+        }
+
+        val messages =
+            aggregated
+                .asSequence()
+                .filter { !receivedOnly || it.senderId != session.userId }
+                .sortedWith(
+                    compareByDescending<RecentMessageItem> { parseTimestamp(it.timestamp) }
+                        .thenByDescending { it.timestamp }
+                        .thenBy { it.conversationId }
+                        .thenBy { it.messageId },
+                ).take(limit)
+                .toList()
+
+        return ListRecentMessagesResult.Success(RecentMessagesView(messages))
     }
 
     override fun searchMessages(
@@ -240,4 +332,6 @@ class SessionBackedMessageService(
             }
         }
     }
+
+    private fun parseTimestamp(timestamp: String): Instant = Instant.parse(timestamp)
 }

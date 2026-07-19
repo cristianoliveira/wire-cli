@@ -32,6 +32,12 @@ class DaemonBackedMessageService(
         text: String,
     ): SendMessageResult = delegate.sendMessage(conversationId, text)
 
+    override fun listRecentMessages(
+        limit: Int,
+        receivedOnly: Boolean,
+        localOnly: Boolean,
+    ): ListRecentMessagesResult = delegate.listRecentMessages(limit, receivedOnly, localOnly)
+
     override fun searchMessages(
         query: String,
         conversationId: String?,

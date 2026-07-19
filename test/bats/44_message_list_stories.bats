@@ -27,12 +27,15 @@ teardown() {
 	[[ "${lines[0]}" == *"("* ]]
 }
 
-@test "message list: json output includes conversation fields" {
+@test "message list: json output uses a list envelope" {
 	run_wire message list --json
 	assert_status 0
-	[[ "${output}" == *'"conversationId"'* ]]
-	[[ "${output}" == *'"conversationName"'* ]]
-	[[ "${output}" == *'"messageId"'* ]]
+	[[ "$(jq -r '.returned == (.items | length)' <<<"${output}")" == "true" ]]
+	[[ "$(jq -r '.total' <<<"${output}")" == "null" ]]
+	[[ "$(jq -r '.truncated' <<<"${output}")" == "false" ]]
+	[[ -n "$(jq -r '.items[0].conversationId' <<<"${output}")" ]]
+	[[ -n "$(jq -r '.items[0].conversationName' <<<"${output}")" ]]
+	[[ -n "$(jq -r '.items[0].messageId' <<<"${output}")" ]]
 }
 
 @test "message list: json-lines output emits one object per line" {

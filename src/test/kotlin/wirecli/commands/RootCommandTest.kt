@@ -91,6 +91,9 @@ class RootCommandTest {
         override fun getCurrentProfile(): ProfileResult = profileResult
 
         override fun updateProfile(update: ProfileUpdate) =
-            wirecli.profile.ProfileUpdateResult.Failure("unsupported", 1)
+            wirecli.profile.ProfileUpdateResult.Failure(
+                "unsupported",
+                1,
+            )
     }
 }

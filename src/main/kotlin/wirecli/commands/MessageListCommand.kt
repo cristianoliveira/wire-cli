@@ -18,8 +18,20 @@ class MessageListCommand(
 ) : CliktCommand(
         name = "list",
         help = "List recent messages across conversations.",
+        epilog =
+            """
+            EXAMPLES:
+              List the 10 most recent messages:
+                wire message list
+            
+              List 20 recent messages in JSON:
+                wire message list --limit 20 --json
+            
+              List only received messages from local cache:
+                wire message list --received-only --local
+            """.trimIndent(),
     ) {
-    private val limit by option("--limit", "-n", help = "Maximum number of results (default: 10).").int()
+    private val limit by option("--limit", "-n", help = "Maximum number of results (1-100, default: 10).").int()
     private val receivedOnly by option("--received-only", help = "Only include messages received from others.").flag(default = false)
     private val localOnly by option("--local", help = "Only read from local cache.").flag(default = false)
     private val jsonOutput by option("--json", help = "Output results as JSON.").flag(default = false)

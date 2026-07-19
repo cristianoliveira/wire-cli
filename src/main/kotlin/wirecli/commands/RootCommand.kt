@@ -15,7 +15,7 @@ private val logger by lazy { KotlinLogging.logger {} }
 class RootCommand : NoOpCliktCommand(
     name = "wire",
     help =
-        "Wire CLI for authentication, profile, and presence commands.\n\n" +
+        "Wire CLI for account management, conversations, messages, devices, sync, and backups.\n\n" +
             "Logs are saved to: ~/.cache/wire-cli/logs/\n" +
             "Console logs are off by default; use --verbose or --log-level to enable them.",
 ) {

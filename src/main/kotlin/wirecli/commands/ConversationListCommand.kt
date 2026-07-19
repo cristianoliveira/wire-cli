@@ -18,7 +18,20 @@ private enum class ConversationSort {
 
 class ConversationListCommand(
     private val conversationServiceProvider: () -> ConversationService,
-) : CliktCommand(name = "list", help = "List all conversations with optional filtering and sorting.") {
+) : CliktCommand(name = "list", help = "List all conversations with optional filtering and sorting.",
+        epilog =
+            """
+            EXAMPLES:
+              List all conversations as human-readable table:
+                wire conversation list
+            
+              List only team channels sorted by member count:
+                wire conversation list --filter-type TEAM_CHANNEL --sort-by MEMBERS
+            
+              List conversations as JSON:
+                wire conversation list --json
+            """.trimIndent(),
+    ) {
     private val filterType by option(
         "--filter-type",
         help = "Filter by conversation type: ONE_TO_ONE, GROUP, TEAM_CHANNEL",

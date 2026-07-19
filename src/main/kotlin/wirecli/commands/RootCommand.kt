@@ -41,7 +41,11 @@ class RootCommand(
 
     override fun run() {
         configureLogging()
-        echo(buildLiveState())
+        // Show live state only when no subcommand is invoked.
+        // When a subcommand is invoked, it owns stdout.
+        if (currentContext.invokedSubcommand == null) {
+            echo(buildLiveState())
+        }
     }
 
     private fun buildLiveState(): String {

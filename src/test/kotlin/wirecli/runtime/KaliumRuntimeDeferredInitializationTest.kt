@@ -37,6 +37,8 @@ import wirecli.sync.PerConversationDiagnosticsResult
 import wirecli.sync.ResetResult
 import wirecli.sync.SyncApiClient
 import wirecli.sync.SyncStatusResult
+import wirecli.team.TeamApiClient
+import wirecli.team.TeamReadResult
 import wirecli.user.UserApiClient
 import wirecli.user.UserGetResult
 import wirecli.user.UserSearchQuery
@@ -124,6 +126,9 @@ private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFac
 
                 override val downloadApiClient: DownloadApiClient
                     get() = StubDownloadApiClient()
+
+                override val teamApiClient: TeamApiClient
+                    get() = NoopTeamApiClient
 
                 override fun shutdown() {
                     counters.shutdownCalls += 1
@@ -299,6 +304,12 @@ private object NoopConnectionApiClient : ConnectionApiClient {
 
     override fun listConnections(session: AuthSession): ConnectionListResult =
         ConnectionListResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+}
+
+private object NoopTeamApiClient : TeamApiClient {
+    override fun readTeam(session: AuthSession): TeamReadResult {
+        return TeamReadResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
 }
 
 private object NoopMessageApiClient : MessageApiClient {

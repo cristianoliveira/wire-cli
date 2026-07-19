@@ -12,6 +12,7 @@ import wirecli.conversation.DeleteConversationResult
 import wirecli.conversation.GetConversationResult
 import wirecli.conversation.ListConversationsResult
 import kotlin.test.Test
+import com.github.ajalt.clikt.core.ProgramResult
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
@@ -107,6 +108,7 @@ class ConversationSearchCommandTest {
 
         override fun getConversation(conversationId: String) = GetConversationResult.Failure("unsupported", 1)
 
+<<<<<<< HEAD
         override fun createConversation(
             name: String,
             type: ConversationType,

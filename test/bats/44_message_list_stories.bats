@@ -45,6 +45,6 @@ teardown() {
 
 @test "message list: validation error for non-positive limit" {
 	run_wire message list --limit 0
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: limit must be between 1 and 100"* ]]
 }

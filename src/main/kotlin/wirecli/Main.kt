@@ -1,5 +1,8 @@
 package wirecli
 
+import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.CliktError
+import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.subcommands
 import io.github.oshai.kotlinlogging.KotlinLogging
 import wirecli.commands.BackupCommand
@@ -18,6 +21,7 @@ import wirecli.commands.RootCommand
 import wirecli.commands.SyncCommand
 import wirecli.commands.TeamCommand
 import wirecli.commands.UserCommand
+import wirecli.commands.processExitCode
 import wirecli.config.AccessPolicyLoader
 import wirecli.config.CommandAccess
 import wirecli.runtime.FileDaemonProcessMarker
@@ -99,7 +103,7 @@ fun main(args: Array<String>) {
                 DownloadCommand { runtime.downloadService },
                 TeamCommand { runtime.teamService },
             )
-            .main(args)
+            .mainWithAxiExitCodes(args)
         completed = true
         logger.info { "Wire CLI execution completed successfully" }
     } catch (
@@ -123,6 +127,21 @@ fun main(args: Array<String>) {
             logger.info { "Application shutdown complete - exit code 0" }
             exitProcess(0)
         }
+    }
+}
+
+private fun CliktCommand.mainWithAxiExitCodes(args: Array<String>) {
+    try {
+        parse(args)
+    } catch (error: CliktError) {
+        echoFormattedHelp(error)
+        val exitCode =
+            if (error is UsageError) {
+                wirecli.auth.ExitCodes.VALIDATION_ERROR
+            } else {
+                processExitCode(error.statusCode)
+            }
+        exitProcess(exitCode)
     }
 }
 

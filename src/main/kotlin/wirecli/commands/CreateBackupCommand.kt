@@ -20,7 +20,7 @@ class CreateBackupCommand(private val serviceProvider: () -> LocalBackupService)
             is LocalBackupResult.Success -> echo("Created Wire backup at ${result.destination}")
             is LocalBackupResult.Failure -> {
                 echo(result.message, err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

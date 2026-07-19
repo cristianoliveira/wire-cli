@@ -90,8 +90,19 @@ class MessageListCommandTest {
 
         val result = execute(command, listOf("--limit", "0"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: limit must be between 1 and 100", result.stderr.trim())
+    }
+
+    @Test
+    fun `list command rejects conflicting structured output before calling service`() {
+        val service = FakeMessageService(ListRecentMessagesResult.Success(RecentMessagesView(emptyList())))
+
+        val result = execute(MessageListCommand { service }, listOf("--json", "--json-lines"))
+
+        assertEquals(2, result.exitCode)
+        assertEquals(null, service.capturedLimit)
+        assertTrue(result.stderr.contains("use either --json or --json-lines"))
     }
 
     @Test
@@ -186,7 +197,7 @@ class MessageListCommandTest {
 
         val result = execute(command, emptyList())
 
-        assertEquals(12, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("network error while listing recent messages", result.stderr.trim())
     }
 

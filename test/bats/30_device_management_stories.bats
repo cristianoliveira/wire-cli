@@ -78,7 +78,7 @@ validate_json() {
 # Story 13: Device List - Unauthenticated Access
 @test "Given no session, when wire device list runs, then access is denied with reauth guidance" {
   run_wire device list
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -100,7 +100,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="unauthorized"
   run_wire device list
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"invalid or expired"* ]]
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
@@ -145,14 +145,14 @@ validate_json() {
 
   export WIRE_STUB_MODE="not_found"
   run_wire device delete "non-existent-device" --yes
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"Device not found"* ]]
 }
 
 # Story 15: Device Delete - Unauthenticated Access
 @test "Given no session, when wire device delete runs, then access is denied with reauth guidance" {
   run_wire device delete "device-001" --yes
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -162,7 +162,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="server_error"
   run_wire device delete "device-001" --yes
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"unavailable"* || "${output}" == *"Retry later"* ]]
 }
 
@@ -308,14 +308,14 @@ validate_json() {
 
   export WIRE_STUB_MODE="list_ok"
   run_wire device info "non-existent-device"
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"Device not found"* ]]
 }
 
 # Story 14: Device Info - Unauthenticated access
 @test "Given no session, when wire device info runs, then access is denied with reauth guidance" {
   run_wire device info "device-001"
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -325,7 +325,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="server_error"
   run_wire device info "device-001"
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"unavailable"* || "${output}" == *"Retry later"* ]]
 }
 
@@ -335,7 +335,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="unauthorized"
   run_wire device info "device-001"
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"invalid or expired"* ]]
 }
 
@@ -383,14 +383,14 @@ validate_json() {
 
   export WIRE_STUB_MODE="list_ok"
   run_wire device verify "non-existent-device"
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"Device not found"* ]]
 }
 
 # Story 16: Device Verify - Unauthenticated access
 @test "Given no session, when wire device verify runs, then access is denied with reauth guidance" {
   run_wire device verify "device-001"
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -400,7 +400,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="server_error"
   run_wire device verify "device-001"
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"unavailable"* || "${output}" == *"Retry later"* ]]
 }
 
@@ -410,7 +410,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="unauthorized"
   run_wire device verify "device-001"
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"invalid or expired"* ]]
 }
 
@@ -500,7 +500,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="unauthorized"
   run_wire device list || true
-  [[ "${status}" -eq 11 ]]
+  [[ "${status}" -eq 1 ]]
 }
 
 # Error exit codes - not found is 13
@@ -509,7 +509,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="list_ok"
   run_wire device info "non-existent-device" || true
-  [[ "${status}" -eq 13 ]]
+  [[ "${status}" -eq 1 ]]
 }
 
 # Error exit codes - server error is 13
@@ -518,7 +518,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="server_error"
   run_wire device delete "device-001" --yes || true
-  [[ "${status}" -eq 13 ]]
+  [[ "${status}" -eq 1 ]]
 }
 
 # Output format - Table format should have proper alignment

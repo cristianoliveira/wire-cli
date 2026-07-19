@@ -69,7 +69,7 @@ validate_json() {
 # Story 17: Sync Status - Unauthenticated Access
 @test "Given no session, when wire doctor status runs, then access is denied with reauth guidance" {
   run_wire doctor status
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -218,7 +218,7 @@ validate_json() {
 
   export WIRE_STUB_MODE="server_error"
   run_wire doctor status
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"unavailable"* || "${output}" == *"Retry later"* ]]
 }
 
@@ -287,21 +287,21 @@ validate_json() {
 
   export WIRE_STUB_MODE="unauthorized"
   run_wire doctor status
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"invalid or expired"* || "${output}" == *"unauthorized"* ]]
 }
 
 # Story 19: Sync Diagnostics - Unauthenticated Access
 @test "Given no session, when wire doctor status --diagnose runs, then access is denied" {
   run_wire doctor status --diagnose
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 # Story 18: Sync Status - Verbose Unauthenticated
 @test "Given no session, when wire doctor status --verbose runs, then access is denied" {
   run_wire doctor status --verbose
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -317,7 +317,7 @@ validate_json() {
 
 @test "Given no session, when wire doctor sync runs, then access is denied" {
   run_wire doctor sync
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 

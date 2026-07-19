@@ -26,6 +26,7 @@ class MessageListCommand(
     private val jsonLinesOutput by option("--json-lines", help = "Output one JSON object per line.").flag(default = false)
 
     override fun run() {
+        validateStructuredOutputOrExit(jsonOutput, jsonLinesOutput)
         val resolvedLimit = validateLimitOrExit(limit ?: DEFAULT_RECENT_MESSAGES_LIMIT)
         val formatter = MessageFetchFormatter()
         val messageService = messageServiceProvider()
@@ -42,7 +43,7 @@ class MessageListCommand(
             }
             is ListRecentMessagesResult.Failure -> {
                 echo(result.message, err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

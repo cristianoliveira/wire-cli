@@ -51,7 +51,7 @@ class PresenceCommand(
             is PresenceResult.Failure -> {
                 logger.warn { "Failed to retrieve presence: ${AuthRedactor.redact(result.message)}" }
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }
@@ -77,7 +77,7 @@ private class PresenceGetCommand(
             is PresenceResult.Failure -> {
                 logger.warn { "Failed to retrieve presence: ${AuthRedactor.redact(result.message)}" }
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }
@@ -114,7 +114,7 @@ private class PresenceSetCommand(
             is PresenceResult.Failure -> {
                 logger.warn { "Failed to set presence: ${AuthRedactor.redact(result.message)}" }
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

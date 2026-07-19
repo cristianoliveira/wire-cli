@@ -53,7 +53,7 @@ login_stub_session() {
 
   export WIRE_STUB_MODE="presence_unauthorized"
   run_wire presence get
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Session is invalid or expired"* ]]
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
@@ -63,7 +63,7 @@ login_stub_session() {
 
   export WIRE_STUB_MODE="presence_network_error"
   run_wire presence get
-  assert_status 12
+  assert_status 1
   [[ "${output}" == *"Check your connection and retry"* ]]
 }
 
@@ -72,7 +72,7 @@ login_stub_session() {
 
   export WIRE_STUB_MODE="presence_server_error"
   run_wire presence get
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"Retry later or check server settings"* ]]
 }
 
@@ -88,7 +88,7 @@ login_stub_session() {
   login_stub_session
 
   run_wire presence set in_a_call
-  assert_status 14
+  assert_status 2
   [[ "${output}" == *"Invalid status 'in_a_call'"* ]]
   [[ "${output}" == *"Allowed values: online, busy, away, offline"* ]]
 }

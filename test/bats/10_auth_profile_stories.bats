@@ -31,26 +31,26 @@ run_wire_with_stdin() {
 
 @test "Given no session, when profile runs, then access is denied" {
   run_wire profile
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 @test "Given no session, when me runs, then access is denied" {
   run_wire me
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 @test "Given no session, when presence runs, then access is denied" {
   run_wire presence
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 @test "Given invalid credentials, when login runs, then auth fails and no session is created" {
   export WIRE_STUB_MODE="login_invalid"
   run_wire login --email "jane@example.com" --password "WrongPass1"
-  assert_status 10
+  assert_status 1
   [[ "${output}" == *"Invalid email or password"* ]]
   [ ! -f "${WIRE_SESSION_FILE}" ]
 }
@@ -58,7 +58,7 @@ run_wire_with_stdin() {
 @test "Given auth network failure, when login runs, then actionable error and non-zero exit are returned" {
   export WIRE_STUB_MODE="login_network_error"
   run_wire login --email "jane@example.com" --password "CorrectHorse1"
-  assert_status 12
+  assert_status 1
   [[ "${output}" == *"Check your connection and retry"* ]]
   [ ! -f "${WIRE_SESSION_FILE}" ]
 }
@@ -75,7 +75,7 @@ run_wire_with_stdin() {
 @test "Given incompatible password flags, when login runs, then validation error is returned" {
   export WIRE_STUB_MODE="login_ok"
   run_wire_with_stdin "CorrectHorse1" login --email "jane@example.com" --password "CorrectHorse1" --password-stdin
-  assert_status 14
+  assert_status 2
   [[ "${output}" == *"Use either --password or --password-stdin"* ]]
   [ ! -f "${WIRE_SESSION_FILE}" ]
 }
@@ -83,7 +83,7 @@ run_wire_with_stdin() {
 @test "Given sensitive auth failure details, when login fails, then secrets are redacted" {
   export WIRE_STUB_MODE="login_secret_failure"
   run_wire login --email "jane@example.com" --password "CorrectHorse1"
-  assert_status 10
+  assert_status 1
   [[ "${output}" == *"token=<redacted>"* ]]
   [[ "${output}" == *"password=<redacted>"* ]]
   [[ "${output}" != *"abc123"* ]]
@@ -178,7 +178,7 @@ run_wire_with_stdin() {
     "user-zed" "token-zed" ""
 
   run_wire profile
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Stored session format version '99' is unsupported"* ]]
   [[ "${output}" == *"Run wire login to recreate local credentials"* ]]
 }
@@ -203,7 +203,7 @@ run_wire_with_stdin() {
 
   export WIRE_STUB_MODE="profile_network_error"
   run_wire profile
-  assert_status 12
+  assert_status 1
   [[ "${output}" == *"Check your connection and retry"* ]]
 }
 
@@ -214,7 +214,7 @@ run_wire_with_stdin() {
 
   export WIRE_STUB_MODE="profile_server_error"
   run_wire profile
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"Retry later or check server settings"* ]]
 }
 
@@ -225,7 +225,7 @@ run_wire_with_stdin() {
 
   export WIRE_STUB_MODE="profile_unauthorized"
   run_wire profile
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Session is invalid or expired"* ]]
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
   [[ "${output}" != *"Name:"* ]]
@@ -240,7 +240,7 @@ run_wire_with_stdin() {
     "dangling-record-only-user"
 
   run_wire profile
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"No valid active session"* ]]
   [[ "${output}" == *"Found 2 invalid or expired stored sessions"* ]]
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
@@ -252,7 +252,7 @@ run_wire_with_stdin() {
     "dangling-record-only-user"
 
   run_wire logout
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"No valid active session"* ]]
   [[ "${output}" == *"Found 2 invalid or expired stored sessions"* ]]
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
@@ -275,7 +275,7 @@ run_wire_with_stdin() {
   [ ! -f "${WIRE_SESSION_FILE}" ]
 
   run_wire profile
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 

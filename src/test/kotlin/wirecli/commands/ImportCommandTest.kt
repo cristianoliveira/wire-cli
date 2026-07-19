@@ -29,7 +29,7 @@ class ImportCommandTest {
 
         val result = execute(command, listOf("backup.wbu"))
 
-        assertEquals(11, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("login first", result.stderr.trim())
     }
 

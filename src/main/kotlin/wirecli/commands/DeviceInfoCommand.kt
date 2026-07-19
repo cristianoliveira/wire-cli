@@ -30,7 +30,7 @@ class DeviceInfoCommand(
 
             is DeviceDetailResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

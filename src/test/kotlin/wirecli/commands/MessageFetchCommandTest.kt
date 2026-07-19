@@ -72,7 +72,7 @@ class MessageFetchCommandTest {
 
         val result = execute(command, listOf("conv-123"))
 
-        assertEquals(12, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("network error while fetching messages", result.stderr.trim())
     }
 
@@ -85,7 +85,7 @@ class MessageFetchCommandTest {
 
         val result = execute(command, listOf("   "))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: conversation required", result.stderr.trim())
     }
 

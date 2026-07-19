@@ -106,42 +106,42 @@ EOF'
 @test "message send: validation error - blank conversation ID" {
 	export WIRE_STUB_MODE="success"
 	run_wire message send "" "Hello"
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: conversation required"* ]]
 }
 
 @test "message send: validation error - whitespace-only conversation ID" {
 	export WIRE_STUB_MODE="success"
 	run_wire message send "   " "Hello"
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: conversation required"* ]]
 }
 
 @test "message send: validation error - blank message from args" {
 	export WIRE_STUB_MODE="success"
 	run_wire message send "conv-006" ""
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message required"* ]]
 }
 
 @test "message send: validation error - blank message from stdin" {
 	export WIRE_STUB_MODE="success"
 	run_wire_message_with_stdin "" "conv-007"
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message required"* ]]
 }
 
 @test "message send: validation error - whitespace-only message from args" {
 	export WIRE_STUB_MODE="success"
 	run_wire message send "conv-008" "   "
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message required"* ]]
 }
 
 @test "message send: validation error - whitespace-only message from stdin" {
 	export WIRE_STUB_MODE="success"
 	run_wire_message_with_stdin "   " "conv-009"
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message required"* ]]
 }
 
@@ -152,7 +152,7 @@ EOF'
 	rm -f "${WIRE_SESSION_FILE}"
 	unset WIRE_STUB_MODE
 	run_wire message send "conv-010" "Hello"
-	assert_status 11
+	assert_status 1
 	[[ "${output}" == *"must be logged in"* ]] || [[ "${output}" == *"session"* ]]
 }
 
@@ -160,7 +160,7 @@ EOF'
 	rm -f "${WIRE_SESSION_FILE}"
 	unset WIRE_STUB_MODE
 	run_wire message send "conv-011" "Hello"
-	assert_status 11
+	assert_status 1
 	# Message should include guidance about logging in
 	[[ "${output}" == *"login"* ]] || [[ "${output}" == *"session"* ]] || [[ "${output}" == *"authenticate"* ]]
 }
@@ -170,14 +170,14 @@ EOF'
 @test "message send: error - network error" {
 	export WIRE_STUB_MODE="network_error"
 	run_wire message send "conv-012" "Hello"
-	assert_status 12
+	assert_status 1
 	[[ "${output}" == *"network"* ]] || [[ "${output}" == *"connection"* ]]
 }
 
 @test "message send: error - network error suggests retry" {
 	export WIRE_STUB_MODE="network_error"
 	run_wire message send "conv-013" "Hello"
-	assert_status 12
+	assert_status 1
 	# Should provide actionable guidance
 	[[ "${output}" == *"retry"* ]] || [[ "${output}" == *"connection"* ]] || [[ "${output}" == *"network"* ]]
 }
@@ -187,14 +187,14 @@ EOF'
 @test "message send: error - server error" {
 	export WIRE_STUB_MODE="server_error"
 	run_wire message send "conv-014" "Hello"
-	assert_status 13
+	assert_status 1
 	[[ "${output}" == *"server"* ]] || [[ "${output}" == *"error"* ]]
 }
 
 @test "message send: error - conversation not found (server error)" {
 	export WIRE_STUB_MODE="conversation_not_found"
 	run_wire message send "conv-nonexistent" "Hello"
-	assert_status 13
+	assert_status 1
 	[[ "${output}" == *"conversation"* ]] || [[ "${output}" == *"not found"* ]]
 }
 
@@ -230,25 +230,25 @@ EOF'
 @test "message send: exit code 11 for unauthorized" {
 	export WIRE_STUB_MODE="unauthorized"
 	run_wire message send "conv-016" "Hello"
-	[ "${status}" -eq 11 ]
+	[ "${status}" -eq 1 ]
 }
 
 @test "message send: exit code 12 for network error" {
 	export WIRE_STUB_MODE="network_error"
 	run_wire message send "conv-017" "Hello"
-	[ "${status}" -eq 12 ]
+	[ "${status}" -eq 1 ]
 }
 
 @test "message send: exit code 13 for server error" {
 	export WIRE_STUB_MODE="server_error"
 	run_wire message send "conv-018" "Hello"
-	[ "${status}" -eq 13 ]
+	[ "${status}" -eq 1 ]
 }
 
 @test "message send: exit code 14 for validation error" {
 	export WIRE_STUB_MODE="success"
 	run_wire message send "" "Hello"
-	[ "${status}" -eq 14 ]
+	[ "${status}" -eq 2 ]
 }
 
 # ==================== IDEMPOTENCY / EDGE CASES ====================
@@ -282,7 +282,7 @@ EOF'
 	export WIRE_STUB_MODE="success"
 	# Send EOF immediately (empty stdin)
 	run bash -c 'printf "" | "${WIRE_BIN}" message send "conv-022"'
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message required"* ]]
 }
 
@@ -290,7 +290,7 @@ EOF'
 	export WIRE_STUB_MODE="success"
 	# Send only spaces
 	run bash -c 'printf "   \n" | "${WIRE_BIN}" message send "conv-023"'
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message required"* ]]
 }
 
@@ -299,13 +299,13 @@ EOF'
 	# Empty string as positional arg should be treated as provided (empty)
 	# This tests argument parsing, not the service logic
 	run_wire message send "conv-024" ""
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message required"* ]]
 }
 
 @test "message send: positional argument precedence ignores stdin even when stdin has content" {
 	export WIRE_STUB_MODE="success"
 	run_wire_message_with_stdin "from stdin" "conv-025" ""
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message required"* ]]
 }

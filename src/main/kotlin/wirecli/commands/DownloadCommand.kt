@@ -54,7 +54,7 @@ class DownloadCommand(
 
             is DownloadAssetResult.Failure -> {
                 echo(result.message, err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

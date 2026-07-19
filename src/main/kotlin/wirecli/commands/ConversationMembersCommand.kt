@@ -38,7 +38,7 @@ class ConversationMembersCommand(
 
             is GetMembersResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

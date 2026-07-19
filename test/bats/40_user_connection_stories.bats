@@ -27,25 +27,25 @@ login_stub() {
 
 @test "Given no session, when user search runs, then access is denied" {
   run "${WIRE_BIN}" user search alice
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 @test "Given no session, when user get runs, then access is denied" {
   run "${WIRE_BIN}" user get alice-uuid@example.wire.com
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 @test "Given no session, when connection request runs, then access is denied" {
   run "${WIRE_BIN}" connection request bob-uuid@example.wire.com
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
 @test "Given no session, when connection block runs, then access is denied" {
   run "${WIRE_BIN}" connection block bob-uuid@example.wire.com --yes
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -107,7 +107,7 @@ login_stub() {
 @test "Given invalid user id, when user get runs, then validation error is returned" {
   login_stub
   run "${WIRE_BIN}" user get not-a-qualified-id
-  assert_status 14
+  assert_status 2
   [[ "${output}" == *"validation error"* ]]
 }
 
@@ -138,7 +138,7 @@ login_stub() {
 @test "Given persisted session, when connection block runs without --yes, then confirmation is required" {
   login_stub
   run "${WIRE_BIN}" connection block bob-uuid@example.wire.com
-  assert_status 14
+  assert_status 2
   [[ "${output}" == *"--yes"* ]]
 }
 
@@ -153,7 +153,7 @@ login_stub() {
   login_stub
   export WIRE_STUB_MODE="connection_block_server_error"
   run "${WIRE_BIN}" connection block bob-uuid@example.wire.com --yes
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"could not be completed"* ]]
 }
 
@@ -168,7 +168,7 @@ login_stub() {
   login_stub
   export WIRE_STUB_MODE="connection_unblock_server_error"
   run "${WIRE_BIN}" connection unblock bob-uuid@example.wire.com
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"could not be completed"* ]]
 }
 
@@ -176,7 +176,7 @@ login_stub() {
   login_stub
   export WIRE_STUB_MODE="user_search_network_error"
   run "${WIRE_BIN}" user search alice
-  assert_status 12
+  assert_status 1
   [[ "${output}" == *"Check your connection and retry"* ]]
 }
 
@@ -184,6 +184,6 @@ login_stub() {
   login_stub
   export WIRE_STUB_MODE="connection_request_network_error"
   run "${WIRE_BIN}" connection request bob-uuid@example.wire.com
-  assert_status 12
+  assert_status 1
   [[ "${output}" == *"Check your connection and retry"* ]]
 }

@@ -43,7 +43,7 @@ setup_active_session() {
 @test "message fetch: validation error for blank conversation id" {
 	export WIRE_STUB_MODE="success"
 	run_wire message fetch ""
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: conversation required"* ]]
 }
 
@@ -51,28 +51,28 @@ setup_active_session() {
 	rm -f "${WIRE_SESSION_FILE}"
 	unset WIRE_STUB_MODE
 	run_wire message fetch "conv-001"
-	assert_status 11
+	assert_status 1
 	[[ "${output}" == *"session"* ]] || [[ "${output}" == *"logged in"* ]]
 }
 
 @test "message fetch: network error maps to exit 12" {
 	export WIRE_STUB_MODE="network_error"
 	run_wire message fetch "conv-001"
-	assert_status 12
+	assert_status 1
 	[[ "${output}" == *"network"* ]]
 }
 
 @test "message fetch: server error maps to exit 13" {
 	export WIRE_STUB_MODE="server_error"
 	run_wire message fetch "conv-001"
-	assert_status 13
+	assert_status 1
 	[[ "${output}" == *"server"* ]]
 }
 
 @test "message fetch: conversation not found maps to exit 13" {
 	export WIRE_STUB_MODE="conversation_not_found"
 	run_wire message fetch "conv-missing"
-	assert_status 13
+	assert_status 1
 	[[ "${output}" == *"conversation not found"* ]]
 }
 

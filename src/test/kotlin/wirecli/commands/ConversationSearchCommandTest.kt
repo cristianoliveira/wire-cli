@@ -1,5 +1,6 @@
 package wirecli.commands
 
+import com.github.ajalt.clikt.core.ProgramResult
 import wirecli.conversation.Conversation
 import wirecli.conversation.ConversationDetailView
 import wirecli.conversation.ConversationListView
@@ -11,7 +12,9 @@ import wirecli.conversation.DeleteConversationResult
 import wirecli.conversation.GetConversationResult
 import wirecli.conversation.ListConversationsResult
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class ConversationSearchCommandTest {
@@ -30,6 +33,26 @@ class ConversationSearchCommandTest {
         assertTrue(output.contains("Engineering"))
         assertFalse(output.contains("General"))
         assertFalse(output.contains("Engineering DM"))
+    }
+
+    @Test
+    fun `list rejects unsupported filter before calling service`() {
+        val service = CountingConversationService()
+
+        val failure = runCatching { ConversationListCommand { service }.parse(listOf("--filter-type", "bogus")) }.exceptionOrNull()
+
+        assertEquals(2, assertIs<ProgramResult>(failure).statusCode)
+        assertEquals(0, service.listCalls)
+    }
+
+    @Test
+    fun `list rejects unsupported sort before calling service`() {
+        val service = CountingConversationService()
+
+        val failure = runCatching { ConversationListCommand { service }.parse(listOf("--sort-by", "bogus")) }.exceptionOrNull()
+
+        assertEquals(2, assertIs<ProgramResult>(failure).statusCode)
+        assertEquals(0, service.listCalls)
     }
 
     @Test
@@ -73,6 +96,28 @@ class ConversationSearchCommandTest {
         createdAt = "2026-01-01T00:00:00Z",
         updatedAt = "2026-01-01T00:00:00Z",
     )
+
+    private class CountingConversationService : ConversationService {
+        var listCalls = 0
+
+        override fun listConversations(): ListConversationsResult {
+            listCalls++
+            return ListConversationsResult.Success(ConversationListView(emptyList()))
+        }
+
+        override fun getConversation(conversationId: String) = GetConversationResult.Failure("unsupported", 1)
+
+        override fun createConversation(
+            name: String,
+            type: ConversationType,
+        ) = CreateConversationResult.Failure("unsupported", 1)
+
+        override fun deleteConversation(conversationId: String) = DeleteConversationResult.Failure("unsupported", 1)
+
+        override fun getMemberCount(conversationId: String) = GetConversationResult.Failure("unsupported", 1)
+
+        override fun getMembers(conversationId: String) = wirecli.conversation.GetMembersResult.Failure("unsupported", 1)
+    }
 
     private class StubConversationService(conversations: List<Conversation>) : ConversationService {
         private val result = ListConversationsResult.Success(ConversationListView(conversations))

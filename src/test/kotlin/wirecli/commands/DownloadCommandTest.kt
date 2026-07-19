@@ -48,7 +48,7 @@ class DownloadCommandTest {
 
         val result = execute(command, listOf("conv-123", "msg-456"))
 
-        assertEquals(13, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("message is not an asset", result.stderr.trim())
     }
 
@@ -119,7 +119,7 @@ class DownloadCommandTest {
 
         val result = execute(command, listOf("", "msg-456"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
     }
 
     @Test
@@ -131,7 +131,7 @@ class DownloadCommandTest {
 
         val result = execute(command, listOf("conv-123", ""))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
     }
 
     private data class ExecutionResult(

@@ -80,7 +80,7 @@ class MessageDeleteCommandTest {
 
         val result = execute(command, listOf("   ", "msg-1"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: conversation-id required", result.stderr.trim())
     }
 
@@ -93,7 +93,7 @@ class MessageDeleteCommandTest {
 
         val result = execute(command, listOf("conv-1", "   "))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: message-id required", result.stderr.trim())
     }
 
@@ -111,7 +111,7 @@ class MessageDeleteCommandTest {
 
         val result = execute(command, listOf("conv-1", "msg-1"))
 
-        assertEquals(12, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("network error while deleting message", result.stderr.trim())
     }
 

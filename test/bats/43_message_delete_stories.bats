@@ -75,28 +75,28 @@ setup_active_session() {
 @test "message delete: validation error - blank conversation ID" {
 	export WIRE_STUB_MODE="success"
 	run_wire message delete "" "msg-001"
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: conversation-id required"* ]]
 }
 
 @test "message delete: validation error - whitespace-only conversation ID" {
 	export WIRE_STUB_MODE="success"
 	run_wire message delete "   " "msg-001"
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: conversation-id required"* ]]
 }
 
 @test "message delete: validation error - blank message ID" {
 	export WIRE_STUB_MODE="success"
 	run_wire message delete "conv-001" ""
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message-id required"* ]]
 }
 
 @test "message delete: validation error - whitespace-only message ID" {
 	export WIRE_STUB_MODE="success"
 	run_wire message delete "conv-001" "   "
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: message-id required"* ]]
 }
 
@@ -106,7 +106,7 @@ setup_active_session() {
 	rm -f "${WIRE_SESSION_FILE}"
 	unset WIRE_STUB_MODE
 	run_wire message delete "conv-010" "msg-010"
-	assert_status 11
+	assert_status 1
 	[[ "${output}" == *"must be logged in"* ]] || [[ "${output}" == *"session"* ]]
 }
 
@@ -115,7 +115,7 @@ setup_active_session() {
 @test "message delete: error - network error" {
 	export WIRE_STUB_MODE="network_error"
 	run_wire message delete "conv-012" "msg-012"
-	assert_status 12
+	assert_status 1
 	[[ "${output}" == *"network"* ]]
 }
 
@@ -124,14 +124,14 @@ setup_active_session() {
 @test "message delete: error - server error" {
 	export WIRE_STUB_MODE="server_error"
 	run_wire message delete "conv-014" "msg-014"
-	assert_status 13
+	assert_status 1
 	[[ "${output}" == *"server"* ]]
 }
 
 @test "message delete: error - conversation not found" {
 	export WIRE_STUB_MODE="conversation_not_found"
 	run_wire message delete "conv-nonexistent" "msg-001"
-	assert_status 13
+	assert_status 1
 	[[ "${output}" == *"conversation"* ]]
 }
 
@@ -161,19 +161,19 @@ setup_active_session() {
 @test "message delete: exit code 12 for network error" {
 	export WIRE_STUB_MODE="network_error"
 	run_wire message delete "conv-016" "msg-016"
-	[ "${status}" -eq 12 ]
+	[ "${status}" -eq 1 ]
 }
 
 @test "message delete: exit code 13 for server error" {
 	export WIRE_STUB_MODE="server_error"
 	run_wire message delete "conv-017" "msg-017"
-	[ "${status}" -eq 13 ]
+	[ "${status}" -eq 1 ]
 }
 
 @test "message delete: exit code 14 for validation error" {
 	export WIRE_STUB_MODE="success"
 	run_wire message delete "" "msg-018"
-	[ "${status}" -eq 14 ]
+	[ "${status}" -eq 2 ]
 }
 
 # ==================== OUTPUT EXACTNESS ====================

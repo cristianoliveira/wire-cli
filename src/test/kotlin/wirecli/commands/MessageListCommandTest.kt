@@ -227,6 +227,112 @@ class MessageListCommandTest {
         assertEquals("network error while listing recent messages", result.stderr.trim())
     }
 
+    @Test
+    fun `list command truncates long content with size marker in human output`() {
+        val longContent = "a".repeat(300)
+        val command =
+            MessageListCommand {
+                FakeMessageService(
+                    listResult =
+                        ListRecentMessagesResult.Success(
+                            RecentMessagesView(
+                                messages =
+                                    listOf(
+                                        RecentMessageItem(
+                                            conversationId = "conv-1",
+                                            conversationName = "Test",
+                                            messageId = "msg-1",
+                                            senderId = "alice",
+                                            senderName = "Alice",
+                                            timestamp = "2026-01-01T00:00:00Z",
+                                            content = longContent,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+            }
+
+        val result = execute(command, emptyList())
+
+        assertEquals(0, result.exitCode)
+        val stdout = result.stdout
+        assertTrue(stdout.contains("..."), "should show truncation marker")
+        assertTrue(stdout.contains("bytes"), "should show original size")
+    }
+
+    @Test
+    fun `list command with json truncates long content with size and marker`() {
+        val longContent = "a".repeat(300)
+        val command =
+            MessageListCommand {
+                FakeMessageService(
+                    listResult =
+                        ListRecentMessagesResult.Success(
+                            RecentMessagesView(
+                                messages =
+                                    listOf(
+                                        RecentMessageItem(
+                                            conversationId = "conv-1",
+                                            conversationName = "Test",
+                                            messageId = "msg-1",
+                                            senderId = "alice",
+                                            senderName = "Alice",
+                                            timestamp = "2026-01-01T00:00:00Z",
+                                            content = longContent,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+            }
+
+        val result = execute(command, listOf("--json"))
+
+        assertEquals(0, result.exitCode)
+        val envelope = Json.parseToJsonElement(result.stdout).jsonObject
+        val item = envelope.getValue("items").jsonArray.single().jsonObject
+        assertEquals(true, item.getValue("contentTruncated").jsonPrimitive.boolean)
+        assertTrue(item.getValue("contentSize").jsonPrimitive.int > 200)
+        assertTrue(item.getValue("content").jsonPrimitive.content.length < longContent.length)
+    }
+
+    @Test
+    fun `list command with --json --full preserves original content`() {
+        val longContent = "b".repeat(500)
+        val command =
+            MessageListCommand {
+                FakeMessageService(
+                    listResult =
+                        ListRecentMessagesResult.Success(
+                            RecentMessagesView(
+                                messages =
+                                    listOf(
+                                        RecentMessageItem(
+                                            conversationId = "conv-1",
+                                            conversationName = "Test",
+                                            messageId = "msg-1",
+                                            senderId = "alice",
+                                            senderName = "Alice",
+                                            timestamp = "2026-01-01T00:00:00Z",
+                                            content = longContent,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+            }
+
+        val result = execute(command, listOf("--json", "--full"))
+
+        assertEquals(0, result.exitCode)
+        val envelope = Json.parseToJsonElement(result.stdout).jsonObject
+        val item = envelope.getValue("items").jsonArray.single().jsonObject
+        assertEquals(false, item.getValue("contentTruncated").jsonPrimitive.boolean)
+        assertEquals(longContent.length, item.getValue("contentSize").jsonPrimitive.int)
+        assertEquals(longContent, item.getValue("content").jsonPrimitive.content)
+    }
+
     private data class ExecutionResult(
         val exitCode: Int,
         val stdout: String,

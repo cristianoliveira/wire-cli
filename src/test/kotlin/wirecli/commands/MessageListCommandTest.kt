@@ -2,6 +2,9 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -106,7 +109,7 @@ class MessageListCommandTest {
     }
 
     @Test
-    fun `list command with json outputs JSON array`() {
+    fun `list command with json outputs stable list envelope`() {
         val command =
             MessageListCommand {
                 FakeMessageService(
@@ -133,10 +136,33 @@ class MessageListCommandTest {
         val result = execute(command, listOf("--json"))
 
         assertEquals(0, result.exitCode)
-        val item = Json.parseToJsonElement(result.stdout).jsonArray.single().jsonObject
+        val envelope = Json.parseToJsonElement(result.stdout).jsonObject
+        assertEquals(1, envelope.getValue("returned").jsonPrimitive.int)
+        assertEquals(JsonNull, envelope.getValue("total"))
+        assertEquals(false, envelope.getValue("truncated").jsonPrimitive.boolean)
+        val item = envelope.getValue("items").jsonArray.single().jsonObject
         assertEquals("conv-123", item.getValue("conversationId").jsonPrimitive.content)
         assertEquals("Engineering", item.getValue("conversationName").jsonPrimitive.content)
         assertEquals("msg-1", item.getValue("messageId").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `list command with json represents an empty result explicitly`() {
+        val command =
+            MessageListCommand {
+                FakeMessageService(
+                    listResult = ListRecentMessagesResult.Success(RecentMessagesView(emptyList())),
+                )
+            }
+
+        val result = execute(command, listOf("--json"))
+
+        assertEquals(0, result.exitCode)
+        val envelope = Json.parseToJsonElement(result.stdout).jsonObject
+        assertEquals(0, envelope.getValue("returned").jsonPrimitive.int)
+        assertEquals(JsonNull, envelope.getValue("total"))
+        assertEquals(false, envelope.getValue("truncated").jsonPrimitive.boolean)
+        assertTrue(envelope.getValue("items").jsonArray.isEmpty())
     }
 
     @Test

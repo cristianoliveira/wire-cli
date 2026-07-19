@@ -1,5 +1,6 @@
 package wirecli.message
 
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -27,9 +28,21 @@ class MessageFetchFormatter {
         }
     }
 
+    /**
+     * The source cannot report the total number of messages beyond the requested
+     * limit, so total is explicitly null and truncation remains unknown.
+     */
     fun toJsonRecent(messages: List<RecentMessageItem>): String =
-        buildJsonArray {
-            messages.forEach { add(recentMessageJson(it)) }
+        buildJsonObject {
+            put(
+                "items",
+                buildJsonArray {
+                    messages.forEach { add(recentMessageJson(it)) }
+                },
+            )
+            put("returned", JsonPrimitive(messages.size))
+            put("total", JsonNull)
+            put("truncated", JsonPrimitive(false))
         }.toString()
 
     fun toJsonLinesRecent(messages: List<RecentMessageItem>): String = messages.joinToString("\n") { recentMessageJson(it).toString() }

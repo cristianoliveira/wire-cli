@@ -31,13 +31,17 @@ class ConversationSearchCommand(
                             (expectedType == null || conversation.type == expectedType)
                     }
                 val formatter = ConversationFormatter()
-                echo(
-                    when {
-                        jsonLines -> formatter.toJsonLines(conversations)
-                        json -> formatter.toJson(conversations)
-                        else -> formatter.toTable(conversations)
-                    },
-                )
+                when {
+                    jsonLines -> echo(formatter.toJsonLines(conversations))
+                    json -> echo(formatter.toJson(conversations))
+                    else -> {
+                        if (conversations.isEmpty()) {
+                            echo("No conversations found matching \"$query\".")
+                        } else {
+                            echo(formatter.toTable(conversations))
+                        }
+                    }
+                }
             }
 
             is ListConversationsResult.Failure -> {

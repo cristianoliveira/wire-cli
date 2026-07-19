@@ -57,6 +57,18 @@ class ConversationSearchCommandTest {
     }
 
     @Test
+    fun `empty search shows query context`() {
+        val output =
+            execute(
+                ConversationSearchCommand { StubConversationService(emptyList()) },
+                listOf("nonexistent"),
+            )
+
+        assertTrue(output.contains("nonexistent"))
+        assertTrue(output.contains("No conversations"))
+    }
+
+    @Test
     fun `search rejects unsupported conversation type`() {
         val result =
             runCatching {

@@ -36,6 +36,7 @@ class MessageListCommand(
     private val localOnly by option("--local", help = "Only read from local cache.").flag(default = false)
     private val jsonOutput by option("--json", help = "Output results as JSON.").flag(default = false)
     private val jsonLinesOutput by option("--json-lines", help = "Output one JSON object per line.").flag(default = false)
+    private val fullContent by option("--full", help = "Show full message content without truncation.").flag(default = false)
 
     override fun run() {
         validateStructuredOutputOrExit(jsonOutput, jsonLinesOutput)
@@ -47,9 +48,9 @@ class MessageListCommand(
             is ListRecentMessagesResult.Success -> {
                 val output =
                     when {
-                        jsonLinesOutput -> formatter.toJsonLinesRecent(result.view.messages)
-                        jsonOutput -> formatter.toJsonRecent(result.view.messages)
-                        else -> formatter.toHumanReadableRecent(result.view.messages)
+                        jsonLinesOutput -> formatter.toJsonLinesRecent(result.view.messages, fullContent)
+                        jsonOutput -> formatter.toJsonRecent(result.view.messages, fullContent)
+                        else -> formatter.toHumanReadableRecent(result.view.messages, fullContent)
                     }
                 echo(output)
             }

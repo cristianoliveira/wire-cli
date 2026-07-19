@@ -6,6 +6,10 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 
 class MessageFetchFormatter {
+    companion object {
+        private const val MAX_CONTENT_BYTES = 200
+    }
+
     fun toHumanReadable(messages: List<ConversationMessage>): String {
         if (messages.isEmpty()) {
             return "No messages found."
@@ -13,31 +17,34 @@ class MessageFetchFormatter {
 
         return messages.joinToString("\n") { message ->
             val sender = message.senderName.ifBlank { message.senderId }
-            "[${message.timestamp}] $sender: ${sanitizeContent(message.content)}"
+            "[${message.timestamp}] $sender: ${previewContent(message.content)}"
         }
     }
 
-    fun toHumanReadableRecent(messages: List<RecentMessageItem>): String {
+    fun toHumanReadableRecent(
+        messages: List<RecentMessageItem>,
+        fullContent: Boolean = false,
+    ): String {
         if (messages.isEmpty()) {
             return "No messages found."
         }
 
         return messages.joinToString("\n") { message ->
             val sender = message.senderName.ifBlank { message.senderId }
-            "[${message.timestamp}] $sender @ ${message.conversationName} (${message.conversationId}): ${sanitizeContent(message.content)}"
+            val content = if (fullContent) sanitizeContent(message.content) else previewContent(message.content)
+            "[${message.timestamp}] $sender @ ${message.conversationName} (${message.conversationId}): $content"
         }
     }
 
-    /**
-     * The source cannot report the total number of messages beyond the requested
-     * limit, so total is explicitly null and truncation remains unknown.
-     */
-    fun toJsonRecent(messages: List<RecentMessageItem>): String =
+    fun toJsonRecent(
+        messages: List<RecentMessageItem>,
+        fullContent: Boolean = false,
+    ): String =
         buildJsonObject {
             put(
                 "items",
                 buildJsonArray {
-                    messages.forEach { add(recentMessageJson(it)) }
+                    messages.forEach { add(recentMessageJson(it, fullContent)) }
                 },
             )
             put("returned", JsonPrimitive(messages.size))
@@ -45,18 +52,39 @@ class MessageFetchFormatter {
             put("truncated", JsonPrimitive(false))
         }.toString()
 
-    fun toJsonLinesRecent(messages: List<RecentMessageItem>): String = messages.joinToString("\n") { recentMessageJson(it).toString() }
+    fun toJsonLinesRecent(
+        messages: List<RecentMessageItem>,
+        fullContent: Boolean = false,
+    ): String = messages.joinToString("\n") { recentMessageJson(it, fullContent).toString() }
 
-    private fun recentMessageJson(message: RecentMessageItem) =
-        buildJsonObject {
-            put("conversationId", JsonPrimitive(message.conversationId))
-            put("conversationName", JsonPrimitive(message.conversationName))
-            put("messageId", JsonPrimitive(message.messageId))
-            put("senderId", JsonPrimitive(message.senderId))
-            put("senderName", JsonPrimitive(message.senderName))
-            put("timestamp", JsonPrimitive(message.timestamp))
-            put("content", JsonPrimitive(message.content))
+    private fun recentMessageJson(
+        message: RecentMessageItem,
+        fullContent: Boolean,
+    ) = buildJsonObject {
+        put("conversationId", JsonPrimitive(message.conversationId))
+        put("conversationName", JsonPrimitive(message.conversationName))
+        put("messageId", JsonPrimitive(message.messageId))
+        put("senderId", JsonPrimitive(message.senderId))
+        put("senderName", JsonPrimitive(message.senderName))
+        put("timestamp", JsonPrimitive(message.timestamp))
+        val content = message.content
+        if (fullContent || content.toByteArray().size <= MAX_CONTENT_BYTES) {
+            put("content", JsonPrimitive(content))
+            put("contentTruncated", JsonPrimitive(false))
+        } else {
+            put("content", JsonPrimitive(previewContent(content)))
+            put("contentTruncated", JsonPrimitive(true))
         }
+        put("contentSize", JsonPrimitive(content.toByteArray().size))
+    }
+
+    private fun previewContent(content: String): String {
+        val bytes = content.toByteArray()
+        if (bytes.size <= MAX_CONTENT_BYTES) return sanitizeContent(content)
+
+        val preview = content.take(MAX_CONTENT_BYTES / 2) // rough char estimate
+        return sanitizeContent(preview) + "... [${bytes.size} bytes]"
+    }
 
     private fun sanitizeContent(content: String): String {
         return content

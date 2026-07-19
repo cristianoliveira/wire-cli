@@ -18,7 +18,9 @@ private enum class ConversationSort {
 
 class ConversationListCommand(
     private val conversationServiceProvider: () -> ConversationService,
-) : CliktCommand(name = "list", help = "List all conversations with optional filtering and sorting.",
+) : CliktCommand(
+        name = "list",
+        help = "List all conversations with optional filtering and sorting.",
         epilog =
             """
             EXAMPLES:

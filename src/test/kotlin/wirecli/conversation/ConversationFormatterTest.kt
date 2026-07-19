@@ -55,10 +55,13 @@ class ConversationFormatterTest {
     }
 
     @Test
-    fun `toJson returns empty array for empty list`() {
+    fun `toJson returns a stable list envelope for empty list`() {
         val result = formatter.toJson(emptyList())
 
-        assertEquals("[]", result)
+        assertEquals(
+            """{"items":[],"returned":0,"total":0,"truncated":false}""",
+            result,
+        )
     }
 
     @Test
@@ -78,8 +81,11 @@ class ConversationFormatterTest {
 
         val result = formatter.toJson(conversations)
 
-        assertTrue(result.startsWith("["))
-        assertTrue(result.endsWith("]"))
+        assertTrue(result.startsWith("{"), "envelope should start with object: $result")
+        assertTrue(result.contains("\"items\":["))
+        assertTrue(result.contains("\"returned\":1"))
+        assertTrue(result.contains("\"total\":1"))
+        assertTrue(result.contains("\"truncated\":false"))
         assertTrue(result.contains("\"id\":\"conv-001\""))
         assertTrue(result.contains("\"name\":\"Team\""))
         // EnumType.toString() returns the value string (lowercase)

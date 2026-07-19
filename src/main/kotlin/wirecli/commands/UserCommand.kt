@@ -49,6 +49,7 @@ class UserSearchCommand(
     private val formatter = UserFormatter()
 
     override fun run() {
+        validateStructuredOutputOrExit(json, jsonLines)
         val validatedQuery =
             validateOrExit {
                 UserSearchQuery(
@@ -71,7 +72,7 @@ class UserSearchCommand(
 
             is UserSearchResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }
@@ -102,7 +103,7 @@ class UserGetCommand(
 
             is UserGetResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

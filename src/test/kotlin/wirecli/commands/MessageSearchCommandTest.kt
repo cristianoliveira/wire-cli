@@ -145,7 +145,7 @@ class MessageSearchCommandTest {
 
         val result = execute(command, listOf("hello", "--limit", "0"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: limit must be between 1 and 100", result.stderr.trim())
     }
 
@@ -160,7 +160,7 @@ class MessageSearchCommandTest {
 
         val result = execute(command, listOf("   "))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: search query required", result.stderr.trim())
     }
 
@@ -179,7 +179,7 @@ class MessageSearchCommandTest {
 
         val result = execute(command, listOf("hello"))
 
-        assertEquals(12, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("network error while searching messages", result.stderr.trim())
     }
 

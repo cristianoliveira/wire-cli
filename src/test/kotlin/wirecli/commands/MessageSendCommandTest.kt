@@ -32,7 +32,7 @@ class MessageSendCommandTest {
 
         val result = execute(command, listOf("", "Hello"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: conversation required", result.stderr.trim())
     }
 
@@ -45,7 +45,7 @@ class MessageSendCommandTest {
 
         val result = execute(command, listOf("conv-001", ""))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: message required", result.stderr.trim())
     }
 
@@ -58,7 +58,7 @@ class MessageSendCommandTest {
 
         val result = execute(command, listOf("conv-001", "   "))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: message required", result.stderr.trim())
     }
 
@@ -77,7 +77,7 @@ class MessageSendCommandTest {
 
         val result = execute(command, listOf("conv-001", "Hello"))
 
-        assertEquals(12, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("network error while sending message", result.stderr.trim())
     }
 
@@ -96,7 +96,7 @@ class MessageSendCommandTest {
 
         val result = execute(command, listOf("conv-001", "Hello"))
 
-        assertEquals(11, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("you must be logged in to send messages", result.stderr.trim())
     }
 
@@ -115,7 +115,7 @@ class MessageSendCommandTest {
 
         val result = execute(command, listOf("conv-001", "Hello"))
 
-        assertEquals(13, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("server error while sending message", result.stderr.trim())
     }
 
@@ -159,7 +159,7 @@ class MessageSendCommandTest {
 
         val result = execute(command, listOf("   ", "Hello"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: conversation required", result.stderr.trim())
     }
 

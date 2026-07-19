@@ -91,7 +91,7 @@ class MessageReactCommandTest {
 
         val result = execute(command, listOf("   ", "msg-1", "👍"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: conversation-id required", result.stderr.trim())
     }
 
@@ -106,7 +106,7 @@ class MessageReactCommandTest {
 
         val result = execute(command, listOf("conv-1", "   ", "👍"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: message-id required", result.stderr.trim())
     }
 
@@ -121,7 +121,7 @@ class MessageReactCommandTest {
 
         val result = execute(command, listOf("conv-1", "msg-1", "   "))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: emoji cannot be blank", result.stderr.trim())
     }
 
@@ -140,7 +140,7 @@ class MessageReactCommandTest {
 
         val result = execute(command, listOf("conv-1", "msg-1", "👍"))
 
-        assertEquals(12, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("network error while toggling reaction", result.stderr.trim())
     }
 

@@ -21,6 +21,7 @@ class ConversationSearchCommand(
     private val jsonLines by option("--json-lines", help = "Output as JSON lines").flag(default = false)
 
     override fun run() {
+        validateStructuredOutputOrExit(json, jsonLines)
         val expectedType = parseType(type)
         when (val result = conversationServiceProvider().listConversations()) {
             is ListConversationsResult.Success -> {
@@ -41,7 +42,7 @@ class ConversationSearchCommand(
 
             is ListConversationsResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

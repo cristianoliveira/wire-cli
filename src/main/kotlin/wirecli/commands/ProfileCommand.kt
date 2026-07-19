@@ -61,7 +61,7 @@ private fun CliktCommand.showCurrentProfile(profileServiceProvider: () -> Profil
         is ProfileResult.Failure -> {
             logger.warn { "Failed to retrieve profile: ${AuthRedactor.redact(result.message)}" }
             echo(AuthRedactor.redact(result.message), err = true)
-            throw ProgramResult(result.exitCode)
+            throw ProgramResult(processExitCode(result.exitCode))
         }
     }
 }
@@ -132,7 +132,7 @@ private fun CliktCommand.handleProfileUpdateResult(
         is ProfileUpdateResult.Failure -> {
             logger.warn { "Failed to update profile: ${AuthRedactor.redact(result.message)}" }
             echo(AuthRedactor.redact(result.message), err = true)
-            throw ProgramResult(result.exitCode)
+            throw ProgramResult(processExitCode(result.exitCode))
         }
     }
 }

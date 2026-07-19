@@ -27,7 +27,7 @@ class ConnectionCommandTest {
         val service = StubConnectionService()
         val result = execute(ConnectionAcceptCommand { service }, listOf("not-a-qualified-id"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertTrue(result.stderr.contains("validation error", ignoreCase = true))
         assertEquals(null, service.lastAcceptUserId)
     }
@@ -44,7 +44,7 @@ class ConnectionCommandTest {
             )
         val result = execute(ConnectionAcceptCommand { service }, listOf("bob-uuid@example.wire.com"))
 
-        assertEquals(13, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertTrue(result.stderr.contains("Accept failed unexpectedly."))
     }
 
@@ -77,7 +77,7 @@ class ConnectionCommandTest {
         val service = StubConnectionService()
         val result = execute(ConnectionIgnoreCommand { service }, listOf("not-a-qualified-id"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals(null, service.lastIgnoreUserId)
     }
 
@@ -107,7 +107,7 @@ class ConnectionCommandTest {
         val service = StubConnectionService()
         val result = execute(ConnectionCancelCommand { service }, listOf("not-a-qualified-id"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals(null, service.lastCancelUserId)
     }
 
@@ -137,7 +137,7 @@ class ConnectionCommandTest {
         val service = StubConnectionService()
         val result = execute(ConnectionRequestCommand { service }, listOf("not-a-qualified-id"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertTrue(result.stderr.contains("validation error", ignoreCase = true))
         assertEquals(null, service.lastRequestUserId)
     }
@@ -154,7 +154,7 @@ class ConnectionCommandTest {
             )
         val result = execute(ConnectionRequestCommand { service }, listOf("bob-uuid@example.wire.com"))
 
-        assertEquals(17, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertTrue(result.stderr.contains("already connected"))
     }
 
@@ -163,7 +163,7 @@ class ConnectionCommandTest {
         val service = StubConnectionService()
         val result = execute(ConnectionBlockCommand { service }, listOf("bob-uuid@example.wire.com"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertTrue(result.stderr.contains("--yes"))
         assertEquals(null, service.lastBlockUserId)
     }
@@ -315,7 +315,7 @@ class ConnectionCommandTest {
             )
         val result = execute(ConnectionListCommand { service }, emptyList())
 
-        assertEquals(13, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertTrue(result.stderr.contains("Connection list failed unexpectedly."))
     }
 

@@ -65,7 +65,7 @@ class DaemonCommandTest {
 
         val result = execute(command)
 
-        assertEquals(12, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals(1, service.startCalls)
         assertEquals(false, awaitedTermination)
         assertEquals(0, endpoint.startCalls)

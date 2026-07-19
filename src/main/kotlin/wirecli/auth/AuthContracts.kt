@@ -65,7 +65,7 @@ object ExitCodes {
     const val UNAUTHORIZED = 11
     const val NETWORK_ERROR = 12
     const val SERVER_ERROR = 13
-    const val VALIDATION_ERROR = 14
+    const val VALIDATION_ERROR = 2
     const val PASSWORD_REQUIRED = 15
     const val NOMAD_SINGLE_USER_VIOLATION = 16
     const val UNKNOWN_ERROR = 1

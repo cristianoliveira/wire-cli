@@ -116,7 +116,7 @@ class LoginCommand(
             is AuthResult.Failure -> {
                 logger.warn { "Login failed for email: $validatedEmail - ${AuthRedactor.redact(result.message)}" }
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

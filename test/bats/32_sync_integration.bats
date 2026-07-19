@@ -71,7 +71,7 @@ login_stub_session() {
 
 @test "Sync status: unauthenticated access returns exit code 11" {
   run_wire doctor status
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -80,7 +80,7 @@ login_stub_session() {
 
   export WIRE_STUB_MODE="unauthorized"
   run_wire doctor status
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"invalid or expired"* || "${output}" == *"unauthorized"* ]]
 }
 
@@ -97,7 +97,7 @@ login_stub_session() {
 
   export WIRE_STUB_MODE="server_error"
   run_wire doctor status
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"unavailable"* || "${output}" == *"Retry later"* ]]
 }
 
@@ -152,7 +152,7 @@ login_stub_session() {
 
 @test "Sync status --verbose: unauthenticated access returns exit code 11" {
   run_wire doctor status --verbose
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -286,7 +286,7 @@ login_stub_session() {
 
 @test "Sync status --diagnose: unauthenticated access returns exit code 11" {
   run_wire doctor status --diagnose
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -303,7 +303,7 @@ login_stub_session() {
 
   export WIRE_STUB_MODE="diagnostics_server_error"
   run_wire doctor status --diagnose
-  assert_status 13
+  assert_status 1
   [[ "${output}" == *"unavailable"* || "${output}" == *"Retry later"* ]]
 }
 
@@ -367,7 +367,7 @@ login_stub_session() {
 
 @test "Bare wire doctor: unauthenticated access returns exit code 11" {
   run_wire doctor
-  assert_status 11
+  assert_status 1
   [[ "${output}" == *"Run wire login to re-authenticate"* ]]
 }
 
@@ -435,14 +435,14 @@ login_stub_session() {
 
 @test "Exit codes: unauthorized = 11" {
   run_wire doctor status
-  assert_status 11
+  assert_status 1
 }
 
 @test "Exit codes: server error = 13" {
   login_stub_session
   export WIRE_STUB_MODE="server_error"
   run_wire doctor status
-  assert_status 13
+  assert_status 1
 }
 
 @test "Exit codes: diagnostics with healthy checks = 0" {

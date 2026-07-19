@@ -20,8 +20,25 @@ import wirecli.auth.ExitCodes
 internal fun CliktCommand.failWithUsage(message: String = "no subcommand specified"): Nothing {
     echo("Error: $message", err = true)
     echoFormattedHelp()
-    throw ProgramResult(1)
+    throw ProgramResult(ExitCodes.VALIDATION_ERROR)
 }
+
+internal fun CliktCommand.validateStructuredOutputOrExit(
+    json: Boolean,
+    jsonLines: Boolean,
+) {
+    if (!json || !jsonLines) return
+
+    echo("validation error: use either --json or --json-lines, not both", err = true)
+    throw ProgramResult(ExitCodes.VALIDATION_ERROR)
+}
+
+internal fun processExitCode(domainExitCode: Int): Int =
+    when (domainExitCode) {
+        ExitCodes.OK -> ExitCodes.OK
+        ExitCodes.VALIDATION_ERROR, 14 -> ExitCodes.VALIDATION_ERROR
+        else -> ExitCodes.UNKNOWN_ERROR
+    }
 
 internal inline fun <T> CliktCommand.validateOrExit(
     exitCode: Int = ExitCodes.VALIDATION_ERROR,
@@ -34,6 +51,6 @@ internal inline fun <T> CliktCommand.validateOrExit(
     } catch (error: IllegalArgumentException) {
         val message = error.message ?: defaultMessage
         echo(errorFormatter(message), err = true)
-        throw ProgramResult(exitCode)
+        throw ProgramResult(processExitCode(exitCode))
     }
 }

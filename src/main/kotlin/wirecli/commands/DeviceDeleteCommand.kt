@@ -65,7 +65,7 @@ class DeviceDeleteCommand(
 
             is DeviceDeleteResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

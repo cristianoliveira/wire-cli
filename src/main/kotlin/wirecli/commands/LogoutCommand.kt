@@ -24,7 +24,7 @@ class LogoutCommand(
             is AuthResult.Failure -> {
                 logger.warn { "Logout failed - ${AuthRedactor.redact(result.message)}" }
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

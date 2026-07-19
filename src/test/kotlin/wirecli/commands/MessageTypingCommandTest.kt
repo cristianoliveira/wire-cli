@@ -79,7 +79,7 @@ class MessageTypingCommandTest {
 
         val result = execute(command, listOf("conv-123", "--while-pid", "1234"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: while-pid must reference a running process", result.stderr.trim())
     }
 
@@ -93,7 +93,7 @@ class MessageTypingCommandTest {
 
         val result = execute(command, listOf("conv-123", "--while-pid", "-1"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: while-pid must be a positive integer", result.stderr.trim())
     }
 
@@ -107,7 +107,7 @@ class MessageTypingCommandTest {
 
         val result = execute(command, listOf("", "--while-pid", "1234"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: conversation required", result.stderr.trim())
     }
 
@@ -130,7 +130,7 @@ class MessageTypingCommandTest {
 
         val result = execute(command, listOf("conv-123", "--while-pid", "1234"))
 
-        assertEquals(12, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals("network error while sending typing status", result.stderr.trim())
     }
 

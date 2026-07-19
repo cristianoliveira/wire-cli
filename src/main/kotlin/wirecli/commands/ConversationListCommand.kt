@@ -7,7 +7,14 @@ import com.github.ajalt.clikt.parameters.options.option
 import wirecli.auth.AuthRedactor
 import wirecli.conversation.ConversationFormatter
 import wirecli.conversation.ConversationService
+import wirecli.conversation.ConversationType
 import wirecli.conversation.ListConversationsResult
+
+private enum class ConversationSort {
+    NAME,
+    MEMBERS,
+    CREATED,
+}
 
 class ConversationListCommand(
     private val conversationServiceProvider: () -> ConversationService,
@@ -24,6 +31,9 @@ class ConversationListCommand(
     private val jsonLines by option("--json-lines", help = "Output as JSON lines").flag(default = false)
 
     override fun run() {
+        validateStructuredOutputOrExit(json, jsonLines)
+        val validatedFilter = validateEnum(filterType, "filter-type", ConversationType.entries)
+        val validatedSort = validateEnum(sortBy, "sort-by", ConversationSort.entries)
         val conversationService = conversationServiceProvider()
         val result = conversationService.listConversations()
 
@@ -32,20 +42,16 @@ class ConversationListCommand(
                 var conversations = result.view.conversations
 
                 // Apply filters
-                if (filterType != null) {
-                    conversations =
-                        conversations.filter { conv ->
-                            conv.type.name == filterType?.uppercase()
-                        }
+                if (validatedFilter != null) {
+                    conversations = conversations.filter { conversation -> conversation.type == validatedFilter }
                 }
 
-                // Apply sorting
                 conversations =
-                    when (sortBy?.uppercase()) {
-                        "NAME" -> conversations.sortedBy { it.name }
-                        "MEMBERS" -> conversations.sortedByDescending { it.memberCount }
-                        "CREATED" -> conversations.sortedByDescending { it.createdAt }
-                        else -> conversations
+                    when (validatedSort) {
+                        ConversationSort.NAME -> conversations.sortedBy { it.name }
+                        ConversationSort.MEMBERS -> conversations.sortedByDescending { it.memberCount }
+                        ConversationSort.CREATED -> conversations.sortedByDescending { it.createdAt }
+                        null -> conversations
                     }
 
                 // Format and output
@@ -62,8 +68,23 @@ class ConversationListCommand(
 
             is ListConversationsResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
+        }
+    }
+
+    private inline fun <reified T : Enum<T>> validateEnum(
+        value: String?,
+        optionName: String,
+        validValues: List<T>,
+    ): T? {
+        if (value == null) return null
+
+        return validateOrExit(errorFormatter = { "validation error: $it" }) {
+            validValues.firstOrNull { valid -> valid.name == value.uppercase() }
+                ?: throw IllegalArgumentException(
+                    "$optionName must be one of: ${validValues.joinToString { valid -> valid.name }}",
+                )
         }
     }
 }

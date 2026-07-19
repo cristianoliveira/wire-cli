@@ -39,7 +39,7 @@ class ImportCommand(
             ImportResult.Success -> echo("Imported backup into local cache")
             is ImportResult.Failure -> {
                 echo(result.message, err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

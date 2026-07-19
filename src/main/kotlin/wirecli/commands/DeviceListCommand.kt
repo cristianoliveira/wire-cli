@@ -51,6 +51,7 @@ class DeviceListCommand(
      * @post If failure, error message is redacted before output
      */
     override fun run() {
+        validateStructuredOutputOrExit(json, jsonLines)
         val deviceService = deviceServiceProvider()
         val result =
             if (userId != null) {
@@ -70,7 +71,7 @@ class DeviceListCommand(
 
             is DeviceListResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

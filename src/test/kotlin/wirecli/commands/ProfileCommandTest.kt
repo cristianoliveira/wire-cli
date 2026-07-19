@@ -31,7 +31,7 @@ class ProfileCommandTest {
 
         val result = execute(command, listOf("   "))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: name required", result.stderr.trim())
         assertEquals(null, service.lastUpdate)
     }
@@ -43,7 +43,7 @@ class ProfileCommandTest {
 
         val result = execute(command, listOf(""))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: name required", result.stderr.trim())
         assertEquals(null, service.lastUpdate)
     }
@@ -63,7 +63,7 @@ class ProfileCommandTest {
 
         val result = execute(command, listOf("Cristiano"))
 
-        assertEquals(13, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals(
             "Profile update service is unavailable. Retry later or check server settings.",
             result.stderr.trim(),

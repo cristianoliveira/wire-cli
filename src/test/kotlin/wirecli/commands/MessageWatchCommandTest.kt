@@ -76,7 +76,7 @@ class MessageWatchCommandTest {
 
         val result = execute(command, listOf("conv-123", "--format", "xml"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: format must be one of: text, json", result.stderr.trim())
     }
 
@@ -125,7 +125,7 @@ class MessageWatchCommandTest {
 
         val result = execute(command, listOf("conv-123"))
 
-        assertEquals(13, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertEquals(MessageUserMessages.CONVERSATION_NOT_FOUND, result.stderr.trim())
     }
 
@@ -140,7 +140,7 @@ class MessageWatchCommandTest {
 
         val result = execute(command, listOf("   "))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals("validation error: conversation required", result.stderr.trim())
     }
 

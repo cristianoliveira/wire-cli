@@ -63,7 +63,7 @@ class UserCommandTest {
             )
         val result = execute(UserSearchCommand { service }, listOf("alice"))
 
-        assertEquals(19, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertTrue(result.stderr.contains("boom"))
     }
 
@@ -104,7 +104,7 @@ class UserCommandTest {
             )
         val result = execute(UserGetCommand { service }, listOf("ghost@example.wire.com"))
 
-        assertEquals(18, result.exitCode)
+        assertEquals(1, result.exitCode)
         assertTrue(result.stderr.contains("User not found"))
     }
 
@@ -113,7 +113,7 @@ class UserCommandTest {
         val service = StubUserService()
         val result = execute(UserGetCommand { service }, listOf("not-a-qualified-id"))
 
-        assertEquals(14, result.exitCode)
+        assertEquals(2, result.exitCode)
         assertEquals(null, service.lastGetUserId)
     }
 

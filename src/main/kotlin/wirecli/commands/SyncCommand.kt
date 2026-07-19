@@ -70,7 +70,7 @@ class SyncCommand(
             }
             is SyncStatusResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }
@@ -109,7 +109,7 @@ private class DoctorSyncCommand(
             }
             is SyncStatusResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }
@@ -191,7 +191,7 @@ private class SyncStatusCommand(
             }
             is SyncStatusResult.Failure -> {
                 echo(AuthRedactor.redact(output), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }
@@ -216,7 +216,7 @@ private class SyncStatusCommand(
             }
             is DiagnosticsResult.Failure -> {
                 echo(AuthRedactor.redact(output), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }
@@ -292,7 +292,7 @@ private class DoctorDiagnoseCommand(
             }
             is DiagnosticsResult.Failure -> {
                 echo(AuthRedactor.redact(output), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

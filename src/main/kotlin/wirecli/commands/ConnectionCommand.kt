@@ -157,7 +157,7 @@ private fun CliktCommand.emitActionResult(
 
         is ConnectionActionResult.Failure -> {
             echo(AuthRedactor.redact(result.message), err = true)
-            throw ProgramResult(result.exitCode)
+            throw ProgramResult(processExitCode(result.exitCode))
         }
     }
 }
@@ -180,6 +180,7 @@ class ConnectionListCommand(
     private val jsonLines by option("--json-lines", help = "Output as JSON lines").flag(default = false)
 
     override fun run() {
+        validateStructuredOutputOrExit(json, jsonLines)
         val connectionService = connectionServiceProvider()
 
         when (val result = connectionService.listConnections()) {
@@ -196,7 +197,7 @@ class ConnectionListCommand(
 
             is ConnectionListResult.Failure -> {
                 echo(AuthRedactor.redact(result.message), err = true)
-                throw ProgramResult(result.exitCode)
+                throw ProgramResult(processExitCode(result.exitCode))
             }
         }
     }

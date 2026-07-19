@@ -39,20 +39,20 @@ setup_active_session() {
 	sleep 5 &
 	pid=$!
 	run_wire message typing "conv-001" --while-pid "$pid"
-	assert_status 12
+	assert_status 1
 	[[ "${output}" == *"typing"* ]]
 }
 
 @test "message typing: blank conversation validation error" {
 	export WIRE_STUB_MODE="success"
 	run_wire message typing "" --while-pid "1234"
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: conversation required"* ]]
 }
 
 @test "message typing: non-running while-pid validation error" {
 	export WIRE_STUB_MODE="success"
 	run_wire message typing "conv-001" --while-pid "999999"
-	assert_status 14
+	assert_status 2
 	[[ "${output}" == *"validation error: while-pid must reference a running process"* ]]
 }

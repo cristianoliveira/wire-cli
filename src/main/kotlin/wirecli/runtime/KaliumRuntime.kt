@@ -76,6 +76,13 @@ import wirecli.sync.SessionBackedSyncService
 import wirecli.sync.StubSyncApiClient
 import wirecli.sync.SyncApiClient
 import wirecli.sync.SyncService
+import wirecli.team.AuthGuardedTeamService
+import wirecli.team.RealKaliumTeamApiClient
+import wirecli.team.SdkKaliumTeamRuntime
+import wirecli.team.SessionBackedTeamService
+import wirecli.team.StubTeamApiClient
+import wirecli.team.TeamApiClient
+import wirecli.team.TeamService
 import wirecli.user.AuthGuardedUserService
 import wirecli.user.RealKaliumUserApiClient
 import wirecli.user.SdkKaliumUserRuntime
@@ -99,6 +106,7 @@ interface KaliumRuntime : AutoCloseable {
     val userService: UserService
     val connectionService: ConnectionService
     val downloadService: DownloadService
+    val teamService: TeamService
 
     fun shutdown()
 
@@ -277,6 +285,17 @@ private class DefaultKaliumRuntime(
         )
     }
 
+    override val teamService: TeamService by lazy {
+        AuthGuardedTeamService(
+            authSessionService = authSessionService,
+            delegate =
+                SessionBackedTeamService(
+                    sessionStore = sessionStore,
+                    apiClient = backend.teamApiClient,
+                ),
+        )
+    }
+
     override fun shutdown() {
         if (!backendLazy.isInitialized()) return
         backend.shutdown()
@@ -322,6 +341,7 @@ internal interface RuntimeBackend {
     val userApiClient: UserApiClient
     val connectionApiClient: ConnectionApiClient
     val downloadApiClient: DownloadApiClient
+    val teamApiClient: TeamApiClient
 
     fun shutdown()
 }
@@ -339,6 +359,7 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
             override val userApiClient: UserApiClient = StubUserApiClient(environment)
             override val connectionApiClient: ConnectionApiClient = StubConnectionApiClient(environment)
             override val downloadApiClient: DownloadApiClient = StubDownloadApiClient(environment)
+            override val teamApiClient: TeamApiClient = StubTeamApiClient(environment)
 
             override fun shutdown() {
                 // No background resources in stub backend.
@@ -401,6 +422,10 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
 
             override val downloadApiClient: DownloadApiClient by lazy {
                 RealKaliumDownloadApiClient(SdkKaliumDownloadRuntime(environment))
+            }
+
+            override val teamApiClient: TeamApiClient by lazy {
+                RealKaliumTeamApiClient(SdkKaliumTeamRuntime(environment))
             }
 
             override fun shutdown() {

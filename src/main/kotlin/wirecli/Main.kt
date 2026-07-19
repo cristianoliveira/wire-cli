@@ -16,6 +16,7 @@ import wirecli.commands.PresenceCommand
 import wirecli.commands.ProfileCommand
 import wirecli.commands.RootCommand
 import wirecli.commands.SyncCommand
+import wirecli.commands.TeamCommand
 import wirecli.commands.UserCommand
 import wirecli.config.AccessPolicyLoader
 import wirecli.config.CommandAccess
@@ -96,6 +97,7 @@ fun main(args: Array<String>) {
                 UserCommand { runtime.userService },
                 ConnectionCommand { runtime.connectionService },
                 DownloadCommand { runtime.downloadService },
+                TeamCommand { runtime.teamService },
             )
             .main(args)
         completed = true

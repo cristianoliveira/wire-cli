@@ -27,6 +27,16 @@ teardown() {
   [[ "${output}" == *"backup"* ]]
 }
 
+@test "Given built CLI, when running --help, then root description covers full CLI scope" {
+  run_wire --help
+
+  assert_status 0
+  [[ "${output}" == *"conversation"* || "${output}" == *"Conversation"* ]]
+  [[ "${output}" == *"message"* || "${output}" == *"Message"* ]]
+  [[ "${output}" == *"device"* || "${output}" == *"Device"* ]]
+  [[ "${output}" == *"sync"* || "${output}" == *"health"* || "${output}" == *"doctor"* ]]
+}
+
 @test "Given command group has no subcommand, when command fails, then error and usage are printed" {
   run_wire user
 

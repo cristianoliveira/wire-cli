@@ -51,3 +51,12 @@ teardown() {
 	assert_status 2
 	[[ "${output}" == *"validation error: limit must be between 1 and 100"* ]]
 }
+
+@test "message list: help documents limit bound and defaults" {
+	run_wire message list --help
+	assert_status 0
+	[[ "${output}" == *"limit"* ]]
+	[[ "${output}" == *"1"* ]]
+	[[ "${output}" == *"100"* ]]
+	[[ "${output}" == *"default"* ]]
+}

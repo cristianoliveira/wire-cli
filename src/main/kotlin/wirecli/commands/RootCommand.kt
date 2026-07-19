@@ -3,22 +3,29 @@ package wirecli.commands
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.LoggerContext
-import com.github.ajalt.clikt.core.NoOpCliktCommand
+import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.slf4j.LoggerFactory
+import wirecli.profile.ProfileResult
+import wirecli.profile.ProfileService
 import java.io.File
 
 private val logger by lazy { KotlinLogging.logger {} }
 
-class RootCommand : NoOpCliktCommand(
-    name = "wire",
-    help =
-        "Wire CLI for account management, conversations, messages, devices, sync, and backups.\n\n" +
-            "Logs are saved to: ~/.cache/wire-cli/logs/\n" +
-            "Console logs are off by default; use --verbose or --log-level to enable them.",
-) {
+private const val MAX_LIVE_STATE_BYTES = 256
+
+class RootCommand(
+    private val profileServiceProvider: () -> ProfileService,
+) : CliktCommand(
+        name = "wire",
+        invokeWithoutSubcommand = true,
+        help =
+            "Wire CLI for account management, conversations, messages, devices, sync, and backups.\n\n" +
+                "Logs are saved to: ~/.cache/wire-cli/logs/\n" +
+                "Console logs are off by default; use --verbose or --log-level to enable them.",
+    ) {
     private val verbose by option(
         "--verbose",
         "-v",
@@ -34,6 +41,32 @@ class RootCommand : NoOpCliktCommand(
 
     override fun run() {
         configureLogging()
+        echo(buildLiveState())
+    }
+
+    private fun buildLiveState(): String {
+        val profileService = runCatching { profileServiceProvider() }.getOrNull()
+        val profile = profileService?.let { runCatching { it.getCurrentProfile() }.getOrNull() }
+
+        return when (profile) {
+            is ProfileResult.Success -> {
+                val handle = profile.profile.handle ?: profile.profile.email ?: "unknown"
+                """
+                    |wire: authenticated as $handle
+                    |next: wire message list --json
+                """.trimMargin().trimEnd()
+            }
+            else -> {
+                """
+                    |wire: not authenticated — run wire login to start
+                    |next: wire login --email <you@example.com> --password <password>
+                """.trimMargin().trimEnd()
+            }
+        }.also { output ->
+            check(output.toByteArray().size <= MAX_LIVE_STATE_BYTES) {
+                "live state exceeded byte budget"
+            }
+        }
     }
 
     private fun configureLogging() {

@@ -60,16 +60,12 @@ class ConversationFormatter {
     }
 
     fun toJson(conversations: List<Conversation>): String {
-        if (conversations.isEmpty()) {
-            return "[]"
-        }
-
         val jsonItems =
             conversations
                 .map { buildConversationJsonObject(it) }
                 .joinToString(",")
 
-        return "[$jsonItems]"
+        return """{"items":[$jsonItems],"returned":${conversations.size},"total":${conversations.size},"truncated":false}"""
     }
 
     fun toJsonLines(conversations: List<Conversation>): String {

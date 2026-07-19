@@ -12,6 +12,7 @@ import wirecli.conversation.ConversationType
 import wirecli.conversation.CreateConversationResult
 import wirecli.conversation.DeleteConversationResult
 import wirecli.conversation.GetConversationResult
+import wirecli.conversation.GetMembersResult
 import wirecli.conversation.ListConversationsResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -198,6 +199,11 @@ class RecentMessageListingServiceTest {
             session: AuthSession,
             conversationId: String,
         ): GetConversationResult = GetConversationResult.Failure("unsupported", 1)
+
+        override fun getMembers(
+            session: AuthSession,
+            conversationId: String,
+        ): GetMembersResult = GetMembersResult.Failure("unsupported", 1)
     }
 
     private class FakeMessageApiClient(

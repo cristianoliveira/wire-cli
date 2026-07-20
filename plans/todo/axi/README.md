@@ -4,8 +4,7 @@ Remaining work from message read-state AXI evaluation.
 
 Recommended order:
 
-1. [Structured command errors](structured-command-errors.md)
-2. [TOON output boundary](toon-output-boundary.md)
+1. [TOON output boundary](toon-output-boundary.md)
 
 Why this order:
 
@@ -27,6 +26,7 @@ Global constraints:
 
 Completed AXI plans:
 
+- [Structured command errors](../../done/axi/structured-command-errors.md)
 - [Message read result contract](../../done/axi/message-read-result-contract.md)
 - [Structured list envelopes](../../done/axi/structured-list-envelopes.md)
 - [Empty-result contracts](../../done/axi/empty-result-contracts.md)

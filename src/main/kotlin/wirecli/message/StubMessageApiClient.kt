@@ -269,6 +269,41 @@ class StubMessageApiClient(
         }
     }
 
+    override fun setMessageRead(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+    ): SetMessageReadResult {
+        return when (mode) {
+            StubMode.SUCCESS -> SetMessageReadResult.Success
+            StubMode.UNAUTHORIZED ->
+                SetMessageReadResult.Failure(
+                    message = AuthMessages.invalidOrExpiredSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+            StubMode.NETWORK_ERROR ->
+                SetMessageReadResult.Failure(
+                    message = MessageUserMessages.SET_READ_NETWORK_ERROR,
+                    exitCode = ExitCodes.NETWORK_ERROR,
+                )
+            StubMode.SERVER_ERROR ->
+                SetMessageReadResult.Failure(
+                    message = MessageUserMessages.SET_READ_SERVER_ERROR,
+                    exitCode = ExitCodes.SERVER_ERROR,
+                )
+            StubMode.VALIDATION_ERROR ->
+                SetMessageReadResult.Failure(
+                    message = MessageUserMessages.VALIDATION_ERROR,
+                    exitCode = MessageExitCodes.VALIDATION_ERROR,
+                )
+            StubMode.CONVERSATION_NOT_FOUND ->
+                SetMessageReadResult.Failure(
+                    message = MessageUserMessages.CONVERSATION_NOT_FOUND,
+                    exitCode = MessageExitCodes.NOT_FOUND,
+                )
+        }
+    }
+
     override fun sendTypingStatus(
         session: AuthSession,
         conversationId: String,

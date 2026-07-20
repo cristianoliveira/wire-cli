@@ -307,6 +307,20 @@ class SessionBackedMessageService(
         }
     }
 
+    override fun setMessageRead(
+        conversationId: String,
+        messageId: String,
+    ): SetMessageReadResult {
+        val session =
+            sessionStore.readActiveSession()
+                ?: return SetMessageReadResult.Failure(
+                    message = AuthMessages.noActiveSession(),
+                    exitCode = ExitCodes.UNAUTHORIZED,
+                )
+
+        return apiClient.setMessageRead(session, conversationId, messageId)
+    }
+
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,

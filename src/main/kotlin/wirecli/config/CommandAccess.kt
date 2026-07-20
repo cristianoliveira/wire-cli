@@ -56,7 +56,7 @@ object CommandAccess {
             "message" ->
                 when (child) {
                     "fetch", "watch", "search" -> "message.read"
-                    "send", "react", "typing", "delete" -> "message.$child"
+                    "send", "react", "typing", "delete", "set" -> "message.$child"
                     else -> null
                 }
             "doctor" ->

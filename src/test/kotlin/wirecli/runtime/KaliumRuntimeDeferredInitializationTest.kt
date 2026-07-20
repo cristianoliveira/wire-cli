@@ -23,6 +23,7 @@ import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageApiClient
 import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
+import wirecli.message.SetMessageReadResult
 import wirecli.message.ToggleReactionResult
 import wirecli.presence.PresenceApiClient
 import wirecli.presence.PresenceResult
@@ -353,5 +354,13 @@ private object NoopMessageApiClient : MessageApiClient {
         scope: DeleteScope,
     ): DeleteMessageResult {
         return DeleteMessageResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
+    }
+
+    override fun setMessageRead(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+    ): SetMessageReadResult {
+        return SetMessageReadResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }
 }

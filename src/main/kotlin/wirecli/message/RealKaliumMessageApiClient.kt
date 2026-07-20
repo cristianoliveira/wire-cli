@@ -198,6 +198,36 @@ internal class RealKaliumMessageApiClient(
         }
     }
 
+    override fun setMessageRead(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+    ): SetMessageReadResult {
+        return when (val result = runtime.setMessageRead(session, conversationId, messageId)) {
+            is MessageStepResult.Success -> SetMessageReadResult.Success
+            is MessageStepResult.Failure -> {
+                val (message, exitCode) =
+                    when (result.category) {
+                        MessageFailureCategory.VALIDATION ->
+                            MessageUserMessages.VALIDATION_ERROR to MessageExitCodes.VALIDATION_ERROR
+                        MessageFailureCategory.UNAUTHORIZED ->
+                            AuthMessages.invalidOrExpiredSession() to ExitCodes.UNAUTHORIZED
+                        MessageFailureCategory.TIMEOUT,
+                        MessageFailureCategory.NETWORK,
+                        -> MessageUserMessages.SET_READ_NETWORK_ERROR to ExitCodes.NETWORK_ERROR
+                        MessageFailureCategory.SERVER ->
+                            MessageUserMessages.SET_READ_SERVER_ERROR to ExitCodes.SERVER_ERROR
+                        MessageFailureCategory.NOT_FOUND ->
+                            MessageUserMessages.MESSAGE_NOT_FOUND to MessageExitCodes.NOT_FOUND
+                        MessageFailureCategory.UNKNOWN ->
+                            MessageUserMessages.SET_READ_UNKNOWN_ERROR to ExitCodes.UNKNOWN_ERROR
+                    }
+
+                SetMessageReadResult.Failure(message, exitCode)
+            }
+        }
+    }
+
     override fun sendTypingStatus(
         session: AuthSession,
         conversationId: String,

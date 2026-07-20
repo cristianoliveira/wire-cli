@@ -1,16 +1,6 @@
 # AXI follow-up plans
 
-Remaining work from message read-state AXI evaluation.
-
-Recommended order:
-
-1. [TOON output boundary](toon-output-boundary.md)
-
-Why this order:
-
-- First make one mutation truthful and observable, including idempotent no-op.
-- Then create shared structured failure contract before more commands duplicate error handling.
-- Adopt TOON only after success/error domain shapes share one output boundary and library feasibility is measured.
+No remaining work from message read-state AXI evaluation.
 
 Global constraints:
 
@@ -26,6 +16,7 @@ Global constraints:
 
 Completed AXI plans:
 
+- [TOON output boundary](../../done/axi/toon-output-boundary.md)
 - [Structured command errors](../../done/axi/structured-command-errors.md)
 - [Message read result contract](../../done/axi/message-read-result-contract.md)
 - [Structured list envelopes](../../done/axi/structured-list-envelopes.md)

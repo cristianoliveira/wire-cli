@@ -29,6 +29,24 @@ teardown() {
   [[ "${output}" == "Message marked as read." ]]
 }
 
+@test "message set: read emits requested coordinates and outcome as JSON" {
+  export WIRE_STUB_MODE="success"
+
+  run_wire message set "conv-001" --read "msg-001" --json
+
+  assert_status 0
+  [[ "${output}" == '{"conversationId":"conv-001","messageId":"msg-001","state":"read","outcome":"applied"}' ]]
+}
+
+@test "message set: repeated read reports an idempotent no-op" {
+  export WIRE_STUB_MODE="already_read"
+
+  run_wire message set "conv-001" --read "msg-001" --json
+
+  assert_status 0
+  [[ "${output}" == '{"conversationId":"conv-001","messageId":"msg-001","state":"read","outcome":"already_read"}' ]]
+}
+
 @test "message set: read requires a message id" {
   run_wire message set "conv-001" --read
 

@@ -204,7 +204,11 @@ internal class RealKaliumMessageApiClient(
         messageId: String,
     ): SetMessageReadResult {
         return when (val result = runtime.setMessageRead(session, conversationId, messageId)) {
-            is MessageStepResult.Success -> SetMessageReadResult.Success
+            is MessageStepResult.Success ->
+                when (result.value) {
+                    SetMessageReadOutcome.APPLIED -> SetMessageReadResult.Success
+                    SetMessageReadOutcome.ALREADY_READ -> SetMessageReadResult.AlreadyRead
+                }
             is MessageStepResult.Failure -> {
                 val (message, exitCode) =
                     when (result.category) {

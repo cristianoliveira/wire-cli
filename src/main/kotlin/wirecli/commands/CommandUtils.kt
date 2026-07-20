@@ -2,6 +2,8 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import wirecli.auth.ExitCodes
 
 /**
@@ -31,6 +33,34 @@ internal fun CliktCommand.validateStructuredOutputOrExit(
 
     echo("validation error: use either --json or --json-lines, not both", err = true)
     throw ProgramResult(ExitCodes.VALIDATION_ERROR)
+}
+
+internal data class StructuredCommandError(
+    val code: String,
+    val message: String,
+    val retryable: Boolean,
+    val next: String? = null,
+)
+
+internal fun formatStructuredError(error: StructuredCommandError): String =
+    buildJsonObject {
+        put(
+            "error",
+            buildJsonObject {
+                put("code", JsonPrimitive(error.code))
+                put("message", JsonPrimitive(error.message))
+                put("retryable", JsonPrimitive(error.retryable))
+                error.next?.let { put("next", JsonPrimitive(it)) }
+            },
+        )
+    }.toString()
+
+internal fun CliktCommand.emitStructuredErrorAndExit(
+    error: StructuredCommandError,
+    exitCode: Int,
+): Nothing {
+    echo(formatStructuredError(error))
+    throw ProgramResult(processExitCode(exitCode))
 }
 
 internal fun processExitCode(domainExitCode: Int): Int =

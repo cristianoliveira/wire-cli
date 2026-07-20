@@ -60,6 +60,41 @@ class MessageSetCommandTest {
     }
 
     @Test
+    fun `set read emits structured network errors only to stdout`() {
+        val command =
+            MessageSetCommand {
+                FakeMessageService(
+                    result = SetMessageReadResult.Failure("network unavailable", 12),
+                )
+            }
+
+        val result = execute(command, listOf("conv-1", "--read", "msg-1", "--json"))
+
+        assertEquals(1, result.exitCode)
+        assertEquals("", result.stderr)
+        assertEquals(
+            "{\"error\":{\"code\":\"network_error\",\"message\":\"network unavailable\",\"retryable\":true," +
+                "\"next\":\"wire message set conv-1 --read msg-1 --json\"}}\n",
+            result.stdout,
+        )
+    }
+
+    @Test
+    fun `set read emits structured validation errors only to stdout`() {
+        val command = MessageSetCommand { FakeMessageService() }
+
+        val result = execute(command, listOf("   ", "--read", "msg-1", "--json"))
+
+        assertEquals(2, result.exitCode)
+        assertEquals("", result.stderr)
+        assertEquals(
+            "{\"error\":{\"code\":\"validation_error\",\"message\":\"conversation-id required\"," +
+                "\"retryable\":false}}\n",
+            result.stdout,
+        )
+    }
+
+    @Test
     fun `set read rejects blank conversation id`() {
         val command = MessageSetCommand { FakeMessageService() }
 

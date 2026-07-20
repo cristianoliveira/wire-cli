@@ -274,6 +274,10 @@ class StubMessageApiClient(
         conversationId: String,
         messageId: String,
     ): SetMessageReadResult {
+        if (environment["WIRE_STUB_MODE"]?.lowercase() == "already_read") {
+            return SetMessageReadResult.AlreadyRead
+        }
+
         return when (mode) {
             StubMode.SUCCESS -> SetMessageReadResult.Success
             StubMode.UNAUTHORIZED ->

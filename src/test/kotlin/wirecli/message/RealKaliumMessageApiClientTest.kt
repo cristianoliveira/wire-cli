@@ -613,6 +613,21 @@ class RealKaliumMessageApiClientTest {
     }
 
     @Test
+    fun `setMessageRead preserves already read outcome`() {
+        val client =
+            RealKaliumMessageApiClient(
+                FakeKaliumMessageRuntime(
+                    result = MessageStepResult.Success(Unit),
+                    setReadResult = MessageStepResult.Success(SetMessageReadOutcome.ALREADY_READ),
+                ),
+            )
+
+        val result = client.setMessageRead(testSession, "conv-1", "msg-1")
+
+        assertIs<SetMessageReadResult.AlreadyRead>(result)
+    }
+
+    @Test
     fun `setMessageRead maps missing message failure`() {
         val client =
             RealKaliumMessageApiClient(
@@ -636,7 +651,8 @@ class RealKaliumMessageApiClientTest {
         private val fetchResult: MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList()),
         private val captureCalls: MutableList<Triple<AuthSession, String, String>>? = null,
         private val localFetchCalls: MutableList<Pair<AuthSession, String>>? = null,
-        private val setReadResult: MessageStepResult<Unit> = result,
+        private val setReadResult: MessageStepResult<SetMessageReadOutcome> =
+            MessageStepResult.Success(SetMessageReadOutcome.APPLIED),
         private val setReadCalls: MutableList<Triple<AuthSession, String, String>>? = null,
     ) : MessageRuntime {
         override fun sendMessage(
@@ -667,7 +683,7 @@ class RealKaliumMessageApiClientTest {
             session: AuthSession,
             conversationId: String,
             messageId: String,
-        ): MessageStepResult<Unit> {
+        ): MessageStepResult<SetMessageReadOutcome> {
             setReadCalls?.add(Triple(session, conversationId, messageId))
             return setReadResult
         }

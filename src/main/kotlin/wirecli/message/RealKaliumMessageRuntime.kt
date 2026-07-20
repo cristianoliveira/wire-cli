@@ -7,6 +7,7 @@ import com.wire.kalium.logic.data.message.AssetContent
 import com.wire.kalium.logic.data.message.Message
 import com.wire.kalium.logic.data.message.MessageContent
 import com.wire.kalium.logic.data.user.UserId
+import com.wire.kalium.logic.feature.conversation.ObserveConversationDetailsUseCase
 import com.wire.kalium.logic.feature.message.GetMessageByIdUseCase
 import com.wire.kalium.logic.feature.message.MessageOperationResult
 import com.wire.kalium.logic.feature.message.SearchMessagesGloballyUseCase
@@ -301,7 +302,7 @@ internal class SdkKaliumMessageRuntime(
         session: AuthSession,
         conversationId: String,
         messageId: String,
-    ): MessageStepResult<Unit> {
+    ): MessageStepResult<SetMessageReadOutcome> {
         if (conversationId.isBlank() || messageId.isBlank()) {
             return MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
         }
@@ -333,12 +334,27 @@ internal class SdkKaliumMessageRuntime(
                             syncExecutor.request {
                                 when (val result = messages.getMessageById(kaliumConversationId, messageId)) {
                                     is GetMessageByIdUseCase.Result.Success -> {
-                                        conversations.updateConversationReadDateUseCase(
-                                            conversationId = kaliumConversationId,
-                                            time = result.message.date,
-                                            invokeImmediately = true,
-                                        )
-                                        MessageStepResult.Success(Unit)
+                                        val conversation =
+                                            conversations.observeConversationDetails(kaliumConversationId).first()
+                                        when (conversation) {
+                                            is ObserveConversationDetailsUseCase.Result.Success -> {
+                                                if (
+                                                    conversation.conversationDetails.conversation.lastReadDate >=
+                                                    result.message.date
+                                                ) {
+                                                    MessageStepResult.Success(SetMessageReadOutcome.ALREADY_READ)
+                                                } else {
+                                                    conversations.updateConversationReadDateUseCase(
+                                                        conversationId = kaliumConversationId,
+                                                        time = result.message.date,
+                                                        invokeImmediately = true,
+                                                    )
+                                                    MessageStepResult.Success(SetMessageReadOutcome.APPLIED)
+                                                }
+                                            }
+                                            is ObserveConversationDetailsUseCase.Result.Failure ->
+                                                MessageStepResult.Failure(MessageFailureCategory.NOT_FOUND)
+                                        }
                                     }
                                     is GetMessageByIdUseCase.Result.Failure ->
                                         MessageStepResult.Failure(

@@ -1,6 +1,9 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import wirecli.message.FetchMessagesResult
 import wirecli.message.FetchMessagesView
 import wirecli.message.MessageService
@@ -22,6 +25,73 @@ class MessageSetCommandTest {
         assertEquals(0, result.exitCode)
         assertEquals("Message marked as read.\n", result.stdout)
         assertEquals(listOf("conv-1" to "msg-1"), calls)
+    }
+
+    @Test
+    fun `set read prints applied result as JSON`() {
+        val command = MessageSetCommand { FakeMessageService() }
+
+        val result = execute(command, listOf("conv-1", "--read", "msg-1", "--json"))
+
+        assertEquals(0, result.exitCode)
+        assertEquals("", result.stderr)
+        val json = Json.parseToJsonElement(result.stdout).jsonObject
+        assertEquals("conv-1", json["conversationId"]?.jsonPrimitive?.content)
+        assertEquals("msg-1", json["messageId"]?.jsonPrimitive?.content)
+        assertEquals("read", json["state"]?.jsonPrimitive?.content)
+        assertEquals("applied", json["outcome"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `set read prints no-op result as JSON`() {
+        val command =
+            MessageSetCommand {
+                FakeMessageService(result = SetMessageReadResult.AlreadyRead)
+            }
+
+        val result = execute(command, listOf("conv-1", "--read", "msg-1", "--json"))
+
+        assertEquals(0, result.exitCode)
+        assertEquals("", result.stderr)
+        assertEquals(
+            "{\"conversationId\":\"conv-1\",\"messageId\":\"msg-1\",\"state\":\"read\",\"outcome\":\"already_read\"}\n",
+            result.stdout,
+        )
+    }
+
+    @Test
+    fun `set read emits structured network errors only to stdout`() {
+        val command =
+            MessageSetCommand {
+                FakeMessageService(
+                    result = SetMessageReadResult.Failure("network unavailable", 12),
+                )
+            }
+
+        val result = execute(command, listOf("conv-1", "--read", "msg-1", "--json"))
+
+        assertEquals(1, result.exitCode)
+        assertEquals("", result.stderr)
+        assertEquals(
+            "{\"error\":{\"code\":\"network_error\",\"message\":\"network unavailable\",\"retryable\":true," +
+                "\"next\":\"wire message set conv-1 --read msg-1 --json\"}}\n",
+            result.stdout,
+        )
+    }
+
+    @Test
+    fun `set read emits structured validation errors only to stdout`() {
+        val command = MessageSetCommand { FakeMessageService() }
+
+        val result = execute(command, listOf("   ", "--read", "msg-1", "--json"))
+
+        assertEquals(2, result.exitCode)
+        assertEquals("", result.stderr)
+        assertEquals(
+            "{\"error\":{\"code\":\"validation_error\",\"message\":\"conversation-id required\"," +
+                "\"retryable\":false}}\n",
+            result.stdout,
+        )
     }
 
     @Test

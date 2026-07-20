@@ -90,6 +90,15 @@ class StubMessageApiClientTest {
     }
 
     @Test
+    fun `setMessageRead reports already read in deterministic no-op mode`() {
+        val client = StubMessageApiClient(mapOf("WIRE_STUB_MODE" to "already_read"))
+
+        val result = client.setMessageRead(testSession, "conv-1", "msg-1")
+
+        assertIs<SetMessageReadResult.AlreadyRead>(result)
+    }
+
+    @Test
     fun `setMessageRead maps network failure`() {
         val client = StubMessageApiClient(StubMode.NETWORK_ERROR)
 

@@ -103,7 +103,19 @@ sealed interface DeleteMessageResult {
 sealed interface SetMessageReadResult {
     data object Success : SetMessageReadResult
 
+    data object AlreadyRead : SetMessageReadResult
+
     data class Failure(val message: String, val exitCode: Int) : SetMessageReadResult
+}
+
+/**
+ * Local state observed while handling a read request. Concurrent clients may
+ * advance the read date after observation, so APPLIED does not claim exclusive
+ * causal ownership of the persisted state.
+ */
+enum class SetMessageReadOutcome {
+    APPLIED,
+    ALREADY_READ,
 }
 
 // Runtime-level interface for SDK adapters
@@ -155,7 +167,7 @@ internal interface MessageRuntime {
         session: AuthSession,
         conversationId: String,
         messageId: String,
-    ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+    ): MessageStepResult<SetMessageReadOutcome> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
 
     fun close() {
         shutdown()

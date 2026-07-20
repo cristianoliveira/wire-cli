@@ -100,6 +100,12 @@ sealed interface DeleteMessageResult {
     data class Failure(val message: String, val exitCode: Int) : DeleteMessageResult
 }
 
+sealed interface SetMessageReadResult {
+    data object Success : SetMessageReadResult
+
+    data class Failure(val message: String, val exitCode: Int) : SetMessageReadResult
+}
+
 // Runtime-level interface for SDK adapters
 internal interface MessageRuntime {
     fun sendMessage(
@@ -143,6 +149,12 @@ internal interface MessageRuntime {
         conversationId: String,
         messageId: String,
         scope: DeleteScope,
+    ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
+
+    fun setMessageRead(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
     ): MessageStepResult<Unit> = MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
 
     fun close() {
@@ -190,6 +202,12 @@ interface MessageApiClient {
         messageId: String,
         scope: DeleteScope,
     ): DeleteMessageResult
+
+    fun setMessageRead(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+    ): SetMessageReadResult
 }
 
 interface MessageWatchApiClient {
@@ -254,6 +272,15 @@ interface MessageService {
             exitCode = MessageExitCodes.SERVER_ERROR,
         )
 
+    fun setMessageRead(
+        conversationId: String,
+        messageId: String,
+    ): SetMessageReadResult =
+        SetMessageReadResult.Failure(
+            message = MessageUserMessages.SET_READ_UNSUPPORTED,
+            exitCode = MessageExitCodes.SERVER_ERROR,
+        )
+
     fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,
@@ -307,6 +334,11 @@ internal object MessageUserMessages {
     const val DELETE_TIMEOUT = "message delete timed out while waiting for sync/MLS"
     const val DELETE_UNKNOWN_ERROR = "unknown error while deleting message"
     const val DELETE_UNSUPPORTED = "message delete is not supported by this backend"
+    const val MESSAGE_NOT_FOUND = "message not found"
+    const val SET_READ_NETWORK_ERROR = "network error while marking message as read"
+    const val SET_READ_SERVER_ERROR = "server error while marking message as read"
+    const val SET_READ_UNKNOWN_ERROR = "unknown error while marking message as read"
+    const val SET_READ_UNSUPPORTED = "marking messages as read is not supported by this backend"
 }
 
 // Step result for runtime-level operations (SDK adapter layer)

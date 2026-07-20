@@ -96,6 +96,26 @@ class SdkKaliumMessageRuntimeTest {
     }
 
     @Test
+    fun `setMessageRead rejects blank conversation or message IDs`() {
+        val runtime = SdkKaliumMessageRuntime(emptyMap())
+
+        val blankConversation = runtime.setMessageRead(testSession, "   ", "msg-1")
+        val blankMessage = runtime.setMessageRead(testSession, "conv-1", "   ")
+
+        assertEquals(MessageFailureCategory.VALIDATION, assertIs<MessageStepResult.Failure>(blankConversation).category)
+        assertEquals(MessageFailureCategory.VALIDATION, assertIs<MessageStepResult.Failure>(blankMessage).category)
+    }
+
+    @Test
+    fun `setMessageRead rejects invalid session user ID`() {
+        val runtime = SdkKaliumMessageRuntime(emptyMap())
+
+        val result = runtime.setMessageRead(testSession.copy(userId = "invalid-user"), "conv-1", "msg-1")
+
+        assertEquals(MessageFailureCategory.UNAUTHORIZED, assertIs<MessageStepResult.Failure>(result).category)
+    }
+
+    @Test
     fun `fetchMessages returns Failure for blank conversationId`() {
         val runtime = SdkKaliumMessageRuntime(emptyMap())
 

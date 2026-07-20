@@ -7,6 +7,7 @@ import com.wire.kalium.logic.data.message.AssetContent
 import com.wire.kalium.logic.data.message.Message
 import com.wire.kalium.logic.data.message.MessageContent
 import com.wire.kalium.logic.data.user.UserId
+import com.wire.kalium.logic.feature.message.GetMessageByIdUseCase
 import com.wire.kalium.logic.feature.message.MessageOperationResult
 import com.wire.kalium.logic.feature.message.SearchMessagesGloballyUseCase
 import com.wire.kalium.logic.feature.message.SearchMessagesInConversationUseCase
@@ -292,6 +293,68 @@ internal class SdkKaliumMessageRuntime(
                         "exceptionClass=${error::class.qualifiedName} message=${error.message} mappedCategory=$mappedCategory"
                 }
                 MessageStepResult.Failure(mappedCategory)
+            }
+        }
+    }
+
+    override fun setMessageRead(
+        session: AuthSession,
+        conversationId: String,
+        messageId: String,
+    ): MessageStepResult<Unit> {
+        if (conversationId.isBlank() || messageId.isBlank()) {
+            return MessageStepResult.Failure(MessageFailureCategory.VALIDATION)
+        }
+
+        val qualifiedId =
+            session.userId.toQualifiedIdOrNull()
+                ?: return MessageStepResult.Failure(MessageFailureCategory.UNAUTHORIZED)
+        activeSessionUserIds += qualifiedId
+
+        return runBlocking {
+            try {
+                val preflightFailure =
+                    MessageOperationHelper.executePreflightSync(
+                        coreLogic,
+                        qualifiedId,
+                        conversationId,
+                        PREFLIGHT_SYNC_TIMEOUT_MS,
+                    )
+                if (preflightFailure != null) {
+                    return@runBlocking MessageStepResult.Failure(preflightFailure)
+                }
+
+                val kaliumConversationId =
+                    MessageOperationHelper.buildQualifiedConversationId(conversationId, session.server)
+
+                withTimeout(sendTimeoutMs) {
+                    coreLogic.sessionScope(qualifiedId) {
+                        withContext(Dispatchers.Default) {
+                            syncExecutor.request {
+                                when (val result = messages.getMessageById(kaliumConversationId, messageId)) {
+                                    is GetMessageByIdUseCase.Result.Success -> {
+                                        conversations.updateConversationReadDateUseCase(
+                                            conversationId = kaliumConversationId,
+                                            time = result.message.date,
+                                            invokeImmediately = true,
+                                        )
+                                        MessageStepResult.Success(Unit)
+                                    }
+                                    is GetMessageByIdUseCase.Result.Failure ->
+                                        MessageStepResult.Failure(
+                                            MessageFailureMapper.categoryFromCoreFailure(result.cause),
+                                        )
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (_: TimeoutCancellationException) {
+                MessageStepResult.Failure(MessageFailureCategory.TIMEOUT)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") error: Throwable,
+            ) {
+                MessageStepResult.Failure(MessageFailureMapper.categoryFromThrowable(error))
             }
         }
     }

@@ -33,6 +33,10 @@ class CommandAccessTest {
         assertEquals("auth.logout", CommandAccess.requiredCapability(arrayOf("logout")))
         assertEquals("backup.export", CommandAccess.requiredCapability(arrayOf("backup", "export")))
         assertEquals("sync.execute", CommandAccess.requiredCapability(arrayOf("doctor", "sync")))
+        assertEquals(
+            "message.set",
+            CommandAccess.requiredCapability(arrayOf("message", "set", "conversation", "--read", "message")),
+        )
     }
 
     @Test

@@ -170,6 +170,40 @@ class SessionBackedMessageServiceTest {
     }
 
     @Test
+    fun `setMessageRead returns unauthorized when no session is persisted`() {
+        val service =
+            SessionBackedMessageService(
+                sessionStore = FakeSessionStore(activeSession = null),
+                apiClient = FakeMessageApiClient(result = SendMessageResult.Success),
+            )
+
+        val result = service.setMessageRead("conv-1", "msg-1")
+
+        val failure = assertIs<SetMessageReadResult.Failure>(result)
+        assertEquals(ExitCodes.UNAUTHORIZED, failure.exitCode)
+    }
+
+    @Test
+    fun `setMessageRead delegates session and message coordinates`() {
+        val calls = mutableListOf<Triple<AuthSession, String, String>>()
+        val session = AuthSession("alice@example.com", "token", "wire.example.com")
+        val service =
+            SessionBackedMessageService(
+                sessionStore = FakeSessionStore(activeSession = session),
+                apiClient =
+                    FakeMessageApiClient(
+                        result = SendMessageResult.Success,
+                        setReadCalls = calls,
+                    ),
+            )
+
+        val result = service.setMessageRead("conv-1", "msg-1")
+
+        assertIs<SetMessageReadResult.Success>(result)
+        assertEquals(listOf(Triple(session, "conv-1", "msg-1")), calls)
+    }
+
+    @Test
     fun `fetchMessages returns unauthorized when no session is persisted`() {
         val service =
             SessionBackedMessageService(
@@ -344,6 +378,12 @@ class SessionBackedMessageServiceTest {
                             messageId: String,
                             scope: DeleteScope,
                         ): DeleteMessageResult = DeleteMessageResult.Success(scope)
+
+                        override fun setMessageRead(
+                            session: AuthSession,
+                            conversationId: String,
+                            messageId: String,
+                        ): SetMessageReadResult = SetMessageReadResult.Success
                     },
             )
 
@@ -365,6 +405,7 @@ class SessionBackedMessageServiceTest {
         private val typingResult: SendTypingResult = SendTypingResult.Success,
         private val captureRequests: MutableList<Triple<AuthSession, String, String>>? = null,
         private val onLocalFetch: (String) -> Unit = {},
+        private val setReadCalls: MutableList<Triple<AuthSession, String, String>>? = null,
     ) : MessageApiClient, MessageTypingApiClient {
         override fun sendMessage(
             session: AuthSession,
@@ -418,5 +459,14 @@ class SessionBackedMessageServiceTest {
             messageId: String,
             scope: DeleteScope,
         ): DeleteMessageResult = DeleteMessageResult.Success(scope)
+
+        override fun setMessageRead(
+            session: AuthSession,
+            conversationId: String,
+            messageId: String,
+        ): SetMessageReadResult {
+            setReadCalls?.add(Triple(session, conversationId, messageId))
+            return SetMessageReadResult.Success
+        }
     }
 }

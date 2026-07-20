@@ -103,6 +103,20 @@ class AuthGuardedMessageService(
         }
     }
 
+    override fun setMessageRead(
+        conversationId: String,
+        messageId: String,
+    ): SetMessageReadResult {
+        return when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> delegate.setMessageRead(conversationId, messageId)
+            is AuthResult.Failure ->
+                SetMessageReadResult.Failure(
+                    message = authResult.message,
+                    exitCode = authResult.exitCode,
+                )
+        }
+    }
+
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,

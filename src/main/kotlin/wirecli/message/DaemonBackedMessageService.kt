@@ -56,6 +56,11 @@ class DaemonBackedMessageService(
         scope: DeleteScope,
     ): DeleteMessageResult = delegate.deleteMessage(conversationId, messageId, scope)
 
+    override fun setMessageRead(
+        conversationId: String,
+        messageId: String,
+    ): SetMessageReadResult = delegate.setMessageRead(conversationId, messageId)
+
     override fun sendTypingStatus(
         conversationId: String,
         status: TypingStatus,

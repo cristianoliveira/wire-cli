@@ -83,6 +83,9 @@ wire message fetch <conversation-id>
 # Bypass daemon-backed cache and fetch from Wire
 wire message fetch --no-cache <conversation-id>
 
+# Mark conversation as read through a message
+wire message set <conversation-id> --read <message-id>
+
 # Restore a Wire client backup into the authenticated user's local cache
 wire backup import wire-backup.wbu
 

@@ -306,10 +306,20 @@ class MessageContractsTest {
                     "sendTypingStatus",
                     "toggleReaction",
                     "deleteMessage",
+                    "setMessageRead",
                     "shutdown",
                 ),
             ),
         )
+    }
+
+    @Test
+    fun `set read result exposes success and failure`() {
+        assertIs<SetMessageReadResult.Success>(SetMessageReadResult.Success)
+
+        val failure = assertIs<SetMessageReadResult.Failure>(SetMessageReadResult.Failure("failed", 13))
+        assertEquals("failed", failure.message)
+        assertEquals(13, failure.exitCode)
     }
 
     // --- Message delete contracts ---

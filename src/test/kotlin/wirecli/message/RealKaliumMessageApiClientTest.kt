@@ -595,6 +595,40 @@ class RealKaliumMessageApiClientTest {
         assertEquals(listOf(testSession to "conv-local"), localFetchCalls)
     }
 
+    @Test
+    fun `setMessageRead delegates coordinates and returns success`() {
+        val calls = mutableListOf<Triple<AuthSession, String, String>>()
+        val client =
+            RealKaliumMessageApiClient(
+                FakeKaliumMessageRuntime(
+                    result = MessageStepResult.Success(Unit),
+                    setReadCalls = calls,
+                ),
+            )
+
+        val result = client.setMessageRead(testSession, "conv-1", "msg-1")
+
+        assertIs<SetMessageReadResult.Success>(result)
+        assertEquals(listOf(Triple(testSession, "conv-1", "msg-1")), calls)
+    }
+
+    @Test
+    fun `setMessageRead maps missing message failure`() {
+        val client =
+            RealKaliumMessageApiClient(
+                FakeKaliumMessageRuntime(
+                    result = MessageStepResult.Success(Unit),
+                    setReadResult = MessageStepResult.Failure(MessageFailureCategory.NOT_FOUND),
+                ),
+            )
+
+        val result = client.setMessageRead(testSession, "conv-1", "missing")
+
+        val failure = assertIs<SetMessageReadResult.Failure>(result)
+        assertEquals(MessageUserMessages.MESSAGE_NOT_FOUND, failure.message)
+        assertEquals(MessageExitCodes.NOT_FOUND, failure.exitCode)
+    }
+
     // ==================== Helper Classes ====================
 
     private class FakeKaliumMessageRuntime(
@@ -602,6 +636,8 @@ class RealKaliumMessageApiClientTest {
         private val fetchResult: MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList()),
         private val captureCalls: MutableList<Triple<AuthSession, String, String>>? = null,
         private val localFetchCalls: MutableList<Pair<AuthSession, String>>? = null,
+        private val setReadResult: MessageStepResult<Unit> = result,
+        private val setReadCalls: MutableList<Triple<AuthSession, String, String>>? = null,
     ) : MessageRuntime {
         override fun sendMessage(
             session: AuthSession,
@@ -625,6 +661,15 @@ class RealKaliumMessageApiClientTest {
         ): MessageStepResult<List<ConversationMessage>> {
             localFetchCalls?.add(session to conversationId)
             return fetchResult
+        }
+
+        override fun setMessageRead(
+            session: AuthSession,
+            conversationId: String,
+            messageId: String,
+        ): MessageStepResult<Unit> {
+            setReadCalls?.add(Triple(session, conversationId, messageId))
+            return setReadResult
         }
 
         override fun shutdown() {

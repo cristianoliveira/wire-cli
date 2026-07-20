@@ -11,7 +11,7 @@ class MessageCommand(
     private val messageServiceProvider: () -> MessageService,
 ) : CliktCommand(
         name = "message",
-        help = "Send and manage messages (send, fetch, watch, typing).",
+        help = "Send and manage messages.",
         invokeWithoutSubcommand = true,
     ) {
     init {
@@ -24,6 +24,7 @@ class MessageCommand(
             MessageSearchCommand(messageServiceProvider),
             MessageReactCommand(messageServiceProvider),
             MessageDeleteCommand(messageServiceProvider),
+            MessageSetCommand(messageServiceProvider),
         )
     }
 

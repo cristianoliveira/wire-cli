@@ -255,5 +255,11 @@ class RecentMessageListingServiceTest {
             messageId: String,
             scope: DeleteScope,
         ): DeleteMessageResult = DeleteMessageResult.Success(scope)
+
+        override fun setMessageRead(
+            session: AuthSession,
+            conversationId: String,
+            messageId: String,
+        ): SetMessageReadResult = SetMessageReadResult.Success
     }
 }

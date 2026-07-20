@@ -81,6 +81,26 @@ class StubMessageApiClientTest {
     }
 
     @Test
+    fun `setMessageRead succeeds in success mode`() {
+        val client = StubMessageApiClient(StubMode.SUCCESS)
+
+        val result = client.setMessageRead(testSession, "conv-1", "msg-1")
+
+        assertIs<SetMessageReadResult.Success>(result)
+    }
+
+    @Test
+    fun `setMessageRead maps network failure`() {
+        val client = StubMessageApiClient(StubMode.NETWORK_ERROR)
+
+        val result = client.setMessageRead(testSession, "conv-1", "msg-1")
+
+        val failure = assertIs<SetMessageReadResult.Failure>(result)
+        assertEquals(MessageUserMessages.SET_READ_NETWORK_ERROR, failure.message)
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+    }
+
+    @Test
     fun `SUCCESS mode works with different parameters`() {
         val client = StubMessageApiClient(StubMode.SUCCESS)
 

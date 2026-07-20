@@ -24,6 +24,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+    implementation("dev.toonformat:jtoon:2.0.1")
     implementation("com.squareup.okio:okio:3.9.0")
 
     // Logging infrastructure: SLF4J + Logback + kotlin-logging

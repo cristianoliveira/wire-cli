@@ -71,6 +71,16 @@ sealed interface ListRecentMessagesResult {
     data class Failure(val message: String, val exitCode: Int) : ListRecentMessagesResult
 }
 
+/**
+ * Performs a single session-wide refresh before recent-message reads.
+ * Returns null on success, or a failure that propagates to the caller.
+ */
+fun interface RecentMessageRefresher {
+    fun refresh(session: AuthSession): RefreshFailure?
+
+    data class RefreshFailure(val message: String, val exitCode: Int)
+}
+
 sealed interface SearchMessagesResult {
     data class Success(val results: List<MessageSearchResult>) : SearchMessagesResult
 

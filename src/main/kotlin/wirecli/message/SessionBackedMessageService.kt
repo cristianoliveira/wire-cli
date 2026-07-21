@@ -4,11 +4,14 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import wirecli.auth.AuthMessages
+import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.auth.SessionProvider
+import wirecli.conversation.Conversation
 import wirecli.conversation.ConversationApiClient
 import wirecli.conversation.ListConversationsResult
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 private val logger = KotlinLogging.logger {}
 
@@ -16,6 +19,7 @@ class SessionBackedMessageService(
     private val sessionStore: SessionProvider,
     private val apiClient: MessageApiClient,
     private val conversationApiClient: ConversationApiClient? = null,
+    private val syncRefresher: RecentMessageRefresher? = null,
     private val typingApiClient: MessageTypingApiClient? = apiClient as? MessageTypingApiClient,
     private val watchApiClient: MessageWatchApiClient? = apiClient as? MessageWatchApiClient,
 ) : MessageService {
@@ -118,6 +122,7 @@ class SessionBackedMessageService(
         receivedOnly: Boolean,
         localOnly: Boolean,
     ): ListRecentMessagesResult {
+        val overallStartNanos = System.nanoTime()
         logger.debug {
             "Service operation: listRecentMessages(limit=$limit, receivedOnly=$receivedOnly, localOnly=$localOnly) started"
         }
@@ -136,6 +141,7 @@ class SessionBackedMessageService(
                     exitCode = MessageExitCodes.SERVER_ERROR,
                 )
 
+        val listConversationsStartNanos = System.nanoTime()
         val conversations =
             when (val result = conversationClient.listConversations(session)) {
                 is ListConversationsResult.Success -> result.view.conversations
@@ -149,11 +155,68 @@ class SessionBackedMessageService(
                     return ListRecentMessagesResult.Failure(message = message, exitCode = result.exitCode)
                 }
             }
+        val listConversationsMs = elapsedMs(listConversationsStartNanos)
 
+        // One session-wide refresh is enough: the preflight sync is global, so
+        // doing it per conversation multiplies ~300ms by the conversation count.
+        // After a single refresh, every conversation can be read from local cache.
+        val readLocal = localOnly || syncRefresher != null
+        var refreshMs = 0L
+        if (!localOnly && syncRefresher != null) {
+            val refreshStartNanos = System.nanoTime()
+            val refreshFailure = syncRefresher.refresh(session)
+            refreshMs = elapsedMs(refreshStartNanos)
+            logger.info { "listRecentMessages refreshMs=$refreshMs failed=${refreshFailure != null}" }
+            if (refreshFailure != null) {
+                return ListRecentMessagesResult.Failure(message = refreshFailure.message, exitCode = refreshFailure.exitCode)
+            }
+        }
+
+        val fetchLoopStartNanos = System.nanoTime()
+        val aggregation = aggregateRecentMessages(session, conversations, readLocal)
+        val fetchLoopMs = elapsedMs(fetchLoopStartNanos)
+        val aggregated =
+            when (aggregation) {
+                is MessageAggregation.Failure ->
+                    return ListRecentMessagesResult.Failure(message = aggregation.message, exitCode = aggregation.exitCode)
+                is MessageAggregation.Success -> aggregation
+            }
+
+        val sortStartNanos = System.nanoTime()
+        val messages =
+            aggregated.messages
+                .asSequence()
+                .filter { !receivedOnly || it.senderId != session.userId }
+                .sortedWith(
+                    compareByDescending<RecentMessageItem> { parseTimestamp(it.timestamp) }
+                        .thenByDescending { it.timestamp }
+                        .thenBy { it.conversationId }
+                        .thenBy { it.messageId },
+                ).take(limit)
+                .toList()
+        val sortMs = elapsedMs(sortStartNanos)
+
+        logger.info {
+            "listRecentMessages phases: conversations=${conversations.size} " +
+                "listConversationsMs=$listConversationsMs refreshMs=$refreshMs " +
+                "fetchLoopMs=$fetchLoopMs fetchedConversations=${aggregated.conversationCount} " +
+                "aggregatedMessages=${aggregated.messageCount} sortMs=$sortMs " +
+                "totalMs=${elapsedMs(overallStartNanos)}"
+        }
+
+        return ListRecentMessagesResult.Success(RecentMessagesView(messages))
+    }
+
+    private fun aggregateRecentMessages(
+        session: AuthSession,
+        conversations: List<Conversation>,
+        readLocal: Boolean,
+    ): MessageAggregation {
         val aggregated = mutableListOf<RecentMessageItem>()
+        var conversationCount = 0
         for (conversation in conversations) {
             val fetchResult =
-                if (localOnly) {
+                if (readLocal) {
                     apiClient.fetchLocalMessages(session, conversation.id)
                 } else {
                     apiClient.fetchMessages(session, conversation.id)
@@ -161,6 +224,7 @@ class SessionBackedMessageService(
 
             when (fetchResult) {
                 is FetchMessagesResult.Success -> {
+                    conversationCount += 1
                     aggregated +=
                         fetchResult.view.messages.map { message ->
                             RecentMessageItem(
@@ -181,24 +245,15 @@ class SessionBackedMessageService(
                         } else {
                             fetchResult.message
                         }
-                    return ListRecentMessagesResult.Failure(message = message, exitCode = fetchResult.exitCode)
+                    return MessageAggregation.Failure(message = message, exitCode = fetchResult.exitCode)
                 }
             }
         }
-
-        val messages =
-            aggregated
-                .asSequence()
-                .filter { !receivedOnly || it.senderId != session.userId }
-                .sortedWith(
-                    compareByDescending<RecentMessageItem> { parseTimestamp(it.timestamp) }
-                        .thenByDescending { it.timestamp }
-                        .thenBy { it.conversationId }
-                        .thenBy { it.messageId },
-                ).take(limit)
-                .toList()
-
-        return ListRecentMessagesResult.Success(RecentMessagesView(messages))
+        return MessageAggregation.Success(
+            messages = aggregated,
+            conversationCount = conversationCount,
+            messageCount = aggregated.size,
+        )
     }
 
     override fun searchMessages(
@@ -348,4 +403,16 @@ class SessionBackedMessageService(
     }
 
     private fun parseTimestamp(timestamp: String): Instant = Instant.parse(timestamp)
+
+    private fun elapsedMs(startNanos: Long): Long = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos)
+}
+
+private sealed interface MessageAggregation {
+    data class Success(
+        val messages: List<RecentMessageItem>,
+        val conversationCount: Int,
+        val messageCount: Int,
+    ) : MessageAggregation
+
+    data class Failure(val message: String, val exitCode: Int) : MessageAggregation
 }

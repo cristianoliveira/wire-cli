@@ -98,6 +98,59 @@ class RecentMessageListingServiceTest {
     }
 
     @Test
+    fun `listRecentMessages syncs once then reads every conversation locally when not local-only`() {
+        val apiClient =
+            FakeMessageApiClient(
+                byConversation =
+                    mapOf(
+                        "conv-a" to listOf(message("msg-1", "2026-03-20T10:00:00Z", "alpha")),
+                        "conv-b" to listOf(message("msg-2", "2026-03-20T10:01:00Z", "beta")),
+                    ),
+            )
+        val syncRefresher = FakeRecentMessageRefresher()
+        val service =
+            SessionBackedMessageService(
+                sessionStore = FakeSessionStore(testSession),
+                apiClient = apiClient,
+                conversationApiClient =
+                    FakeConversationApiClient(
+                        conversations = listOf(conversation("conv-a", "Alpha"), conversation("conv-b", "Beta")),
+                    ),
+                syncRefresher = syncRefresher,
+            )
+
+        val result = service.listRecentMessages(limit = 10, receivedOnly = false, localOnly = false)
+
+        val success = assertIs<ListRecentMessagesResult.Success>(result)
+        assertEquals(listOf("msg-2", "msg-1"), success.view.messages.map { it.messageId })
+        assertEquals(1, syncRefresher.refreshCount, "sync must run exactly once")
+        assertEquals(listOf("conv-a", "conv-b"), apiClient.localFetches)
+        assertEquals(emptyList<String>(), apiClient.remoteFetches, "no per-conversation server syncs")
+    }
+
+    @Test
+    fun `listRecentMessages returns failure and skips reads when the upfront sync fails`() {
+        val apiClient = FakeMessageApiClient(byConversation = mapOf("conv-a" to listOf(message("msg-1", "2026-03-20T10:00:00Z", "alpha"))))
+        val syncRefresher =
+            FakeRecentMessageRefresher(failure = RecentMessageRefresher.RefreshFailure("sync boom", ExitCodes.NETWORK_ERROR))
+        val service =
+            SessionBackedMessageService(
+                sessionStore = FakeSessionStore(testSession),
+                apiClient = apiClient,
+                conversationApiClient = FakeConversationApiClient(conversations = listOf(conversation("conv-a", "Alpha"))),
+                syncRefresher = syncRefresher,
+            )
+
+        val result = service.listRecentMessages(limit = 10, receivedOnly = false, localOnly = false)
+
+        val failure = assertIs<ListRecentMessagesResult.Failure>(result)
+        assertEquals("sync boom", failure.message)
+        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+        assertEquals(emptyList<String>(), apiClient.localFetches)
+        assertEquals(emptyList<String>(), apiClient.remoteFetches)
+    }
+
+    @Test
     fun `listRecentMessages uses local fetch when requested`() {
         val apiClient = FakeMessageApiClient(byConversation = mapOf("conv-a" to listOf(message("msg-1", "2026-03-20T10:00:00Z", "hello"))))
         val service =
@@ -204,6 +257,18 @@ class RecentMessageListingServiceTest {
             session: AuthSession,
             conversationId: String,
         ): GetMembersResult = GetMembersResult.Failure("unsupported", 1)
+    }
+
+    private class FakeRecentMessageRefresher(
+        private val failure: RecentMessageRefresher.RefreshFailure? = null,
+    ) : RecentMessageRefresher {
+        var refreshCount = 0
+            private set
+
+        override fun refresh(session: AuthSession): RecentMessageRefresher.RefreshFailure? {
+            refreshCount += 1
+            return failure
+        }
     }
 
     private class FakeMessageApiClient(

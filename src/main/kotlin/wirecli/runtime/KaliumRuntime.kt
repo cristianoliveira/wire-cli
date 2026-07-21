@@ -52,6 +52,7 @@ import wirecli.message.DaemonBackedMessageService
 import wirecli.message.MessageApiClient
 import wirecli.message.MessageService
 import wirecli.message.RealKaliumMessageApiClient
+import wirecli.message.RecentMessageRefresher
 import wirecli.message.SdkKaliumMessageRuntime
 import wirecli.message.SessionBackedMessageService
 import wirecli.message.StubMessageApiClient
@@ -76,6 +77,7 @@ import wirecli.sync.SessionBackedSyncService
 import wirecli.sync.StubSyncApiClient
 import wirecli.sync.SyncApiClient
 import wirecli.sync.SyncService
+import wirecli.sync.SyncStatusResult
 import wirecli.team.AuthGuardedTeamService
 import wirecli.team.RealKaliumTeamApiClient
 import wirecli.team.SdkKaliumTeamRuntime
@@ -245,6 +247,14 @@ private class DefaultKaliumRuntime(
                             sessionStore = sessionStore,
                             apiClient = backend.messageApiClient,
                             conversationApiClient = backend.conversationApiClient,
+                            syncRefresher =
+                                RecentMessageRefresher { session ->
+                                    when (val result = backend.syncApiClient.forceSyncAndWait(session)) {
+                                        is SyncStatusResult.Success -> null
+                                        is SyncStatusResult.Failure ->
+                                            RecentMessageRefresher.RefreshFailure(result.message, result.exitCode)
+                                    }
+                                },
                         ),
                 )
             },

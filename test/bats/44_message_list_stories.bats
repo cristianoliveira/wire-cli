@@ -27,6 +27,13 @@ teardown() {
 	[[ "${lines[0]}" == *"("* ]]
 }
 
+@test "message list: --no-cache still lists messages" {
+	run_wire message list --no-cache
+	assert_status 0
+	[[ "${lines[0]}" == *"@"* ]]
+	[[ "${lines[0]}" == *"("* ]]
+}
+
 @test "message list: json output uses a list envelope" {
 	run_wire message list --json
 	assert_status 0
@@ -59,4 +66,6 @@ teardown() {
 	[[ "${output}" == *"1"* ]]
 	[[ "${output}" == *"100"* ]]
 	[[ "${output}" == *"default"* ]]
+	[[ "${output}" == *"--no-cache"* ]]
+	[[ "${output}" != *"--local"* ]]
 }

@@ -35,8 +35,25 @@ class DaemonBackedMessageService(
     override fun listRecentMessages(
         limit: Int,
         receivedOnly: Boolean,
-        localOnly: Boolean,
-    ): ListRecentMessagesResult = delegate.listRecentMessages(limit, receivedOnly, localOnly)
+    ): ListRecentMessagesResult {
+        // A running daemon keeps the local cache warm, so skip the sync and
+        // read local; without it, the delegate syncs once then reads local.
+        return if (daemonStatus.isRunning()) {
+            delegate.listLocalRecentMessages(limit, receivedOnly)
+        } else {
+            delegate.listRecentMessages(limit, receivedOnly)
+        }
+    }
+
+    override fun listServerRecentMessages(
+        limit: Int,
+        receivedOnly: Boolean,
+    ): ListRecentMessagesResult = delegate.listRecentMessages(limit, receivedOnly)
+
+    override fun listLocalRecentMessages(
+        limit: Int,
+        receivedOnly: Boolean,
+    ): ListRecentMessagesResult = delegate.listLocalRecentMessages(limit, receivedOnly)
 
     override fun searchMessages(
         query: String,

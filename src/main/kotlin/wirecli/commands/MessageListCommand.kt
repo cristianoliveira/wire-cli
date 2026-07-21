@@ -27,13 +27,13 @@ class MessageListCommand(
               List 20 recent messages in JSON:
                 wire message list --limit 20 --json
             
-              List only received messages from local cache:
-                wire message list --received-only --local
+              List only received messages, bypassing the daemon cache:
+                wire message list --received-only --no-cache
             """.trimIndent(),
     ) {
     private val limit by option("--limit", "-n", help = "Maximum number of results (1-100, default: 10).").int()
     private val receivedOnly by option("--received-only", help = "Only include messages received from others.").flag(default = false)
-    private val localOnly by option("--local", help = "Only read from local cache.").flag(default = false)
+    private val noCache by option("--no-cache", help = "Bypass the daemon cache and fetch from Wire.").flag(default = false)
     private val jsonOutput by option("--json", help = "Output results as JSON.").flag(default = false)
     private val jsonLinesOutput by option("--json-lines", help = "Output one JSON object per line.").flag(default = false)
     private val fullContent by option("--full", help = "Show full message content without truncation.").flag(default = false)
@@ -44,7 +44,13 @@ class MessageListCommand(
         val formatter = MessageFetchFormatter()
         val messageService = messageServiceProvider()
 
-        when (val result = messageService.listRecentMessages(resolvedLimit, receivedOnly, localOnly)) {
+        val result =
+            if (noCache) {
+                messageService.listServerRecentMessages(resolvedLimit, receivedOnly)
+            } else {
+                messageService.listRecentMessages(resolvedLimit, receivedOnly)
+            }
+        when (result) {
             is ListRecentMessagesResult.Success -> {
                 val output =
                     when {

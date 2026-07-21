@@ -265,12 +265,23 @@ interface MessageService {
     fun listRecentMessages(
         limit: Int = 10,
         receivedOnly: Boolean = false,
-        localOnly: Boolean = false,
     ): ListRecentMessagesResult =
         ListRecentMessagesResult.Failure(
             message = MessageUserMessages.RECENT_LIST_UNSUPPORTED,
             exitCode = MessageExitCodes.SERVER_ERROR,
         )
+
+    /** Force a server refresh, bypassing the daemon cache. Mirrors [fetchServerMessages]. */
+    fun listServerRecentMessages(
+        limit: Int = 10,
+        receivedOnly: Boolean = false,
+    ): ListRecentMessagesResult = listRecentMessages(limit, receivedOnly)
+
+    /** Read strictly from local cache without syncing. Mirrors [fetchLocalMessages]. */
+    fun listLocalRecentMessages(
+        limit: Int = 10,
+        receivedOnly: Boolean = false,
+    ): ListRecentMessagesResult = listRecentMessages(limit, receivedOnly)
 
     fun searchMessages(
         query: String,

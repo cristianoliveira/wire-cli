@@ -17,6 +17,48 @@ class DaemonBackedMessageServiceTest {
     }
 
     @Test
+    fun `running daemon lists from local cache without syncing`() {
+        val delegate = FakeMessageService()
+        val service = DaemonBackedMessageService({ delegate }, DaemonStatus { true })
+
+        service.listRecentMessages(limit = 5, receivedOnly = true)
+
+        assertEquals(1, delegate.localListCalls)
+        assertEquals(0, delegate.serverListCalls, "daemon warm must not sync")
+    }
+
+    @Test
+    fun `stopped daemon lists via the syncing path`() {
+        val delegate = FakeMessageService()
+        val service = DaemonBackedMessageService({ delegate }, DaemonStatus { false })
+
+        service.listRecentMessages(limit = 5, receivedOnly = false)
+
+        assertEquals(1, delegate.serverListCalls)
+        assertEquals(0, delegate.localListCalls)
+    }
+
+    @Test
+    fun `listServerRecentMessages bypasses the daemon cache even when warm`() {
+        var statusChecks = 0
+        val delegate = FakeMessageService()
+        val service =
+            DaemonBackedMessageService(
+                { delegate },
+                DaemonStatus {
+                    statusChecks++
+                    true
+                },
+            )
+
+        service.listServerRecentMessages(limit = 5, receivedOnly = false)
+
+        assertEquals(1, delegate.serverListCalls)
+        assertEquals(0, delegate.localListCalls)
+        assertEquals(0, statusChecks, "--no-cache must not consult daemon status")
+    }
+
+    @Test
     fun `cached empty list is returned without server sync`() {
         val empty = FetchMessagesResult.Success(FetchMessagesView("conv-1", emptyList()))
         val delegate = FakeMessageService(localResult = empty)
@@ -85,7 +127,13 @@ class DaemonBackedMessageServiceTest {
         private val serverResult: FetchMessagesResult = successResult(),
     ) : MessageService {
         var localFetchCalls = 0
+            private set
         var serverFetchCalls = 0
+            private set
+        var localListCalls = 0
+            private set
+        var serverListCalls = 0
+            private set
 
         override fun sendMessage(
             conversationId: String,
@@ -100,6 +148,22 @@ class DaemonBackedMessageServiceTest {
         override fun fetchLocalMessages(conversationId: String): FetchMessagesResult {
             localFetchCalls++
             return localResult
+        }
+
+        override fun listRecentMessages(
+            limit: Int,
+            receivedOnly: Boolean,
+        ): ListRecentMessagesResult {
+            serverListCalls++
+            return ListRecentMessagesResult.Success(RecentMessagesView(emptyList()))
+        }
+
+        override fun listLocalRecentMessages(
+            limit: Int,
+            receivedOnly: Boolean,
+        ): ListRecentMessagesResult {
+            localListCalls++
+            return ListRecentMessagesResult.Success(RecentMessagesView(emptyList()))
         }
 
         override fun searchMessages(

@@ -1,6 +1,7 @@
 package wirecli.runtime
 
 import wirecli.config.KaliumCliMode
+import wirecli.config.SessionSyncRequirement
 import wirecli.config.kaliumCliConfigs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -18,6 +19,14 @@ class KaliumCliModeTest {
     }
 
     @Test
+    fun `requires live sync for writes but not cached reads`() {
+        val mode = KaliumCliMode.fromEnvironment(emptyMap())
+
+        assertFalse(mode.shouldAwaitLiveSessionSync(SessionSyncRequirement.READ))
+        assertTrue(mode.shouldAwaitLiveSessionSync(SessionSyncRequirement.WRITE))
+    }
+
+    @Test
     fun `enables flags for truthy env values`() {
         val mode =
             KaliumCliMode.fromEnvironment(
@@ -31,6 +40,7 @@ class KaliumCliModeTest {
         assertTrue(mode.enableCalling)
         assertTrue(mode.disableSessionSyncWait)
         assertTrue(mode.disableMlsMigrationScheduler)
+        assertFalse(mode.shouldAwaitLiveSessionSync(SessionSyncRequirement.WRITE))
     }
 
     @Test

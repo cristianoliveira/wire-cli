@@ -75,7 +75,10 @@ internal data class KaliumSelfUser(
 
 // Runtime-level interface for SDK adapters
 internal interface ProfileRuntime {
-    fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope>
+    fun resolveSessionScope(
+        session: AuthSession,
+        requireLiveSync: Boolean = false,
+    ): ProfileStepResult<KaliumProfileSessionScope>
 
     fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser>
 

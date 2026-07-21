@@ -114,7 +114,10 @@ internal data class KaliumPresenceSessionScope(
 
 // Runtime-level interface for SDK adapters
 internal interface PresenceRuntime {
-    fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope>
+    fun resolveSessionScope(
+        session: AuthSession,
+        requireLiveSync: Boolean = false,
+    ): PresenceStepResult<KaliumPresenceSessionScope>
 
     fun getSelfAvailabilityStatus(
         sessionScope: KaliumPresenceSessionScope,

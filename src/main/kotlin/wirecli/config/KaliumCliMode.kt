@@ -1,10 +1,18 @@
 package wirecli.config
 
+internal enum class SessionSyncRequirement {
+    READ,
+    WRITE,
+}
+
 internal data class KaliumCliMode(
     val enableCalling: Boolean = false,
     val disableSessionSyncWait: Boolean = false,
     val disableMlsMigrationScheduler: Boolean = false,
 ) {
+    fun shouldAwaitLiveSessionSync(requirement: SessionSyncRequirement): Boolean =
+        requirement == SessionSyncRequirement.WRITE && !disableSessionSyncWait
+
     companion object {
         const val ENV_ENABLE_CALLING = "WIRE_KALIUM_ENABLE_CALLING"
         const val ENV_DISABLE_SESSION_SYNC_WAIT = "WIRE_KALIUM_DISABLE_SESSION_SYNC_WAIT"

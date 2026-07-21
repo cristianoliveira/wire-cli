@@ -13,12 +13,25 @@ data class AuthSession(
     val server: String?,
 )
 
-data class SessionInventory(
-    val activeSession: AuthSession?,
-    val validSessions: Int,
-    val invalidSessions: Int,
+/**
+ * Full multi-account view of local credential storage.
+ *
+ * - [accounts] holds every persisted account, keyed by [AuthSession.userId].
+ * - [activeUserId] is the explicitly selected account (like kubectl `current-context`).
+ *   It may point at no account (null) even when accounts exist.
+ * - [invalidAccounts] / [diagnosticMessage] carry parse/migration diagnostics.
+ *
+ * @invariant [activeUserId] is null or matches one entry in [accounts] in a healthy file.
+ */
+data class AccountInventory(
+    val accounts: List<AuthSession>,
+    val activeUserId: String?,
+    val invalidAccounts: Int = 0,
     val diagnosticMessage: String? = null,
-)
+) {
+    val activeAccount: AuthSession?
+        get() = accounts.firstOrNull { it.userId == activeUserId }
+}
 
 sealed interface AuthResult {
     data class Success(val message: String) : AuthResult
@@ -42,12 +55,26 @@ interface SessionProvider {
     fun readActiveSession(): AuthSession?
 }
 
+/**
+ * Multi-account credential store. Read path returns the active account via
+ * [SessionProvider]; write paths operate on individual accounts so multiple
+ * accounts can coexist and the active one can be switched without re-auth.
+ *
+ * Switching ([setActiveAccount]) and removal ([removeAccount]) are local-only
+ * operations: they never contact Wire and return the affected account or null
+ * when the requested account is absent.
+ */
 interface AuthSessionStore : SessionProvider {
-    fun readSessionInventory(): SessionInventory
+    fun readAccounts(): AccountInventory
 
-    fun writeActiveSession(session: AuthSession)
+    fun addAccount(
+        account: AuthSession,
+        makeActive: Boolean = true,
+    )
 
-    fun clearActiveSession()
+    fun setActiveAccount(userId: String): AuthSession?
+
+    fun removeAccount(userId: String): AuthSession?
 }
 
 interface AuthSessionService {
@@ -57,6 +84,27 @@ interface AuthSessionService {
 
     fun requireActiveSession(): AuthResult
 }
+
+/**
+ * Local account management: list, inspect the active account, and switch or
+ * remove accounts without touching the network. Backed by [AuthSessionStore].
+ */
+interface AccountService {
+    fun listAccounts(): AccountListing
+
+    fun currentAccount(): AuthSession?
+
+    /** Activates the account for [userId]; returns it, or null when absent. */
+    fun useAccount(userId: String): AuthSession?
+
+    /** Removes the account for [userId]; returns the removed account, or null when absent. */
+    fun removeAccount(userId: String): AuthSession?
+}
+
+data class AccountListing(
+    val accounts: List<AuthSession>,
+    val activeUserId: String?,
+)
 
 // Follow-up: consider converting ExitCodes to enum class for better type safety.
 object ExitCodes {

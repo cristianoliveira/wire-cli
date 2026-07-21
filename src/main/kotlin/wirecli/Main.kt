@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.core.CliktError
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.subcommands
 import io.github.oshai.kotlinlogging.KotlinLogging
+import wirecli.commands.AccountCommand
 import wirecli.commands.BackupCommand
 import wirecli.commands.ConnectionCommand
 import wirecli.commands.ConversationCommand
@@ -21,6 +22,7 @@ import wirecli.commands.RootCommand
 import wirecli.commands.SyncCommand
 import wirecli.commands.TeamCommand
 import wirecli.commands.UserCommand
+import wirecli.commands.WhoamiCommand
 import wirecli.commands.processExitCode
 import wirecli.config.AccessPolicyLoader
 import wirecli.config.CommandAccess
@@ -102,6 +104,8 @@ fun main(args: Array<String>) {
                 ConnectionCommand { runtime.connectionService },
                 DownloadCommand { runtime.downloadService },
                 TeamCommand { runtime.teamService },
+                AccountCommand { runtime.accountService },
+                WhoamiCommand { runtime.accountService },
             )
             .mainWithAxiExitCodes(args)
         completed = true

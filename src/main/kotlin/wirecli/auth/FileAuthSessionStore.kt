@@ -14,15 +14,17 @@ import java.nio.file.attribute.PosixFilePermissions
 private val logger = KotlinLogging.logger {}
 
 /**
- * File-based storage for Wire CLI authentication sessions.
+ * File-based, multi-account storage for Wire CLI authentication sessions.
  *
- * Persists authenticated sessions to disk with proper file permissions (0600 for files, 0700 for directories)
- * to protect sensitive token data. Supports atomic writes and legacy format migration.
+ * Persists one or more authenticated accounts to disk with owner-only file
+ * permissions (0600 for files, 0700 for directories) to protect token data.
+ * The active account is an explicit pointer (v2 schema), so switching accounts
+ * is a local file operation. Supports atomic writes and v1/legacy migration.
  *
  * @invariant sessionFile path is always initialized (uses default if not provided)
  * @invariant File operations are atomic to prevent partial writes
  * @invariant File permissions restrict access to owner only
- * @invariant Legacy session format is automatically migrated to versioned format
+ * @invariant Legacy/v1 session format is automatically migrated to v2 on read
  */
 class FileAuthSessionStore(
     private val sessionFile: File = defaultSessionFile(),
@@ -30,16 +32,16 @@ class FileAuthSessionStore(
     /**
      * Reads the currently active authenticated session.
      *
-     * @return AuthSession if valid session exists in storage, null if no active session
+     * @return AuthSession if an active account exists in storage, null otherwise
      * @throws Nothing - Returns null on read errors
      *
      * @post Result is either a valid AuthSession or null (never throws)
-     * @post Session contains non-null userId and accessToken if returned
+     * @post Session contains non-blank userId and accessToken if returned
      */
     override fun readActiveSession(): AuthSession? {
         check(sessionFile.path.isNotBlank()) { "Session file path must not be blank." }
         logger.debug { "Reading active session from store" }
-        val session = readSessionInventory().activeSession
+        val session = readAccounts().activeAccount
         if (session != null) {
             logger.debug { "Active session found for userId: ${session.userId}" }
         } else {
@@ -55,43 +57,138 @@ class FileAuthSessionStore(
     }
 
     /**
-     * Reads complete session inventory including validation status and diagnostics.
+     * Reads the full account inventory including validation status and diagnostics.
      *
-     * Automatically migrates legacy session format to versioned format if needed.
-     * Returns empty inventory if no session file exists.
+     * Automatically migrates v1/legacy session format to v2 if needed.
+     * Returns an empty inventory if no session file exists.
      *
-     * @return SessionInventory with active session, counts, and diagnostic messages
-     * @throws Nothing - Returns empty inventory with diagnostics on errors
+     * @return AccountInventory with accounts, active pointer, and diagnostics
+     * @throws Nothing - Returns an inventory with diagnostics on errors
      *
-     * @post Result is non-null SessionInventory
-     * @post If legacy format exists, automatic migration is attempted
-     * @post diagnosticMessage is set if migration failed
+     * @post Result is non-null AccountInventory
+     * @post If v1/legacy format exists, automatic migration is attempted
+     * @post diagnosticMessage is set if migration failed or the format is unsupported
      */
-    override fun readSessionInventory(): SessionInventory {
+    override fun readAccounts(): AccountInventory {
         check(sessionFile.path.isNotBlank()) { "Session inventory file path must not be blank." }
-        logger.debug { "Reading session inventory from: ${sessionFile.absolutePath}" }
+        logger.debug { "Reading account inventory from: ${sessionFile.absolutePath}" }
 
         val inventory =
             if (!sessionFile.exists()) {
                 logger.debug { "Session file does not exist: ${sessionFile.absolutePath}" }
-                SessionInventory(activeSession = null, validSessions = 0, invalidSessions = 0)
+                AccountInventory(accounts = emptyList(), activeUserId = null)
             } else {
                 val parsedData = parseSessionFile()
                 if (parsedData == null) {
                     emptyInventoryWithError()
                 } else {
-                    handleLegacyFormatMigration(parsedData).also(::validateInventory)
+                    handleFormatMigration(parsedData).also(::validateInventory)
                 }
             }
 
         logger.debug {
-            "Session inventory loaded: " +
-                "active=${inventory.activeSession != null}, " +
-                "valid=${inventory.validSessions}, " +
-                "invalid=${inventory.invalidSessions}"
+            "Account inventory loaded: " +
+                "accounts=${inventory.accounts.size}, " +
+                "active=${inventory.activeUserId != null}, " +
+                "invalid=${inventory.invalidAccounts}"
         }
 
         return inventory
+    }
+
+    /**
+     * Adds (or replaces) an account. When [makeActive] is true the new account
+     * becomes the active one. Existing accounts are preserved.
+     *
+     * @param account The authenticated account to persist
+     * @param makeActive Whether to mark this account active (default true)
+     * @throws IllegalArgumentException if userId or accessToken is blank
+     *
+     * @pre account must have non-blank userId and accessToken
+     * @post Account is persisted to disk with secure file permissions (0600)
+     * @post Other accounts are preserved
+     */
+    override fun addAccount(
+        account: AuthSession,
+        makeActive: Boolean,
+    ) {
+        require(account.userId.isNotBlank()) { "Account user ID must not be blank when persisting." }
+        require(account.accessToken.isNotBlank()) { "Account access token must not be blank when persisting." }
+
+        logger.debug { "Adding account to file: ${sessionFile.absolutePath}, userId=${account.userId}, makeActive=$makeActive" }
+        val current = readAccounts()
+        val others = current.accounts.filterNot { it.userId == account.userId }
+        val updated =
+            AccountInventory(
+                accounts = others + account,
+                activeUserId = if (makeActive) account.userId else current.activeUserId,
+            )
+        writeAccounts(updated)
+        logger.info { "Account persisted for userId: ${account.userId}" }
+    }
+
+    /**
+     * Switches the active account by userId. Local-only: never contacts Wire.
+     *
+     * @return The activated account, or null if no account matches [userId]
+     *
+     * @post If successful, [userId] is the active pointer and other accounts are unchanged
+     */
+    override fun setActiveAccount(userId: String): AuthSession? {
+        logger.debug { "Setting active account to: $userId" }
+        val current = readAccounts()
+        val target = current.accounts.firstOrNull { it.userId == userId } ?: return null
+        writeAccounts(current.copy(activeUserId = target.userId))
+        logger.info { "Active account switched to: ${target.userId}" }
+        return target
+    }
+
+    /**
+     * Removes a single account by userId. Local-only. If the removed account was
+     * active, the active pointer is cleared (no account becomes active automatically).
+     * When the last account is removed the session file is deleted.
+     *
+     * @return The removed account, or null if no account matches [userId]
+     *
+     * @post Other accounts and the file are preserved
+     * @post If the active account is removed, active pointer becomes null
+     * @post If no accounts remain, the session file is deleted
+     */
+    override fun removeAccount(userId: String): AuthSession? {
+        logger.debug { "Removing account: $userId" }
+        val current = readAccounts()
+        val target = current.accounts.firstOrNull { it.userId == userId } ?: return null
+        val remaining = current.accounts.filterNot { it.userId == userId }
+        if (remaining.isEmpty()) {
+            deleteSessionFile()
+        } else {
+            val activeUserId = if (current.activeUserId == userId) null else current.activeUserId
+            writeAccounts(current.copy(accounts = remaining, activeUserId = activeUserId))
+        }
+        logger.info { "Account removed: ${target.userId}" }
+        return target
+    }
+
+    /**
+     * Deletes the session file. Safe when the file is already absent.
+     *
+     * @throws IllegalStateException if the file exists but cannot be deleted
+     *
+     * @post No session file exists on disk
+     */
+    private fun deleteSessionFile() {
+        check(sessionFile.path.isNotBlank()) { "Session file path must not be blank when clearing." }
+        logger.debug { "Deleting session file (no accounts remaining): ${sessionFile.absolutePath}" }
+        if (sessionFile.exists()) {
+            if (!sessionFile.delete()) {
+                logger.error { "Failed to delete session file: ${sessionFile.absolutePath}" }
+                error("Failed to delete session file: ${sessionFile.absolutePath}")
+            }
+            logger.info { "Session file deleted successfully" }
+        }
+        check(!sessionFile.exists()) {
+            "Session file must not exist after deleteSessionFile completes."
+        }
     }
 
     /**
@@ -113,119 +210,71 @@ class FileAuthSessionStore(
     }
 
     /**
-     * Returns an empty session inventory with an error diagnostic message.
-     *
-     * @return Empty SessionInventory with failure diagnostic
+     * Returns an empty account inventory with an error diagnostic message.
      */
-    private fun emptyInventoryWithError(): SessionInventory =
-        SessionInventory(
-            activeSession = null,
-            validSessions = 0,
-            invalidSessions = 0,
+    private fun emptyInventoryWithError(): AccountInventory =
+        AccountInventory(
+            accounts = emptyList(),
+            activeUserId = null,
             diagnosticMessage = "Failed to read or parse session file",
         )
 
     /**
-     * Handles migration of legacy session format to versioned format if needed.
-     *
-     * @param parsedData The parsed session data (may be in legacy format)
-     * @return Updated inventory after migration (if any)
+     * Migrates v1/legacy session format to v2 if needed by rewriting the file.
+     * v2 and unsupported formats are returned unchanged.
      */
-    private fun handleLegacyFormatMigration(parsedData: ParsedSessionData): SessionInventory {
+    private fun handleFormatMigration(parsedData: ParsedSessionData): AccountInventory {
         logger.debug { "Parsed session format: ${parsedData.format}" }
 
-        if (parsedData.format == SessionFileFormat.LEGACY) {
-            logger.info { "Legacy session format detected - attempting migration" }
-            val migrated =
-                runCatching {
-                    val serialized = serializeVersionedSessions(parsedData.rawPayloadLines)
-                    writeAtomically(serialized)
-                    logger.debug { "Legacy session migration completed successfully" }
-                }
-
-            if (migrated.isFailure) {
-                logger.warn { "Legacy session migration failed: ${migrated.exceptionOrNull()?.message}" }
-                return parsedData.inventory.copy(
-                    diagnosticMessage = AuthMessages.LEGACY_SESSION_MIGRATION_FAILED,
-                )
-            }
+        if (parsedData.format != SessionFileFormat.VERSION_1 && parsedData.format != SessionFileFormat.LEGACY) {
+            return parsedData.inventory
         }
 
-        return parsedData.inventory
+        logger.info { "Outdated session format detected - migrating to v2" }
+        val migrated =
+            runCatching {
+                writeAtomically(serializeAccounts(parsedData.inventory))
+                logger.debug { "Session migration to v2 completed successfully" }
+            }
+
+        return if (migrated.isFailure) {
+            logger.warn { "Session migration failed: ${migrated.exceptionOrNull()?.message}" }
+            parsedData.inventory.copy(diagnosticMessage = AuthMessages.LEGACY_SESSION_MIGRATION_FAILED)
+        } else {
+            parsedData.inventory
+        }
     }
 
     /**
      * Validates the inventory data for consistency.
-     *
-     * @param inventory The session inventory to validate
-     * @throws AssertionError if validation fails
      */
-    private fun validateInventory(inventory: SessionInventory) {
-        check(inventory.validSessions >= 0) {
-            "Session inventory valid session count must be non-negative."
+    private fun validateInventory(inventory: AccountInventory) {
+        check(inventory.accounts.size + inventory.invalidAccounts >= 0) {
+            "Session inventory counts must be non-negative."
         }
-        check(inventory.invalidSessions >= 0) {
-            "Session inventory invalid session count must be non-negative."
+        check(inventory.invalidAccounts >= 0) {
+            "Session inventory invalid account count must be non-negative."
         }
-        check(inventory.activeSession == null || inventory.activeSession.userId.isNotBlank()) {
-            "Session inventory active session must include a non-blank user ID."
+        val active = inventory.activeAccount
+        check(active == null || active.userId.isNotBlank()) {
+            "Active account must include a non-blank user ID."
         }
     }
 
     /**
-     * Writes an authenticated session to storage.
+     * Writes an account inventory to storage atomically with secure permissions.
      *
-     * @param session The authenticated session to persist
-     * @throws IllegalStateException if atomic write fails after retries
+     * @throws IllegalStateException if the file does not exist after writing
+     * @throws IOException if the atomic write fails
      *
-     * @pre session must have non-null userId and accessToken
-     * @post Session is persisted to disk with secure file permissions (0600)
+     * @post Inventory is persisted to disk with secure file permissions (0600)
      * @post Parent directory is created with secure permissions (0700) if needed
-     * @post Write is atomic - file is either fully written or not created
+     * @post Write is atomic - file is either fully written or not updated
      */
-    override fun writeActiveSession(session: AuthSession) {
-        require(session.userId.isNotBlank()) { "Session user ID must not be blank when persisting." }
-        require(session.accessToken.isNotBlank()) { "Session access token must not be blank when persisting." }
-
-        logger.debug { "Persisting session to file: ${sessionFile.absolutePath}" }
-        logger.debug { "Session userId: ${session.userId}, server: ${session.server}" }
-        try {
-            writeAtomically(serializeSingleSession(session))
-            check(sessionFile.exists()) {
-                "Session file must exist after successful session persistence."
-            }
-            logger.info { "Session persisted successfully to ${sessionFile.absolutePath}" }
-        } catch (e: IllegalStateException) {
-            logger.error(e) { "Session write validation failed" }
-            throw e
-        } catch (e: IOException) {
-            logger.error(e) { "Failed to write session atomically to ${sessionFile.absolutePath}" }
-            throw e
-        }
-    }
-
-    /**
-     * Clears the stored active session by deleting the session file.
-     *
-     * @throws IllegalStateException if session file exists but cannot be deleted
-     *
-     * @post If successful, no session file exists on disk
-     * @post Safe to call when no session exists (silently succeeds)
-     */
-    override fun clearActiveSession() {
-        check(sessionFile.path.isNotBlank()) { "Session file path must not be blank when clearing." }
-        logger.debug { "Clearing active session from: ${sessionFile.absolutePath}" }
-        if (sessionFile.exists()) {
-            if (!sessionFile.delete()) {
-                logger.error { "Failed to delete session file: ${sessionFile.absolutePath}" }
-                error("Failed to clear active session file: ${sessionFile.absolutePath}")
-            }
-            logger.info { "Session file deleted successfully" }
-        } else {
-            logger.debug { "No session file to delete" }
-        }
-        check(!sessionFile.exists()) {
-            "Session file must not exist after clearActiveSession completes."
+    private fun writeAccounts(inventory: AccountInventory) {
+        writeAtomically(serializeAccounts(inventory))
+        check(sessionFile.exists()) {
+            "Session file must exist after successful account persistence."
         }
     }
 
@@ -236,10 +285,9 @@ class FileAuthSessionStore(
      * is not supported, falls back to regular move. Sets strict file/directory
      * permissions (0600/0700) to protect sensitive session data.
      *
-     * @param contents The content to write (session data)
-     * @throws IllegalStateException if final atomic/non-atomic move fails
+     * @param contents The content to write (serialized session data)
+     * @throws IOException if the write or final move fails
      *
-     * @pre contents must be non-null serialized session data
      * @post File is persisted with proper permissions (0600)
      * @post Parent directory exists with permissions (0700)
      * @post Write is atomic on supported filesystems
@@ -294,14 +342,6 @@ class FileAuthSessionStore(
 
     /**
      * Restricts directory permissions to owner-only access (0700 / rwx------).
-     *
-     * Attempts to use POSIX file permissions on supported systems; falls back to
-     * Java file permission APIs on Windows and other systems that don't support POSIX.
-     *
-     * @param path The directory path to restrict
-     *
-     * @post Directory is readable/writable/executable by owner only
-     * @invariant Errors are silently caught and fallback is used
      */
     private fun restrictDirectoryPermissions(path: Path) {
         runCatching {
@@ -320,14 +360,6 @@ class FileAuthSessionStore(
 
     /**
      * Restricts file permissions to owner-only read/write (0600 / rw-------).
-     *
-     * Attempts to use POSIX file permissions on supported systems; falls back to
-     * Java file permission APIs on Windows and other systems that don't support POSIX.
-     *
-     * @param path The file path to restrict
-     *
-     * @post File is readable/writable by owner only; no execute permission
-     * @invariant Errors are silently caught and fallback is used
      */
     private fun restrictFilePermissions(path: Path) {
         runCatching {
@@ -353,10 +385,7 @@ class FileAuthSessionStore(
  * 3. ~/.config/wire/session (default location)
  *
  * @return File object pointing to the session file path
- *
- * @post Result is non-null File with appropriate path set
  */
-
 private fun defaultSessionFile(): File {
     val explicitFile = System.getenv("WIRE_SESSION_FILE")
     val xdgConfigHome = System.getenv("XDG_CONFIG_HOME")

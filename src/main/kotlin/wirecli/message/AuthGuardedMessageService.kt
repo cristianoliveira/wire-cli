@@ -46,17 +46,27 @@ class AuthGuardedMessageService(
     override fun listRecentMessages(
         limit: Int,
         receivedOnly: Boolean,
-        localOnly: Boolean,
-    ): ListRecentMessagesResult {
-        return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.listRecentMessages(limit, receivedOnly, localOnly)
+    ): ListRecentMessagesResult = withSession { delegate.listRecentMessages(limit, receivedOnly) }
+
+    override fun listServerRecentMessages(
+        limit: Int,
+        receivedOnly: Boolean,
+    ): ListRecentMessagesResult = withSession { delegate.listServerRecentMessages(limit, receivedOnly) }
+
+    override fun listLocalRecentMessages(
+        limit: Int,
+        receivedOnly: Boolean,
+    ): ListRecentMessagesResult = withSession { delegate.listLocalRecentMessages(limit, receivedOnly) }
+
+    private inline fun withSession(action: () -> ListRecentMessagesResult): ListRecentMessagesResult =
+        when (val authResult = authSessionService.requireActiveSession()) {
+            is AuthResult.Success -> action()
             is AuthResult.Failure ->
                 ListRecentMessagesResult.Failure(
                     message = authResult.message,
                     exitCode = authResult.exitCode,
                 )
         }
-    }
 
     override fun searchMessages(
         query: String,

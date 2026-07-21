@@ -120,6 +120,16 @@ class SessionBackedMessageService(
     override fun listRecentMessages(
         limit: Int,
         receivedOnly: Boolean,
+    ): ListRecentMessagesResult = listRecentMessages(limit, receivedOnly, localOnly = false)
+
+    override fun listLocalRecentMessages(
+        limit: Int,
+        receivedOnly: Boolean,
+    ): ListRecentMessagesResult = listRecentMessages(limit, receivedOnly, localOnly = true)
+
+    private fun listRecentMessages(
+        limit: Int,
+        receivedOnly: Boolean,
         localOnly: Boolean,
     ): ListRecentMessagesResult {
         val overallStartNanos = System.nanoTime()

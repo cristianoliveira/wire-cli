@@ -60,12 +60,25 @@ class MessageListCommandTest {
             )
         val command = MessageListCommand { service }
 
-        val result = execute(command, listOf("--limit", "5", "--received-only", "--local"))
+        val result = execute(command, listOf("--limit", "5", "--received-only", "--no-cache"))
 
         assertEquals(0, result.exitCode)
         assertEquals(5, service.capturedLimit)
         assertEquals(true, service.capturedReceivedOnly)
-        assertEquals(true, service.capturedLocalOnly)
+        assertEquals(true, service.capturedServerPath, "--no-cache must use the server path")
+    }
+
+    @Test
+    fun `list command defaults to daemon-backed path without --no-cache`() {
+        val service =
+            FakeMessageService(
+                listResult = ListRecentMessagesResult.Success(RecentMessagesView(emptyList())),
+            )
+        val command = MessageListCommand { service }
+
+        execute(command, listOf("--limit", "3"))
+
+        assertEquals(false, service.capturedServerPath, "default must use the daemon-backed path")
     }
 
     @Test
@@ -370,7 +383,7 @@ class MessageListCommandTest {
             private set
         var capturedReceivedOnly: Boolean? = null
             private set
-        var capturedLocalOnly: Boolean? = null
+        var capturedServerPath: Boolean? = null
             private set
 
         override fun sendMessage(
@@ -386,11 +399,20 @@ class MessageListCommandTest {
         override fun listRecentMessages(
             limit: Int,
             receivedOnly: Boolean,
-            localOnly: Boolean,
         ): ListRecentMessagesResult {
             capturedLimit = limit
             capturedReceivedOnly = receivedOnly
-            capturedLocalOnly = localOnly
+            capturedServerPath = false
+            return listResult
+        }
+
+        override fun listServerRecentMessages(
+            limit: Int,
+            receivedOnly: Boolean,
+        ): ListRecentMessagesResult {
+            capturedLimit = limit
+            capturedReceivedOnly = receivedOnly
+            capturedServerPath = true
             return listResult
         }
 

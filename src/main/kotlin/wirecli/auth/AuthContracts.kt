@@ -89,8 +89,8 @@ interface AuthSessionService {
  * Local account management: list, inspect the active account, and switch or
  * remove accounts without touching the network. Backed by [AuthSessionStore].
  */
-interface AccountsService {
-    fun listAccounts(): AccountsListing
+interface AccountService {
+    fun listAccounts(): AccountListing
 
     fun currentAccount(): AuthSession?
 
@@ -101,7 +101,7 @@ interface AccountsService {
     fun removeAccount(userId: String): AuthSession?
 }
 
-data class AccountsListing(
+data class AccountListing(
     val accounts: List<AuthSession>,
     val activeUserId: String?,
 )

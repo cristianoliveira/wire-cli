@@ -5,13 +5,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class AccountsServiceImplTest {
+class AccountServiceImplTest {
     private fun account(userId: String) = AuthSession(userId = userId, accessToken = "tok-$userId", server = null)
 
     @Test
     fun `listAccounts returns all accounts and the active pointer`() {
         val service =
-            AccountsServiceImpl(
+            AccountServiceImpl(
                 FakeStore(
                     accounts = listOf(account("alice@wire.com"), account("bob@wire.com")),
                     activeUserId = "bob@wire.com",
@@ -27,7 +27,7 @@ class AccountsServiceImplTest {
     @Test
     fun `currentAccount returns the active account`() {
         val service =
-            AccountsServiceImpl(
+            AccountServiceImpl(
                 FakeStore(listOf(account("alice@wire.com")), activeUserId = "alice@wire.com"),
             )
         assertEquals("alice@wire.com", service.currentAccount()?.userId)
@@ -35,14 +35,14 @@ class AccountsServiceImplTest {
 
     @Test
     fun `currentAccount returns null when no account is active`() {
-        val service = AccountsServiceImpl(FakeStore(emptyList(), activeUserId = null))
+        val service = AccountServiceImpl(FakeStore(emptyList(), activeUserId = null))
         assertNull(service.currentAccount())
     }
 
     @Test
     fun `useAccount delegates to the store and returns the activated account`() {
         val store = FakeStore(listOf(account("alice@wire.com"), account("bob@wire.com")), activeUserId = "alice@wire.com")
-        val service = AccountsServiceImpl(store)
+        val service = AccountServiceImpl(store)
 
         val switched = service.useAccount("bob@wire.com")
 
@@ -52,14 +52,14 @@ class AccountsServiceImplTest {
 
     @Test
     fun `useAccount returns null when the account is absent`() {
-        val service = AccountsServiceImpl(FakeStore(emptyList(), activeUserId = null))
+        val service = AccountServiceImpl(FakeStore(emptyList(), activeUserId = null))
         assertNull(service.useAccount("ghost@wire.com"))
     }
 
     @Test
     fun `removeAccount delegates to the store and returns the removed account`() {
         val store = FakeStore(listOf(account("alice@wire.com")), activeUserId = "alice@wire.com")
-        val service = AccountsServiceImpl(store)
+        val service = AccountServiceImpl(store)
 
         val removed = service.removeAccount("alice@wire.com")
 

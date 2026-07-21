@@ -6,39 +6,39 @@ import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.help
 import io.github.oshai.kotlinlogging.KotlinLogging
-import wirecli.auth.AccountsService
+import wirecli.auth.AccountService
 import wirecli.auth.ExitCodes
 
 private val logger = KotlinLogging.logger {}
 
-class AccountsCommand(
-    private val accountsServiceProvider: () -> AccountsService,
+class AccountCommand(
+    private val accountServiceProvider: () -> AccountService,
 ) : CliktCommand(
-        name = "accounts",
+        name = "account",
         help = "Manage stored accounts (list, use, remove).",
         invokeWithoutSubcommand = true,
     ) {
     init {
         subcommands(
-            AccountsListCommand(accountsServiceProvider),
-            AccountsUseCommand(accountsServiceProvider),
-            AccountsRemoveCommand(accountsServiceProvider),
+            AccountListCommand(accountServiceProvider),
+            AccountUseCommand(accountServiceProvider),
+            AccountRemoveCommand(accountServiceProvider),
         )
     }
 
     override fun run() {
-        logger.info { "Accounts command executed" }
+        logger.info { "Account command executed" }
         if (currentContext.invokedSubcommand == null) {
             failWithUsage()
         }
     }
 }
 
-class AccountsListCommand(
-    private val accountsServiceProvider: () -> AccountsService,
+class AccountListCommand(
+    private val accountServiceProvider: () -> AccountService,
 ) : CliktCommand(name = "list", help = "List stored accounts and mark the active one.") {
     override fun run() {
-        val listing = accountsServiceProvider().listAccounts()
+        val listing = accountServiceProvider().listAccounts()
         if (listing.accounts.isEmpty()) {
             echo("No stored accounts. Run `wire login` to add one.")
             return
@@ -51,23 +51,23 @@ class AccountsListCommand(
     }
 }
 
-class AccountsUseCommand(
-    private val accountsServiceProvider: () -> AccountsService,
+class AccountUseCommand(
+    private val accountServiceProvider: () -> AccountService,
 ) : CliktCommand(name = "use", help = "Switch the active account (local only).") {
     private val userId by argument("user-id", help = "Qualified user id (value@domain) of the account to activate.")
 
     override fun run() {
-        val account = accountsServiceProvider().useAccount(userId)
+        val account = accountServiceProvider().useAccount(userId)
         if (account == null) {
-            echo("No stored account for '$userId'. Run `wire accounts list`.", err = true)
+            echo("No stored account for '$userId'. Run `wire account list`.", err = true)
             throw ProgramResult(processExitCode(ExitCodes.VALIDATION_ERROR))
         }
         echo("Switched to ${account.userId}.")
     }
 }
 
-class AccountsRemoveCommand(
-    private val accountsServiceProvider: () -> AccountsService,
+class AccountRemoveCommand(
+    private val accountServiceProvider: () -> AccountService,
 ) : CliktCommand(
         name = "remove",
         help = "Remove a stored account (local only; use `wire logout` for server logout).",
@@ -75,9 +75,9 @@ class AccountsRemoveCommand(
     private val userId by argument("user-id", help = "Qualified user id (value@domain) of the account to remove.")
 
     override fun run() {
-        val account = accountsServiceProvider().removeAccount(userId)
+        val account = accountServiceProvider().removeAccount(userId)
         if (account == null) {
-            echo("No stored account for '$userId'. Run `wire accounts list`.", err = true)
+            echo("No stored account for '$userId'. Run `wire account list`.", err = true)
             throw ProgramResult(processExitCode(ExitCodes.VALIDATION_ERROR))
         }
         echo("Removed ${account.userId}.")

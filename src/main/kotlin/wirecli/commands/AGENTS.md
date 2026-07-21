@@ -10,6 +10,12 @@ This package is the Clikt adapter layer.
 - Render results to stdout/stderr and map failures to exit behavior.
 - Keep JSON and JSON-lines output machine-readable.
 
+## Naming
+
+- Resource command groups use a **singular noun**: `conversation`, `device`, `user`, `team`, `profile`, `connection`, `message`, `account`. Never pluralize a resource group (no `accounts`); reserve plurals for result-set subcommands such as `conversation members`.
+- Subcommands are **verbs** drawn from the existing vocabulary: `list`, `get`, `create`, `delete`, `set`, `use`, `remove`.
+- Service interfaces mirror the resource in the singular: `UserService`, `TeamService`, `AccountService` — not `AccountsService`. Plurals are fine for collection fields (`inventory.accounts`) and listing methods (`listAccounts()`, like `listConversations()`).
+
 ## Boundaries
 
 - Do not import Kalium SDK types.

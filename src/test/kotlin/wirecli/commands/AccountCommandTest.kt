@@ -1,20 +1,20 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
-import wirecli.auth.AccountsListing
-import wirecli.auth.AccountsService
+import wirecli.auth.AccountListing
+import wirecli.auth.AccountService
 import wirecli.auth.AuthSession
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class AccountsCommandTest {
+class AccountCommandTest {
     private val alice = AuthSession("alice@wire.com", "tok-a", "wire.com")
     private val bob = AuthSession("bob@wire.com", "tok-b", null)
 
     @Test
-    fun `accounts list marks the active account with a star`() {
-        val service = FakeAccountsService(AccountsListing(listOf(alice, bob), activeUserId = "bob@wire.com"))
+    fun `account list marks the active account with a star`() {
+        val service = FakeAccountService(AccountListing(listOf(alice, bob), activeUserId = "bob@wire.com"))
         val result = run(listOf("list"), service)
 
         assertEquals(0, result.exitCode)
@@ -25,8 +25,8 @@ class AccountsCommandTest {
     }
 
     @Test
-    fun `accounts list reports when there are no stored accounts`() {
-        val service = FakeAccountsService(AccountsListing(emptyList(), activeUserId = null))
+    fun `account list reports when there are no stored accounts`() {
+        val service = FakeAccountService(AccountListing(emptyList(), activeUserId = null))
         val result = run(listOf("list"), service)
 
         assertEquals(0, result.exitCode)
@@ -34,8 +34,8 @@ class AccountsCommandTest {
     }
 
     @Test
-    fun `accounts use switches and prints confirmation`() {
-        val service = FakeAccountsService(AccountsListing(listOf(alice), activeUserId = "alice@wire.com"))
+    fun `account use switches and prints confirmation`() {
+        val service = FakeAccountService(AccountListing(listOf(alice), activeUserId = "alice@wire.com"))
         val result = run(listOf("use", "alice@wire.com"), service)
 
         assertEquals(0, result.exitCode)
@@ -44,8 +44,8 @@ class AccountsCommandTest {
     }
 
     @Test
-    fun `accounts use exits with validation error for an unknown account`() {
-        val service = FakeAccountsService(AccountsListing(emptyList(), activeUserId = null))
+    fun `account use exits with validation error for an unknown account`() {
+        val service = FakeAccountService(AccountListing(emptyList(), activeUserId = null))
         val result = run(listOf("use", "ghost@wire.com"), service)
 
         assertEquals(processExitCode(wirecli.auth.ExitCodes.VALIDATION_ERROR), result.exitCode)
@@ -53,8 +53,8 @@ class AccountsCommandTest {
     }
 
     @Test
-    fun `accounts remove removes and prints confirmation`() {
-        val service = FakeAccountsService(AccountsListing(listOf(alice), activeUserId = "alice@wire.com"))
+    fun `account remove removes and prints confirmation`() {
+        val service = FakeAccountService(AccountListing(listOf(alice), activeUserId = "alice@wire.com"))
         val result = run(listOf("remove", "alice@wire.com"), service)
 
         assertEquals(0, result.exitCode)
@@ -64,7 +64,7 @@ class AccountsCommandTest {
 
     @Test
     fun `whoami prints the active account`() {
-        val service = FakeAccountsService(AccountsListing(listOf(alice), activeUserId = "alice@wire.com"))
+        val service = FakeAccountService(AccountListing(listOf(alice), activeUserId = "alice@wire.com"))
         val result = runWhoami(emptyList(), service)
 
         assertEquals(0, result.exitCode)
@@ -73,7 +73,7 @@ class AccountsCommandTest {
 
     @Test
     fun `whoami errors when no account is active`() {
-        val service = FakeAccountsService(AccountsListing(emptyList(), activeUserId = null))
+        val service = FakeAccountService(AccountListing(emptyList(), activeUserId = null))
         val result = runWhoami(emptyList(), service)
 
         assertTrue(result.exitCode != 0)
@@ -84,15 +84,15 @@ class AccountsCommandTest {
 
     private fun run(
         args: List<String>,
-        service: FakeAccountsService,
+        service: FakeAccountService,
     ): ExecutionResult =
         execute(args) {
-            AccountsCommand { service }
+            AccountCommand { service }
         }
 
     private fun runWhoami(
         args: List<String>,
-        service: FakeAccountsService,
+        service: FakeAccountService,
     ): ExecutionResult =
         execute(args) {
             WhoamiCommand { service }
@@ -111,7 +111,7 @@ class AccountsCommandTest {
             System.setOut(java.io.PrintStream(stdoutBuffer))
             System.setErr(java.io.PrintStream(stderrBuffer))
             when (val command = build()) {
-                is AccountsCommand -> command.parse(args)
+                is AccountCommand -> command.parse(args)
                 is WhoamiCommand -> command.parse(args)
             }
         } catch (programResult: ProgramResult) {
@@ -127,14 +127,14 @@ class AccountsCommandTest {
         )
     }
 
-    private class FakeAccountsService(
-        private val listing: AccountsListing,
+    private class FakeAccountService(
+        private val listing: AccountListing,
         private val current: AuthSession? = listing.accounts.firstOrNull { it.userId == listing.activeUserId },
-    ) : AccountsService {
+    ) : AccountService {
         var useCalledWith: String? = null
         var removeCalledWith: String? = null
 
-        override fun listAccounts(): AccountsListing = listing
+        override fun listAccounts(): AccountListing = listing
 
         override fun currentAccount(): AuthSession? = current
 

@@ -105,20 +105,20 @@ wire login --email jane@example.com   # personal
 wire login --email jane@company.com   # work
 
 # List stored accounts; the active one is marked with *
-wire accounts list
+wire account list
 
 # Show the currently active account
 wire whoami
 
 # Switch the active account (local only, no re-authentication)
-wire accounts use jane@company.com
+wire account use jane@company.com
 
 # Remove a single stored account (local only; use `wire logout` for server logout)
-wire accounts remove jane@example.com
+wire account remove jane@example.com
 ```
 
 `wire logout` removes only the **active** account and clears the active pointer;
-run `wire accounts use <user-id>` to select another. Accounts are stored in the
+run `wire account use <user-id>` to select another. Accounts are stored in the
 session file (`~/.config/wire/session` by default; override with
 `WIRE_SESSION_FILE`).
 

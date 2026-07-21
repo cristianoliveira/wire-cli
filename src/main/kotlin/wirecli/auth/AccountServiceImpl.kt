@@ -11,13 +11,13 @@ private val logger = KotlinLogging.logger {}
  * rewrite the local credential store only. Network logout is owned by
  * [AuthSessionService].
  */
-class AccountsServiceImpl(
+class AccountServiceImpl(
     private val sessionStore: AuthSessionStore,
-) : AccountsService {
-    override fun listAccounts(): AccountsListing {
+) : AccountService {
+    override fun listAccounts(): AccountListing {
         logger.debug { "Listing stored accounts" }
         val inventory = sessionStore.readAccounts()
-        return AccountsListing(accounts = inventory.accounts, activeUserId = inventory.activeUserId)
+        return AccountListing(accounts = inventory.accounts, activeUserId = inventory.activeUserId)
     }
 
     override fun currentAccount(): AuthSession? {

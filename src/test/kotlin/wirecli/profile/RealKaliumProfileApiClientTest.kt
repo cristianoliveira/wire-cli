@@ -45,6 +45,7 @@ class RealKaliumProfileApiClientTest {
             failure.message,
         )
         assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+        assertEquals(false, runtime.lastRequireLiveSync)
     }
 
     @Test
@@ -63,23 +64,32 @@ class RealKaliumProfileApiClientTest {
     }
 
     @Test
-    fun `profile sync timeout returns actionable failure`() {
+    fun `profile read scope skips unavailable live sync`() {
         val runtime =
             SdkKaliumProfileRuntime(
                 environment = mapOf("HOME" to System.getProperty("java.io.tmpdir")),
                 syncTimeoutMs = 1,
                 sessionSyncWait = { awaitCancellation() },
             )
-        val client = RealKaliumProfileApiClient(runtime)
 
-        val result = client.fetchProfile(session)
+        val result = runtime.resolveSessionScope(session, requireLiveSync = false)
 
-        val failure = assertIs<ProfileResult.Failure>(result)
-        assertEquals(
-            "Profile fetch timed out waiting for sync. Check your connection and retry.",
-            failure.message,
-        )
-        assertEquals(ExitCodes.NETWORK_ERROR, failure.exitCode)
+        assertIs<ProfileStepResult.Success<KaliumProfileSessionScope>>(result)
+    }
+
+    @Test
+    fun `profile write scope reports an unavailable live sync`() {
+        val runtime =
+            SdkKaliumProfileRuntime(
+                environment = mapOf("HOME" to System.getProperty("java.io.tmpdir")),
+                syncTimeoutMs = 1,
+                sessionSyncWait = { awaitCancellation() },
+            )
+
+        val result = runtime.resolveSessionScope(session, requireLiveSync = true)
+
+        val failure = assertIs<ProfileStepResult.Failure>(result)
+        assertEquals(ProfileFailureCategory.TIMEOUT, failure.category)
     }
 
     @Test
@@ -114,6 +124,7 @@ class RealKaliumProfileApiClientTest {
         assertEquals("New Name", success.profile.name)
         assertEquals("newhandle", success.profile.handle)
         assertTrue(runtime.updateSelfInvoked)
+        assertEquals(true, runtime.lastRequireLiveSync)
     }
 
     @Test
@@ -154,8 +165,15 @@ class RealKaliumProfileApiClientTest {
         private val updateSelfResult: ProfileStepResult<Unit> = ProfileStepResult.Success(Unit),
     ) : RealKaliumProfileRuntime {
         var updateSelfInvoked: Boolean = false
+        var lastRequireLiveSync: Boolean? = null
 
-        override fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope> = scopeResult
+        override fun resolveSessionScope(
+            session: AuthSession,
+            requireLiveSync: Boolean,
+        ): ProfileStepResult<KaliumProfileSessionScope> {
+            lastRequireLiveSync = requireLiveSync
+            return scopeResult
+        }
 
         override fun getSelfUser(sessionScope: KaliumProfileSessionScope): ProfileStepResult<KaliumSelfUser> = selfUserResult
 

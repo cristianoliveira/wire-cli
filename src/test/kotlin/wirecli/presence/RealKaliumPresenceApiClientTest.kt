@@ -1,6 +1,7 @@
 package wirecli.presence
 
 import com.wire.kalium.logic.data.user.UserAvailabilityStatus
+import kotlinx.coroutines.awaitCancellation
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
@@ -15,6 +16,35 @@ class RealKaliumPresenceApiClientTest {
             accessToken = "token",
             server = null,
         )
+
+    @Test
+    fun `presence read scope skips unavailable live sync`() {
+        val runtime =
+            SdkKaliumPresenceRuntime(
+                environment = mapOf("HOME" to System.getProperty("java.io.tmpdir")),
+                syncTimeoutMs = 1,
+                sessionSyncWait = { awaitCancellation() },
+            )
+
+        val result = runtime.resolveSessionScope(session, requireLiveSync = false)
+
+        assertIs<PresenceStepResult.Success<KaliumPresenceSessionScope>>(result)
+    }
+
+    @Test
+    fun `presence write scope reports unavailable live sync`() {
+        val runtime =
+            SdkKaliumPresenceRuntime(
+                environment = mapOf("HOME" to System.getProperty("java.io.tmpdir")),
+                syncTimeoutMs = 1,
+                sessionSyncWait = { awaitCancellation() },
+            )
+
+        val result = runtime.resolveSessionScope(session, requireLiveSync = true)
+
+        val failure = assertIs<PresenceStepResult.Failure>(result)
+        assertEquals(PresenceFailureCategory.NETWORK, failure.category)
+    }
 
     @Test
     fun `returns normalized presence from runtime status`() {
@@ -32,6 +62,7 @@ class RealKaliumPresenceApiClientTest {
 
         val success = assertIs<PresenceResult.Success>(result)
         assertEquals(PresenceState.ONLINE, success.presence.state)
+        assertEquals(false, runtime.lastRequireLiveSync)
     }
 
     @Test
@@ -149,6 +180,7 @@ class RealKaliumPresenceApiClientTest {
         val success = assertIs<PresenceResult.Success>(result)
         assertEquals(PresenceState.BUSY, success.presence.state)
         assertEquals(UserAvailabilityStatus.BUSY, runtime.lastSetStatus)
+        assertEquals(true, runtime.lastRequireLiveSync)
     }
 
     @Test
@@ -220,8 +252,13 @@ class RealKaliumPresenceApiClientTest {
         private val setResult: PresenceStepResult<Unit> = PresenceStepResult.Success(Unit),
     ) : RealKaliumPresenceRuntime {
         var lastSetStatus: UserAvailabilityStatus? = null
+        var lastRequireLiveSync: Boolean? = null
 
-        override fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope> {
+        override fun resolveSessionScope(
+            session: AuthSession,
+            requireLiveSync: Boolean,
+        ): PresenceStepResult<KaliumPresenceSessionScope> {
+            lastRequireLiveSync = requireLiveSync
             return sessionScopeResult
         }
 

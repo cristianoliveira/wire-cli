@@ -4,15 +4,19 @@ import com.wire.kalium.logic.CoreLogic
 import com.wire.kalium.logic.data.user.UserAvailabilityStatus
 import com.wire.kalium.logic.data.user.UserId
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.config.KaliumCliMode
+import wirecli.config.SessionSyncRequirement
 import wirecli.config.kaliumCliConfigs
 
 private val logger = KotlinLogging.logger {}
+private const val DEFAULT_PRESENCE_SYNC_TIMEOUT_MS = 10_000L
 
 internal class RealKaliumPresenceApiClient(
     private val runtime: PresenceRuntime,
@@ -20,7 +24,7 @@ internal class RealKaliumPresenceApiClient(
     override fun fetchPresence(session: AuthSession): PresenceResult {
         logger.debug { "RealKaliumPresenceApiClient: Fetching presence for user: ${session.userId}" }
         val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
+            when (val scope = runtime.resolveSessionScope(session, requireLiveSync = false)) {
                 is PresenceStepResult.Success -> scope.value
                 is PresenceStepResult.Failure -> {
                     logger.warn { "Failed to resolve session scope for presence fetch: ${scope.category}" }
@@ -53,7 +57,7 @@ internal class RealKaliumPresenceApiClient(
     ): PresenceResult {
         logger.info { "Updating presence to: $state for user: ${session.userId}" }
         val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
+            when (val scope = runtime.resolveSessionScope(session, requireLiveSync = true)) {
                 is PresenceStepResult.Success -> scope.value
                 is PresenceStepResult.Failure -> {
                     logger.warn { "Failed to resolve session scope for presence update: ${scope.category}" }
@@ -83,6 +87,8 @@ internal typealias RealKaliumPresenceRuntime = PresenceRuntime
 internal class SdkKaliumPresenceRuntime(
     private val environment: Map<String, String>,
     private val cliMode: KaliumCliMode = KaliumCliMode.fromEnvironment(environment),
+    private val syncTimeoutMs: Long = DEFAULT_PRESENCE_SYNC_TIMEOUT_MS,
+    private val sessionSyncWait: (suspend (UserId) -> Unit)? = null,
 ) : PresenceRuntime {
     private val activeSessionUserIds = mutableSetOf<UserId>()
 
@@ -101,7 +107,10 @@ internal class SdkKaliumPresenceRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
-    override fun resolveSessionScope(session: AuthSession): PresenceStepResult<KaliumPresenceSessionScope> {
+    override fun resolveSessionScope(
+        session: AuthSession,
+        requireLiveSync: Boolean,
+    ): PresenceStepResult<KaliumPresenceSessionScope> {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: run {
@@ -111,9 +120,16 @@ internal class SdkKaliumPresenceRuntime(
 
         return runBlocking {
             try {
-                if (!cliMode.disableSessionSyncWait) {
-                    coreLogic.sessionScope(qualifiedId) {
-                        syncExecutor.request { waitUntilLiveOrFailure() }
+                if (requireLiveSync && cliMode.shouldAwaitLiveSessionSync(SessionSyncRequirement.WRITE)) {
+                    withTimeout(syncTimeoutMs) {
+                        val injectedSyncWait = sessionSyncWait
+                        if (injectedSyncWait != null) {
+                            injectedSyncWait(qualifiedId)
+                        } else {
+                            coreLogic.sessionScope(qualifiedId) {
+                                syncExecutor.request { waitUntilLiveOrFailure() }
+                            }
+                        }
                     }
                 }
                 activeSessionUserIds += qualifiedId
@@ -124,6 +140,9 @@ internal class SdkKaliumPresenceRuntime(
                         server = session.server,
                     ),
                 )
+            } catch (_: TimeoutCancellationException) {
+                logger.warn { "Timed out waiting for presence sync for user: ${session.userId}" }
+                PresenceStepResult.Failure(PresenceFailureCategory.NETWORK)
             } catch (
                 @Suppress("TooGenericExceptionCaught") error: Throwable,
             ) {

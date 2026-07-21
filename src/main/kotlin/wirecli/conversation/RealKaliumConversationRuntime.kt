@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import wirecli.auth.AuthSession
 import wirecli.config.KaliumCliMode
+import wirecli.config.SessionSyncRequirement
 import wirecli.config.kaliumCliConfigs
 import java.nio.file.Paths
 
@@ -48,7 +49,7 @@ internal class SdkKaliumConversationRuntime(
             try {
                 val conversationDetails =
                     coreLogic.sessionScope(qualifiedId) {
-                        if (!cliMode.disableSessionSyncWait) {
+                        if (cliMode.shouldAwaitLiveSessionSync(SessionSyncRequirement.READ)) {
                             syncExecutor.request { waitUntilLiveOrFailure() }
                         }
                         conversations.observeConversationListDetailsWithEvents(

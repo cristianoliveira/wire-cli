@@ -14,6 +14,7 @@ import wirecli.auth.AuthMessages
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.config.KaliumCliMode
+import wirecli.config.SessionSyncRequirement
 import wirecli.config.kaliumCliConfigs
 
 private val logger = KotlinLogging.logger {}
@@ -28,7 +29,7 @@ internal class RealKaliumProfileApiClient(
     ): ProfileUpdateResult {
         logger.debug { "RealKaliumProfileApiClient: Updating profile for user: ${session.userId}" }
         val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
+            when (val scope = runtime.resolveSessionScope(session, requireLiveSync = true)) {
                 is ProfileStepResult.Success -> scope.value
                 is ProfileStepResult.Failure -> {
                     logger.warn { "Failed to resolve session scope for profile update: ${scope.category}" }
@@ -59,7 +60,7 @@ internal class RealKaliumProfileApiClient(
     override fun fetchProfile(session: AuthSession): ProfileResult {
         logger.debug { "RealKaliumProfileApiClient: Fetching profile for user: ${session.userId}" }
         val sessionScope =
-            when (val scope = runtime.resolveSessionScope(session)) {
+            when (val scope = runtime.resolveSessionScope(session, requireLiveSync = false)) {
                 is ProfileStepResult.Success -> scope.value
                 is ProfileStepResult.Failure -> {
                     logger.warn { "Failed to resolve session scope for profile: ${scope.category}" }
@@ -115,7 +116,10 @@ internal class SdkKaliumProfileRuntime(
         }
     private val coreLogic: CoreLogic by coreLogicLazy
 
-    override fun resolveSessionScope(session: AuthSession): ProfileStepResult<KaliumProfileSessionScope> {
+    override fun resolveSessionScope(
+        session: AuthSession,
+        requireLiveSync: Boolean,
+    ): ProfileStepResult<KaliumProfileSessionScope> {
         val qualifiedId =
             session.userId.toQualifiedIdOrNull()
                 ?: run {
@@ -126,7 +130,7 @@ internal class SdkKaliumProfileRuntime(
 
         return runBlocking {
             try {
-                if (!cliMode.disableSessionSyncWait) {
+                if (requireLiveSync && cliMode.shouldAwaitLiveSessionSync(SessionSyncRequirement.WRITE)) {
                     withTimeout(syncTimeoutMs) {
                         val injectedSyncWait = sessionSyncWait
                         if (injectedSyncWait != null) {

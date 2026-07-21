@@ -93,6 +93,35 @@ wire backup import wire-backup.wbu
 wire backup export --format jsonl --destination ./analysis wire-backup.wbu
 ```
 
+### Multiple Accounts
+
+`wire` stores multiple authenticated accounts locally and lets you switch the
+active one without logging out. The active account is an explicit pointer (like
+kubectl `current-context`); every command runs against it.
+
+```bash
+# Add accounts (each login stores and activates that account)
+wire login --email jane@example.com   # personal
+wire login --email jane@company.com   # work
+
+# List stored accounts; the active one is marked with *
+wire accounts list
+
+# Show the currently active account
+wire whoami
+
+# Switch the active account (local only, no re-authentication)
+wire accounts use jane@company.com
+
+# Remove a single stored account (local only; use `wire logout` for server logout)
+wire accounts remove jane@example.com
+```
+
+`wire logout` removes only the **active** account and clears the active pointer;
+run `wire accounts use <user-id>` to select another. Accounts are stored in the
+session file (`~/.config/wire/session` by default; override with
+`WIRE_SESSION_FILE`).
+
 `wire daemon` runs in the foreground until interrupted. Use systemd, launchd, Docker, or another process supervisor to keep it running. Kalium stores synchronized state under `~/.wire/kalium`.
 
 `wire backup import` requires an active login and restores backup conversations, messages, users, and reactions into Kalium's local cache. Imported messages can then be read with `wire message fetch <conversation-id>`. Wire backup is the default source format; use `--from` only to override source selection.

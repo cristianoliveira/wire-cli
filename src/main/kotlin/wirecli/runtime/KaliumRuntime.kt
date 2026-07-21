@@ -1,5 +1,7 @@
 package wirecli.runtime
 
+import wirecli.auth.AccountsService
+import wirecli.auth.AccountsServiceImpl
 import wirecli.auth.AuthApiClient
 import wirecli.auth.AuthSessionService
 import wirecli.auth.AuthSessionServiceImpl
@@ -109,6 +111,7 @@ interface KaliumRuntime : AutoCloseable {
     val connectionService: ConnectionService
     val downloadService: DownloadService
     val teamService: TeamService
+    val accountsService: AccountsService
 
     fun shutdown()
 
@@ -304,6 +307,10 @@ private class DefaultKaliumRuntime(
                     apiClient = backend.teamApiClient,
                 ),
         )
+    }
+
+    override val accountsService: AccountsService by lazy {
+        AccountsServiceImpl(sessionStore)
     }
 
     override fun shutdown() {

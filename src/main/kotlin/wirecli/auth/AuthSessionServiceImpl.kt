@@ -13,31 +13,31 @@ class AuthSessionServiceImpl(
 
         return when (val loginResult = apiClient.login(input)) {
             is AuthApiResult.Success -> {
-                logger.debug { "Authentication API call succeeded - attempting to persist session" }
+                logger.debug { "Authentication API call succeeded - attempting to persist account" }
                 try {
-                    logger.debug { "Writing active session to store for userId: ${loginResult.session.userId}" }
-                    sessionStore.writeActiveSession(loginResult.session)
-                    logger.info { "Session persisted successfully for email: ${input.email}" }
+                    logger.debug { "Adding account to store for userId: ${loginResult.session.userId}" }
+                    sessionStore.addAccount(loginResult.session, makeActive = true)
+                    logger.info { "Account persisted successfully for email: ${input.email}" }
                     AuthResult.Success("Login successful.")
                 } catch (e: IllegalStateException) {
-                    logger.error(e) { "Session write failed during login - session data not persisted" }
+                    logger.error(e) { "Account write failed during login - account data not persisted" }
                     AuthResult.Failure(
-                        message = "Login succeeded, but local session could not be saved. Try again.",
+                        message = "Login succeeded, but local account could not be saved. Try again.",
                         exitCode = ExitCodes.SERVER_ERROR,
                     )
                 } catch (e: IllegalArgumentException) {
-                    logger.error(e) { "Session validation failed during write - session data not persisted" }
+                    logger.error(e) { "Account validation failed during write - account data not persisted" }
                     AuthResult.Failure(
-                        message = "Login succeeded, but local session could not be saved. Try again.",
+                        message = "Login succeeded, but local account could not be saved. Try again.",
                         exitCode = ExitCodes.SERVER_ERROR,
                     )
                 } catch (
                     @Suppress("TooGenericExceptionCaught")
                     e: Exception,
                 ) {
-                    logger.error(e) { "Unexpected error during session write" }
+                    logger.error(e) { "Unexpected error during account write" }
                     AuthResult.Failure(
-                        message = "Login succeeded, but local session could not be saved. Try again.",
+                        message = "Login succeeded, but local account could not be saved. Try again.",
                         exitCode = ExitCodes.SERVER_ERROR,
                     )
                 }
@@ -53,29 +53,28 @@ class AuthSessionServiceImpl(
     override fun logout(): AuthResult {
         logger.debug { "Logout process starting" }
 
-        val inventory = sessionStore.readSessionInventory()
+        val inventory = sessionStore.readAccounts()
         logger.debug {
-            "Session inventory read: active=${inventory.activeSession != null}, " +
-                "valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
+            "Account inventory read: active=${inventory.activeUserId != null}, " +
+                "accounts=${inventory.accounts.size}"
         }
 
-        val session =
-            inventory.activeSession
-                ?: run {
-                    logger.warn { "Logout failed - no active session found" }
-                    return AuthResult.Failure(
-                        message = missingSessionMessage(inventory),
-                        exitCode = ExitCodes.UNAUTHORIZED,
-                    )
-                }
+        val session = inventory.activeAccount
+        if (session == null) {
+            logger.warn { "Logout failed - no active session found" }
+            return AuthResult.Failure(
+                message = missingSessionMessage(inventory),
+                exitCode = ExitCodes.UNAUTHORIZED,
+            )
+        }
 
         logger.debug { "Found active session for userId: ${session.userId} - calling API logout" }
         return when (val logoutResult = apiClient.logout(session)) {
             is AuthApiResult.Success -> {
-                logger.debug { "Logout API call succeeded - clearing local session" }
+                logger.debug { "Logout API call succeeded - removing local account" }
                 try {
-                    sessionStore.clearActiveSession()
-                    logger.info { "Local session cleared successfully" }
+                    sessionStore.removeAccount(session.userId)
+                    logger.info { "Local account removed successfully" }
                     AuthResult.Success("Logged out.")
                 } catch (
                     @Suppress("TooGenericExceptionCaught")
@@ -83,9 +82,9 @@ class AuthSessionServiceImpl(
                 ) {
                     logger.error(
                         e,
-                    ) { "Session cleanup failed during logout - remote session cleared but local session remains" }
+                    ) { "Account cleanup failed during logout - remote session cleared but local account remains" }
                     AuthResult.Failure(
-                        message = "Logout completed remotely, but local session cleanup failed.",
+                        message = "Logout completed remotely, but local account cleanup failed.",
                         exitCode = ExitCodes.SERVER_ERROR,
                     )
                 }
@@ -101,13 +100,13 @@ class AuthSessionServiceImpl(
     override fun requireActiveSession(): AuthResult {
         logger.debug { "Checking for active session requirement" }
 
-        val inventory = sessionStore.readSessionInventory()
+        val inventory = sessionStore.readAccounts()
         logger.debug {
-            "Session inventory: active=${inventory.activeSession != null}, " +
-                "valid=${inventory.validSessions}, invalid=${inventory.invalidSessions}"
+            "Account inventory: active=${inventory.activeUserId != null}, " +
+                "accounts=${inventory.accounts.size}"
         }
 
-        return if (inventory.activeSession == null) {
+        return if (inventory.activeAccount == null) {
             logger.warn { "Active session requirement failed - no valid session found" }
             AuthResult.Failure(
                 message = missingSessionMessage(inventory),
@@ -119,10 +118,10 @@ class AuthSessionServiceImpl(
         }
     }
 
-    private fun missingSessionMessage(inventory: SessionInventory): String {
+    private fun missingSessionMessage(inventory: AccountInventory): String {
         inventory.diagnosticMessage?.let { return it }
-        return if (inventory.invalidSessions > 0) {
-            AuthMessages.noValidSession(inventory.invalidSessions)
+        return if (inventory.invalidAccounts > 0) {
+            AuthMessages.noValidSession(inventory.invalidAccounts)
         } else {
             AuthMessages.noActiveSession()
         }

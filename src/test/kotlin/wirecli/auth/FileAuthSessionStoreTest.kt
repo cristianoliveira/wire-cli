@@ -145,6 +145,19 @@ class FileAuthSessionStoreTest {
     }
 
     @Test
+    fun `removeAccount of the last account deletes the session file`() {
+        val (store, file) = newStore()
+        store.addAccount(account("alice@wire.com"))
+        assertTrue(file.exists())
+
+        store.removeAccount("alice@wire.com")
+
+        assertFalse(file.exists())
+        assertNull(store.readActiveSession())
+        assertTrue(store.readAccounts().accounts.isEmpty())
+    }
+
+    @Test
     fun `removeAccount returns null for an unknown account`() {
         val (store, _) = newStore()
         store.addAccount(account("alice@wire.com"))

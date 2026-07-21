@@ -146,21 +146,49 @@ class FileAuthSessionStore(
     /**
      * Removes a single account by userId. Local-only. If the removed account was
      * active, the active pointer is cleared (no account becomes active automatically).
+     * When the last account is removed the session file is deleted.
      *
      * @return The removed account, or null if no account matches [userId]
      *
      * @post Other accounts and the file are preserved
      * @post If the active account is removed, active pointer becomes null
+     * @post If no accounts remain, the session file is deleted
      */
     override fun removeAccount(userId: String): AuthSession? {
         logger.debug { "Removing account: $userId" }
         val current = readAccounts()
         val target = current.accounts.firstOrNull { it.userId == userId } ?: return null
         val remaining = current.accounts.filterNot { it.userId == userId }
-        val activeUserId = if (current.activeUserId == userId) null else current.activeUserId
-        writeAccounts(current.copy(accounts = remaining, activeUserId = activeUserId))
+        if (remaining.isEmpty()) {
+            deleteSessionFile()
+        } else {
+            val activeUserId = if (current.activeUserId == userId) null else current.activeUserId
+            writeAccounts(current.copy(accounts = remaining, activeUserId = activeUserId))
+        }
         logger.info { "Account removed: ${target.userId}" }
         return target
+    }
+
+    /**
+     * Deletes the session file. Safe when the file is already absent.
+     *
+     * @throws IllegalStateException if the file exists but cannot be deleted
+     *
+     * @post No session file exists on disk
+     */
+    private fun deleteSessionFile() {
+        check(sessionFile.path.isNotBlank()) { "Session file path must not be blank when clearing." }
+        logger.debug { "Deleting session file (no accounts remaining): ${sessionFile.absolutePath}" }
+        if (sessionFile.exists()) {
+            if (!sessionFile.delete()) {
+                logger.error { "Failed to delete session file: ${sessionFile.absolutePath}" }
+                error("Failed to delete session file: ${sessionFile.absolutePath}")
+            }
+            logger.info { "Session file deleted successfully" }
+        }
+        check(!sessionFile.exists()) {
+            "Session file must not exist after deleteSessionFile completes."
+        }
     }
 
     /**

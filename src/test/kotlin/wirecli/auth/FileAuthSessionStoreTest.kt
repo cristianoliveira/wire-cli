@@ -20,13 +20,14 @@ class FileAuthSessionStoreTest {
         userId: String,
         token: String = "tok-$userId",
         server: String? = null,
-    ) = AuthSession(userId = userId, accessToken = token, server = server)
+        label: String? = null,
+    ) = StoredAccount(userId = userId, accessToken = token, server = server, label = label)
 
     @Test
     fun `addAccount throws when user id is blank`() {
         val (store, _) = newStore()
         assertFailsWith<IllegalArgumentException> {
-            store.addAccount(AuthSession(userId = " ", accessToken = "token", server = null))
+            store.addAccount(StoredAccount(userId = " ", accessToken = "token", server = null))
         }
     }
 
@@ -194,9 +195,9 @@ class FileAuthSessionStoreTest {
         assertEquals("alice@wire.com", inventory.activeAccount?.userId)
         assertEquals("token-v1", inventory.activeAccount?.accessToken)
 
-        // Migration rewrote the file to v2.
+        // Migration rewrote the file to v3.
         val rewritten = file.readLines()
-        assertEquals("wire-cli-session-store:2", rewritten.first())
+        assertEquals("wire-cli-session-store:3", rewritten.first())
         assertTrue(rewritten.any { it.startsWith("active:") })
     }
 
@@ -207,7 +208,58 @@ class FileAuthSessionStoreTest {
 
         val store = FileAuthSessionStore(sessionFile = file)
         assertEquals("alice@wire.com", store.readActiveSession()?.userId)
-        assertEquals("wire-cli-session-store:2", file.readLines().first())
+        assertEquals("wire-cli-session-store:3", file.readLines().first())
+    }
+
+    @Test
+    fun `addAccount persists and reads an optional label`() {
+        val (store, _) = newStore()
+        store.addAccount(account("alice@wire.com", label = "work"))
+
+        val stored = store.readAccounts().accounts.single()
+        assertEquals("work", stored.label)
+    }
+
+    @Test
+    fun `labels survive a v3 round-trip through disk`() {
+        val (_, file) = newStore()
+        FileAuthSessionStore(sessionFile = file).addAccount(account("alice@wire.com", label = "work"))
+        FileAuthSessionStore(sessionFile = file).addAccount(account("bob@wire.com", label = "personal"))
+
+        val inventory = FileAuthSessionStore(sessionFile = file).readAccounts()
+        assertEquals(
+            mapOf("alice@wire.com" to "work", "bob@wire.com" to "personal"),
+            inventory.accounts.associate { it.userId to it.label },
+        )
+    }
+
+    @Test
+    fun `readActiveSession returns the credential without exposing the label`() {
+        val (store, _) = newStore()
+        store.addAccount(account("alice@wire.com", label = "work"))
+
+        val active = store.readActiveSession()
+        assertEquals("alice@wire.com", active?.userId)
+        assertEquals("tok-alice@wire.com", active?.accessToken)
+    }
+
+    @Test
+    fun `v2 session file migrates to v3 with label-less accounts`() {
+        val (_, file) = newStore()
+        val v2Content =
+            listOf(
+                "wire-cli-session-store:2",
+                "active: alice@wire.com",
+                "alice@wire.com",
+                "token-v2",
+                "wire.com",
+            ).joinToString("\n")
+        file.writeText(v2Content)
+
+        val inventory = FileAuthSessionStore(sessionFile = file).readAccounts()
+        assertEquals("alice@wire.com", inventory.activeUserId)
+        assertNull(inventory.activeAccount?.label)
+        assertEquals("wire-cli-session-store:3", file.readLines().first())
     }
 
     @Test

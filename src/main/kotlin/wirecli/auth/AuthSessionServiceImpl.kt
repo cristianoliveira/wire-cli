@@ -13,10 +13,27 @@ class AuthSessionServiceImpl(
 
         return when (val loginResult = apiClient.login(input)) {
             is AuthApiResult.Success -> {
+                val session = loginResult.session
+                val label = input.label?.trim()?.ifBlank { null }
+                if (label != null) {
+                    val conflict =
+                        sessionStore.readAccounts().accounts
+                            .firstOrNull { it.label == label && it.userId != session.userId }
+                    if (conflict != null) {
+                        logger.warn { "Login aborted - label '$label' already used by ${conflict.userId}" }
+                        return AuthResult.Failure(
+                            message = "Account label '$label' is already in use by ${conflict.userId}.",
+                            exitCode = ExitCodes.VALIDATION_ERROR,
+                        )
+                    }
+                }
                 logger.debug { "Authentication API call succeeded - attempting to persist account" }
                 try {
-                    logger.debug { "Adding account to store for userId: ${loginResult.session.userId}" }
-                    sessionStore.addAccount(loginResult.session, makeActive = true)
+                    logger.debug { "Adding account to store for userId: ${session.userId}" }
+                    sessionStore.addAccount(
+                        StoredAccount(session.userId, session.accessToken, session.server, label),
+                        makeActive = true,
+                    )
                     logger.info { "Account persisted successfully for email: ${input.email}" }
                     AuthResult.Success("Login successful.")
                 } catch (e: IllegalStateException) {
@@ -69,7 +86,7 @@ class AuthSessionServiceImpl(
         }
 
         logger.debug { "Found active session for userId: ${session.userId} - calling API logout" }
-        return when (val logoutResult = apiClient.logout(session)) {
+        return when (val logoutResult = apiClient.logout(session.toAuthSession())) {
             is AuthApiResult.Success -> {
                 logger.debug { "Logout API call succeeded - removing local account" }
                 try {

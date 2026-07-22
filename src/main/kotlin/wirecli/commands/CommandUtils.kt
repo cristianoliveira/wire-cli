@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.core.ProgramResult
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import wirecli.auth.ExitCodes
+import wirecli.auth.StoredAccount
 
 /**
  * Validates input and exits with error code if validation fails.
@@ -19,6 +20,7 @@ import wirecli.auth.ExitCodes
  * @return The result of the validation block if successful
  * @throws ProgramResult with the specified exit code if validation fails
  */
+
 internal fun CliktCommand.failWithUsage(message: String = "no subcommand specified"): Nothing {
     echo("Error: $message", err = true)
     echoFormattedHelp()
@@ -69,6 +71,12 @@ internal fun processExitCode(domainExitCode: Int): Int =
         ExitCodes.VALIDATION_ERROR, 14 -> ExitCodes.VALIDATION_ERROR
         else -> ExitCodes.UNKNOWN_ERROR
     }
+
+/**
+ * Human-readable identity for an account: "label (userId)" when labeled, else userId.
+ */
+internal fun describeAccount(account: StoredAccount): String =
+    if (account.label != null) "${account.label} (${account.userId})" else account.userId
 
 internal inline fun <T> CliktCommand.validateOrExit(
     exitCode: Int = ExitCodes.VALIDATION_ERROR,

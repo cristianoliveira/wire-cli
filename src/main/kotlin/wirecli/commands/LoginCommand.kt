@@ -45,6 +45,7 @@ class LoginCommand(
         option("--password-stdin", help = "Read password from stdin for automation.")
             .flag(default = false)
     private val server by option("--server", help = "Wire backend URL override.")
+    private val label by option("--label", help = "Human-readable name for this account (e.g. work, personal).")
 
     /**
      * Executes the login command.
@@ -106,6 +107,7 @@ class LoginCommand(
                         email = validatedEmail,
                         password = validatedPassword,
                         server = server,
+                        label = label?.trim()?.ifBlank { null },
                     ),
                 )
         ) {

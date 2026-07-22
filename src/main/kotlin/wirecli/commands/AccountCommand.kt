@@ -46,7 +46,8 @@ class AccountListCommand(
         listing.accounts.forEach { account ->
             val marker = if (account.userId == listing.activeUserId) "*" else " "
             val server = account.server?.let { "  ($it)" }.orEmpty()
-            echo("$marker ${account.userId}$server")
+            val identity = if (account.label != null) "${account.label}  ${account.userId}" else account.userId
+            echo("$marker $identity$server")
         }
     }
 }
@@ -54,15 +55,15 @@ class AccountListCommand(
 class AccountUseCommand(
     private val accountServiceProvider: () -> AccountService,
 ) : CliktCommand(name = "use", help = "Switch the active account (local only).") {
-    private val userId by argument("user-id", help = "Qualified user id (value@domain) of the account to activate.")
+    private val selector by argument("selector", help = "Label or qualified user id (value@domain) of the account to activate.")
 
     override fun run() {
-        val account = accountServiceProvider().useAccount(userId)
+        val account = accountServiceProvider().useAccount(selector)
         if (account == null) {
-            echo("No stored account for '$userId'. Run `wire account list`.", err = true)
+            echo("No stored account for '$selector'. Run `wire account list`.", err = true)
             throw ProgramResult(processExitCode(ExitCodes.VALIDATION_ERROR))
         }
-        echo("Switched to ${account.userId}.")
+        echo("Switched to ${describeAccount(account)}.")
     }
 }
 
@@ -72,14 +73,14 @@ class AccountRemoveCommand(
         name = "remove",
         help = "Remove a stored account (local only; use `wire logout` for server logout).",
     ) {
-    private val userId by argument("user-id", help = "Qualified user id (value@domain) of the account to remove.")
+    private val selector by argument("selector", help = "Label or qualified user id (value@domain) of the account to remove.")
 
     override fun run() {
-        val account = accountServiceProvider().removeAccount(userId)
+        val account = accountServiceProvider().removeAccount(selector)
         if (account == null) {
-            echo("No stored account for '$userId'. Run `wire account list`.", err = true)
+            echo("No stored account for '$selector'. Run `wire account list`.", err = true)
             throw ProgramResult(processExitCode(ExitCodes.VALIDATION_ERROR))
         }
-        echo("Removed ${account.userId}.")
+        echo("Removed ${describeAccount(account)}.")
     }
 }

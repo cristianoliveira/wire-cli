@@ -177,7 +177,10 @@ class MessageTypingCommandTest {
             text: String,
         ): SendMessageResult = SendMessageResult.Success
 
-        override fun fetchMessages(conversationId: String): FetchMessagesResult {
+        override fun fetchMessages(
+            conversationId: String,
+            limit: Int,
+        ): FetchMessagesResult {
             return FetchMessagesResult.Success(FetchMessagesView(conversationId, emptyList()))
         }
 

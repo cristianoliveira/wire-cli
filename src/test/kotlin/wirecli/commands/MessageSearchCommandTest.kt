@@ -194,10 +194,12 @@ class MessageSearchCommandTest {
                         text: String,
                     ): SendMessageResult = SendMessageResult.Success
 
-                    override fun fetchMessages(conversationId: String) =
-                        wirecli.message.FetchMessagesResult.Success(
-                            wirecli.message.FetchMessagesView(conversationId, emptyList()),
-                        )
+                    override fun fetchMessages(
+                        conversationId: String,
+                        limit: Int,
+                    ) = wirecli.message.FetchMessagesResult.Success(
+                        wirecli.message.FetchMessagesView(conversationId, emptyList()),
+                    )
 
                     override fun searchMessages(
                         query: String,
@@ -267,10 +269,12 @@ class MessageSearchCommandTest {
             text: String,
         ): SendMessageResult = SendMessageResult.Success
 
-        override fun fetchMessages(conversationId: String) =
-            wirecli.message.FetchMessagesResult.Success(
-                wirecli.message.FetchMessagesView(conversationId, emptyList()),
-            )
+        override fun fetchMessages(
+            conversationId: String,
+            limit: Int,
+        ) = wirecli.message.FetchMessagesResult.Success(
+            wirecli.message.FetchMessagesView(conversationId, emptyList()),
+        )
 
         override fun searchMessages(
             query: String,

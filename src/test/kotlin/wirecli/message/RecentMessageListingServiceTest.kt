@@ -14,6 +14,7 @@ import wirecli.conversation.DeleteConversationResult
 import wirecli.conversation.GetConversationResult
 import wirecli.conversation.GetMembersResult
 import wirecli.conversation.ListConversationsResult
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -28,7 +29,7 @@ class RecentMessageListingServiceTest {
                 conversationApiClient = FakeConversationApiClient(),
             )
 
-        val result = service.listRecentMessages(limit = 10, receivedOnly = false)
+        val result = service.listRecentMessages(RecentMessagesQuery(limit = 10, receivedOnly = false))
 
         val failure = assertIs<ListRecentMessagesResult.Failure>(result)
         assertEquals(AuthMessages.noActiveSession(), failure.message)
@@ -65,7 +66,7 @@ class RecentMessageListingServiceTest {
                     ),
             )
 
-        val result = service.listRecentMessages(limit = 2, receivedOnly = false)
+        val result = service.listRecentMessages(RecentMessagesQuery(limit = 2, receivedOnly = false))
 
         val success = assertIs<ListRecentMessagesResult.Success>(result)
         assertEquals(listOf("msg-2", "msg-3"), success.view.messages.map { it.messageId })
@@ -91,10 +92,68 @@ class RecentMessageListingServiceTest {
                 conversationApiClient = FakeConversationApiClient(conversations = listOf(conversation("conv-a", "Alpha"))),
             )
 
-        val result = service.listRecentMessages(limit = 10, receivedOnly = true)
+        val result = service.listRecentMessages(RecentMessagesQuery(limit = 10, receivedOnly = true))
 
         val success = assertIs<ListRecentMessagesResult.Success>(result)
         assertEquals(listOf("msg-2"), success.view.messages.map { it.messageId })
+    }
+
+    @Test
+    fun `listRecentMessages scopes conversation and filters since and self mentions`() {
+        val apiClient =
+            FakeMessageApiClient(
+                byConversation =
+                    mapOf(
+                        "conv-a" to
+                            listOf(
+                                message("old", "2026-03-20T09:59:00Z", "old", mentionsSelf = true),
+                                message("not-mentioned", "2026-03-20T10:01:00Z", "hello"),
+                                message("mentioned", "2026-03-20T10:02:00Z", "hello me", mentionsSelf = true),
+                            ),
+                        "conv-b" to listOf(message("other", "2026-03-20T10:03:00Z", "other", mentionsSelf = true)),
+                    ),
+            )
+        val service =
+            SessionBackedMessageService(
+                sessionStore = FakeSessionStore(testSession),
+                apiClient = apiClient,
+                conversationApiClient =
+                    FakeConversationApiClient(
+                        conversations = listOf(conversation("conv-a", "Alpha"), conversation("conv-b", "Beta")),
+                    ),
+            )
+
+        val result =
+            service.listRecentMessages(
+                RecentMessagesQuery(
+                    limit = 2,
+                    since = Instant.parse("2026-03-20T10:00:00Z"),
+                    conversationId = "conv-a",
+                    mentionsMe = true,
+                ),
+            )
+
+        val success = assertIs<ListRecentMessagesResult.Success>(result)
+        assertEquals(listOf("mentioned"), success.view.messages.map { it.messageId })
+        assertEquals(listOf("conv-a"), apiClient.remoteFetches)
+        assertEquals(listOf(2), apiClient.remoteFetchLimits)
+    }
+
+    @Test
+    fun `listRecentMessages returns empty when scoped conversation does not exist`() {
+        val apiClient = FakeMessageApiClient()
+        val service =
+            SessionBackedMessageService(
+                sessionStore = FakeSessionStore(testSession),
+                apiClient = apiClient,
+                conversationApiClient = FakeConversationApiClient(conversations = listOf(conversation("conv-a", "Alpha"))),
+            )
+
+        val result = service.listRecentMessages(RecentMessagesQuery(conversationId = "missing"))
+
+        val success = assertIs<ListRecentMessagesResult.Success>(result)
+        assertEquals(emptyList(), success.view.messages)
+        assertEquals(emptyList(), apiClient.remoteFetches)
     }
 
     @Test
@@ -119,7 +178,7 @@ class RecentMessageListingServiceTest {
                 syncRefresher = syncRefresher,
             )
 
-        val result = service.listRecentMessages(limit = 10, receivedOnly = false)
+        val result = service.listRecentMessages(RecentMessagesQuery(limit = 10, receivedOnly = false))
 
         val success = assertIs<ListRecentMessagesResult.Success>(result)
         assertEquals(listOf("msg-2", "msg-1"), success.view.messages.map { it.messageId })
@@ -146,7 +205,7 @@ class RecentMessageListingServiceTest {
                 syncRefresher = syncRefresher,
             )
 
-        val result = service.listServerRecentMessages(limit = 10, receivedOnly = false)
+        val result = service.listServerRecentMessages(RecentMessagesQuery(limit = 10, receivedOnly = false))
 
         assertIs<ListRecentMessagesResult.Success>(result)
         assertEquals(1, syncRefresher.refreshCount, "--no-cache must still sync once")
@@ -166,7 +225,7 @@ class RecentMessageListingServiceTest {
                 syncRefresher = syncRefresher,
             )
 
-        val result = service.listRecentMessages(limit = 10, receivedOnly = false)
+        val result = service.listRecentMessages(RecentMessagesQuery(limit = 10, receivedOnly = false))
 
         val failure = assertIs<ListRecentMessagesResult.Failure>(result)
         assertEquals("sync boom", failure.message)
@@ -187,7 +246,7 @@ class RecentMessageListingServiceTest {
                 syncRefresher = syncRefresher,
             )
 
-        val result = service.listLocalRecentMessages(limit = 10, receivedOnly = false)
+        val result = service.listLocalRecentMessages(RecentMessagesQuery(limit = 10, receivedOnly = false))
 
         assertIs<ListRecentMessagesResult.Success>(result)
         assertEquals(0, syncRefresher.refreshCount, "local read must not sync")
@@ -204,7 +263,7 @@ class RecentMessageListingServiceTest {
                 conversationApiClient = FakeConversationApiClient(listResult = ListConversationsResult.Failure("boom", 13)),
             )
 
-        val result = service.listRecentMessages(limit = 10, receivedOnly = false)
+        val result = service.listRecentMessages(RecentMessagesQuery(limit = 10, receivedOnly = false))
 
         val failure = assertIs<ListRecentMessagesResult.Failure>(result)
         assertEquals("boom", failure.message)
@@ -220,7 +279,7 @@ class RecentMessageListingServiceTest {
                 conversationApiClient = FakeConversationApiClient(conversations = listOf(conversation("conv-a", "Alpha"))),
             )
 
-        val result = service.listRecentMessages(limit = 10, receivedOnly = false)
+        val result = service.listRecentMessages(RecentMessagesQuery(limit = 10, receivedOnly = false))
 
         val failure = assertIs<ListRecentMessagesResult.Failure>(result)
         assertEquals("fetch failed", failure.message)
@@ -248,7 +307,15 @@ class RecentMessageListingServiceTest {
         content: String,
         senderId: String = "alice@example.com",
         senderName: String = "Alice",
-    ) = ConversationMessage(id = id, senderId = senderId, senderName = senderName, timestamp = timestamp, content = content)
+        mentionsSelf: Boolean = false,
+    ) = ConversationMessage(
+        id = id,
+        senderId = senderId,
+        senderName = senderName,
+        timestamp = timestamp,
+        content = content,
+        mentionsSelf = mentionsSelf,
+    )
 
     private class FakeSessionStore(private val activeSession: AuthSession?) : SessionProvider {
         override fun readActiveSession(): AuthSession? = activeSession
@@ -304,6 +371,7 @@ class RecentMessageListingServiceTest {
         private val fetchFailure: FetchMessagesResult? = null,
     ) : MessageApiClient {
         val remoteFetches = mutableListOf<String>()
+        val remoteFetchLimits = mutableListOf<Int>()
         val localFetches = mutableListOf<String>()
 
         override fun sendMessage(
@@ -315,14 +383,17 @@ class RecentMessageListingServiceTest {
         override fun fetchMessages(
             session: AuthSession,
             conversationId: String,
+            limit: Int,
         ): FetchMessagesResult {
             remoteFetches += conversationId
+            remoteFetchLimits += limit
             return fetchFailure ?: FetchMessagesResult.Success(FetchMessagesView(conversationId, byConversation[conversationId].orEmpty()))
         }
 
         override fun fetchLocalMessages(
             session: AuthSession,
             conversationId: String,
+            limit: Int,
         ): FetchMessagesResult {
             localFetches += conversationId
             return fetchFailure ?: FetchMessagesResult.Success(FetchMessagesView(conversationId, byConversation[conversationId].orEmpty()))

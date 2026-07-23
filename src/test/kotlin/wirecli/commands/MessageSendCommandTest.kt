@@ -210,7 +210,10 @@ class MessageSendCommandTest {
             return sendMessageResult
         }
 
-        override fun fetchMessages(conversationId: String): wirecli.message.FetchMessagesResult {
+        override fun fetchMessages(
+            conversationId: String,
+            limit: Int,
+        ): wirecli.message.FetchMessagesResult {
             return wirecli.message.FetchMessagesResult.Success(
                 wirecli.message.FetchMessagesView(
                     conversationId = conversationId,

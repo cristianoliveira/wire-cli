@@ -325,6 +325,7 @@ private object NoopMessageApiClient : MessageApiClient {
     override fun fetchMessages(
         session: AuthSession,
         conversationId: String,
+        limit: Int,
     ): FetchMessagesResult {
         return FetchMessagesResult.Failure("not used", ExitCodes.UNKNOWN_ERROR)
     }

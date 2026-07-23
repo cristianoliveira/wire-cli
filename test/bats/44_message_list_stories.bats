@@ -45,6 +45,32 @@ teardown() {
 	[[ -n "$(jq -r '.items[0].messageId' <<<"${output}")" ]]
 }
 
+@test "message list: since filters older messages" {
+	run_wire message list --json --since "2026-03-20T10:01:00Z"
+	assert_status 0
+	[[ "$(jq -r '[.items[].timestamp >= "2026-03-20T10:01:00Z"] | all' <<<"${output}")" == "true" ]]
+}
+
+@test "message list: conversation-id scopes every result" {
+	run_wire message list --json --conversation-id "conv-dm-001"
+	assert_status 0
+	[[ "$(jq -r '.returned' <<<"${output}")" == "2" ]]
+	[[ "$(jq -r '[.items[].conversationId == "conv-dm-001"] | all' <<<"${output}")" == "true" ]]
+}
+
+@test "message list: mentions-me returns explicit self mentions" {
+	run_wire message list --json --mentions-me
+	assert_status 0
+	[[ "$(jq -r '.returned > 0' <<<"${output}")" == "true" ]]
+	[[ "$(jq -r '[.items[].mentionsSelf] | all' <<<"${output}")" == "true" ]]
+}
+
+@test "message list: invalid since value is rejected" {
+	run_wire message list --since "yesterday-ish"
+	assert_status 2
+	[[ "${output}" == *"validation error: since must be 'today', an ISO-8601 date, or an ISO-8601 timestamp"* ]]
+}
+
 @test "message list: json-lines output emits one object per line" {
 	run_wire message list --json-lines --limit 2
 	assert_status 0
@@ -67,5 +93,8 @@ teardown() {
 	[[ "${output}" == *"100"* ]]
 	[[ "${output}" == *"default"* ]]
 	[[ "${output}" == *"--no-cache"* ]]
+	[[ "${output}" == *"--since"* ]]
+	[[ "${output}" == *"--conversation-id"* ]]
+	[[ "${output}" == *"--mentions-me"* ]]
 	[[ "${output}" != *"--local"* ]]
 }

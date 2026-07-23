@@ -73,6 +73,7 @@ class StubMessageApiClient(
     override fun fetchMessages(
         session: AuthSession,
         conversationId: String,
+        limit: Int,
     ): FetchMessagesResult {
         return when (mode) {
             StubMode.SUCCESS ->
@@ -87,6 +88,7 @@ class StubMessageApiClient(
                                     senderName = "Alice",
                                     timestamp = "2026-03-20T10:00:00Z",
                                     content = "Hello from stub",
+                                    mentionsSelf = true,
                                 ),
                                 ConversationMessage(
                                     id = "msg-002",
@@ -95,7 +97,7 @@ class StubMessageApiClient(
                                     timestamp = "2026-03-20T10:01:00Z",
                                     content = "Reply from stub",
                                 ),
-                            ),
+                            ).takeLast(limit),
                     ),
                 )
 

@@ -71,12 +71,14 @@ internal class RealKaliumMessageApiClient(
     override fun fetchMessages(
         session: AuthSession,
         conversationId: String,
-    ): FetchMessagesResult = mapFetchResult(conversationId, runtime.fetchMessages(session, conversationId))
+        limit: Int,
+    ): FetchMessagesResult = mapFetchResult(conversationId, runtime.fetchMessages(session, conversationId, limit))
 
     override fun fetchLocalMessages(
         session: AuthSession,
         conversationId: String,
-    ): FetchMessagesResult = mapFetchResult(conversationId, runtime.fetchLocalMessages(session, conversationId))
+        limit: Int,
+    ): FetchMessagesResult = mapFetchResult(conversationId, runtime.fetchLocalMessages(session, conversationId, limit))
 
     private fun mapFetchResult(
         conversationId: String,

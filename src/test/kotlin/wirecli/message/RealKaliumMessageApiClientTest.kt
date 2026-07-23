@@ -509,6 +509,7 @@ class RealKaliumMessageApiClientTest {
                         override fun fetchMessages(
                             session: AuthSession,
                             conversationId: String,
+                            limit: Int,
                         ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                         override fun sendTypingStatus(
@@ -550,6 +551,7 @@ class RealKaliumMessageApiClientTest {
                         override fun fetchMessages(
                             session: AuthSession,
                             conversationId: String,
+                            limit: Int,
                         ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                         override fun sendTypingStatus(
@@ -667,6 +669,7 @@ class RealKaliumMessageApiClientTest {
         override fun fetchMessages(
             session: AuthSession,
             conversationId: String,
+            limit: Int,
         ): MessageStepResult<List<ConversationMessage>> {
             return fetchResult
         }
@@ -674,6 +677,7 @@ class RealKaliumMessageApiClientTest {
         override fun fetchLocalMessages(
             session: AuthSession,
             conversationId: String,
+            limit: Int,
         ): MessageStepResult<List<ConversationMessage>> {
             localFetchCalls?.add(session to conversationId)
             return fetchResult
@@ -708,6 +712,7 @@ class RealKaliumMessageApiClientTest {
         override fun fetchMessages(
             session: AuthSession,
             conversationId: String,
+            limit: Int,
         ): MessageStepResult<List<ConversationMessage>> {
             releaseLatch.await(5, TimeUnit.SECONDS)
             return MessageStepResult.Failure(MessageFailureCategory.UNKNOWN)
@@ -731,6 +736,7 @@ class RealKaliumMessageApiClientTest {
         override fun fetchMessages(
             session: AuthSession,
             conversationId: String,
+            limit: Int,
         ): MessageStepResult<List<ConversationMessage>> {
             captureFetchCalls?.add(Pair(session, conversationId))
             return fetchResult

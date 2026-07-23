@@ -217,7 +217,10 @@ class AuthGuardedMessageServiceTest {
             return result
         }
 
-        override fun fetchMessages(conversationId: String): FetchMessagesResult {
+        override fun fetchMessages(
+            conversationId: String,
+            limit: Int,
+        ): FetchMessagesResult {
             return FetchMessagesResult.Success(
                 FetchMessagesView(
                     conversationId = conversationId,

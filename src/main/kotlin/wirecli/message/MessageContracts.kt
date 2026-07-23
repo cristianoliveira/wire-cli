@@ -3,6 +3,7 @@ package wirecli.message
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import wirecli.auth.AuthSession
+import java.time.Instant
 
 // Result type for message sending operation
 sealed interface SendMessageResult {
@@ -28,6 +29,7 @@ data class ConversationMessage(
     val senderName: String,
     val timestamp: String,
     val content: String,
+    val mentionsSelf: Boolean = false,
 )
 
 data class FetchMessagesView(
@@ -59,6 +61,15 @@ data class RecentMessageItem(
     val senderName: String,
     val timestamp: String,
     val content: String,
+    val mentionsSelf: Boolean = false,
+)
+
+data class RecentMessagesQuery(
+    val limit: Int = 10,
+    val receivedOnly: Boolean = false,
+    val since: Instant? = null,
+    val conversationId: String? = null,
+    val mentionsMe: Boolean = false,
 )
 
 data class RecentMessagesView(
@@ -139,12 +150,14 @@ internal interface MessageRuntime {
     fun fetchMessages(
         session: AuthSession,
         conversationId: String,
+        limit: Int = 10,
     ): MessageStepResult<List<ConversationMessage>>
 
     fun fetchLocalMessages(
         session: AuthSession,
         conversationId: String,
-    ): MessageStepResult<List<ConversationMessage>> = fetchMessages(session, conversationId)
+        limit: Int = 10,
+    ): MessageStepResult<List<ConversationMessage>> = fetchMessages(session, conversationId, limit)
 
     fun searchMessages(
         session: AuthSession,
@@ -197,12 +210,14 @@ interface MessageApiClient {
     fun fetchMessages(
         session: AuthSession,
         conversationId: String,
+        limit: Int = 10,
     ): FetchMessagesResult
 
     fun fetchLocalMessages(
         session: AuthSession,
         conversationId: String,
-    ): FetchMessagesResult = fetchMessages(session, conversationId)
+        limit: Int = 10,
+    ): FetchMessagesResult = fetchMessages(session, conversationId, limit)
 
     fun searchMessages(
         session: AuthSession,
@@ -254,34 +269,34 @@ interface MessageService {
         text: String,
     ): SendMessageResult
 
-    fun fetchMessages(conversationId: String): FetchMessagesResult
+    fun fetchMessages(
+        conversationId: String,
+        limit: Int = 10,
+    ): FetchMessagesResult
 
-    fun fetchServerMessages(conversationId: String): FetchMessagesResult = fetchMessages(conversationId)
+    fun fetchServerMessages(
+        conversationId: String,
+        limit: Int = 10,
+    ): FetchMessagesResult = fetchMessages(conversationId, limit)
 
-    fun fetchLocalMessages(conversationId: String): FetchMessagesResult = fetchMessages(conversationId)
+    fun fetchLocalMessages(
+        conversationId: String,
+        limit: Int = 10,
+    ): FetchMessagesResult = fetchMessages(conversationId, limit)
 
     fun observeMessages(conversationId: String): Flow<FetchMessagesResult> = flowOf(fetchMessages(conversationId))
 
-    fun listRecentMessages(
-        limit: Int = 10,
-        receivedOnly: Boolean = false,
-    ): ListRecentMessagesResult =
+    fun listRecentMessages(query: RecentMessagesQuery = RecentMessagesQuery()): ListRecentMessagesResult =
         ListRecentMessagesResult.Failure(
             message = MessageUserMessages.RECENT_LIST_UNSUPPORTED,
             exitCode = MessageExitCodes.SERVER_ERROR,
         )
 
     /** Force a server refresh, bypassing the daemon cache. Mirrors [fetchServerMessages]. */
-    fun listServerRecentMessages(
-        limit: Int = 10,
-        receivedOnly: Boolean = false,
-    ): ListRecentMessagesResult = listRecentMessages(limit, receivedOnly)
+    fun listServerRecentMessages(query: RecentMessagesQuery = RecentMessagesQuery()): ListRecentMessagesResult = listRecentMessages(query)
 
     /** Read strictly from local cache without syncing. Mirrors [fetchLocalMessages]. */
-    fun listLocalRecentMessages(
-        limit: Int = 10,
-        receivedOnly: Boolean = false,
-    ): ListRecentMessagesResult = listRecentMessages(limit, receivedOnly)
+    fun listLocalRecentMessages(query: RecentMessagesQuery = RecentMessagesQuery()): ListRecentMessagesResult = listRecentMessages(query)
 
     fun searchMessages(
         query: String,

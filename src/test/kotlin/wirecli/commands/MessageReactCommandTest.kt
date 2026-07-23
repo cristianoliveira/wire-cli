@@ -155,10 +155,12 @@ class MessageReactCommandTest {
                         text: String,
                     ): SendMessageResult = SendMessageResult.Success
 
-                    override fun fetchMessages(conversationId: String) =
-                        FetchMessagesResult.Success(
-                            FetchMessagesView(conversationId, emptyList()),
-                        )
+                    override fun fetchMessages(
+                        conversationId: String,
+                        limit: Int,
+                    ) = FetchMessagesResult.Success(
+                        FetchMessagesView(conversationId, emptyList()),
+                    )
 
                     override fun searchMessages(
                         query: String,
@@ -228,10 +230,12 @@ class MessageReactCommandTest {
             text: String,
         ): SendMessageResult = SendMessageResult.Success
 
-        override fun fetchMessages(conversationId: String) =
-            FetchMessagesResult.Success(
-                FetchMessagesView(conversationId, emptyList()),
-            )
+        override fun fetchMessages(
+            conversationId: String,
+            limit: Int,
+        ) = FetchMessagesResult.Success(
+            FetchMessagesView(conversationId, emptyList()),
+        )
 
         override fun searchMessages(
             query: String,

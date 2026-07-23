@@ -32,6 +32,33 @@ setup_active_session() {
 	[[ "${lines[1]}" == "[2026-03-20T10:01:00Z] Bob: Reply from stub" ]]
 }
 
+@test "message fetch: json output is structured and preserves content" {
+	export WIRE_STUB_MODE="success"
+	run_wire message fetch --json "conv-001"
+	assert_status 0
+	[[ "$(jq -r '.conversationId' <<<"${output}")" == "conv-001" ]]
+	[[ "$(jq -r '.returned' <<<"${output}")" == "2" ]]
+	[[ "$(jq -r '.truncated' <<<"${output}")" == "false" ]]
+	[[ "$(jq -r '.items[0].messageId' <<<"${output}")" == "msg-001" ]]
+	[[ "$(jq -r '.items[0].mentionsSelf' <<<"${output}")" == "true" ]]
+}
+
+@test "message fetch: limit returns latest fetched messages" {
+	export WIRE_STUB_MODE="success"
+	run_wire message fetch --json --limit 1 "conv-001"
+	assert_status 0
+	[[ "$(jq -r '.returned' <<<"${output}")" == "1" ]]
+	[[ "$(jq -r '.truncated' <<<"${output}")" == "true" ]]
+	[[ "$(jq -r '.items[0].messageId' <<<"${output}")" == "msg-002" ]]
+}
+
+@test "message fetch: validation error for non-positive limit" {
+	export WIRE_STUB_MODE="success"
+	run_wire message fetch --limit 0 "conv-001"
+	assert_status 2
+	[[ "${output}" == *"validation error: limit must be between 1 and 100"* ]]
+}
+
 @test "message fetch: no-cache forces server-backed fetch" {
 	export WIRE_STUB_MODE="success"
 	run_wire message fetch --no-cache "conv-001"

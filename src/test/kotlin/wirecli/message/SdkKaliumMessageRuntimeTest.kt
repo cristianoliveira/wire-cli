@@ -304,6 +304,7 @@ class SdkKaliumMessageRuntimeTest {
                 override fun fetchMessages(
                     session: AuthSession,
                     conversationId: String,
+                    limit: Int,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {
@@ -332,6 +333,7 @@ class SdkKaliumMessageRuntimeTest {
                 override fun fetchMessages(
                     session: AuthSession,
                     conversationId: String,
+                    limit: Int,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {
@@ -361,6 +363,7 @@ class SdkKaliumMessageRuntimeTest {
                 override fun fetchMessages(
                     session: AuthSession,
                     conversationId: String,
+                    limit: Int,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {
@@ -390,6 +393,7 @@ class SdkKaliumMessageRuntimeTest {
                 override fun fetchMessages(
                     session: AuthSession,
                     conversationId: String,
+                    limit: Int,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {
@@ -419,6 +423,7 @@ class SdkKaliumMessageRuntimeTest {
                 override fun fetchMessages(
                     session: AuthSession,
                     conversationId: String,
+                    limit: Int,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {
@@ -448,6 +453,7 @@ class SdkKaliumMessageRuntimeTest {
                 override fun fetchMessages(
                     session: AuthSession,
                     conversationId: String,
+                    limit: Int,
                 ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                 override fun shutdown() {
@@ -489,6 +495,7 @@ class SdkKaliumMessageRuntimeTest {
                     override fun fetchMessages(
                         session: AuthSession,
                         conversationId: String,
+                        limit: Int,
                     ): MessageStepResult<List<ConversationMessage>> = MessageStepResult.Success(emptyList())
 
                     override fun shutdown() {

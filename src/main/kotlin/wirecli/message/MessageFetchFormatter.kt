@@ -21,6 +21,24 @@ class MessageFetchFormatter {
         }
     }
 
+    fun toJson(
+        conversationId: String,
+        messages: List<ConversationMessage>,
+        truncated: Boolean = false,
+    ): String =
+        buildJsonObject {
+            put("conversationId", JsonPrimitive(conversationId))
+            put(
+                "items",
+                buildJsonArray {
+                    messages.forEach { add(conversationMessageJson(it)) }
+                },
+            )
+            put("returned", JsonPrimitive(messages.size))
+            put("total", JsonNull)
+            put("truncated", JsonPrimitive(truncated))
+        }.toString()
+
     fun toHumanReadableRecent(
         messages: List<RecentMessageItem>,
         fullContent: Boolean = false,
@@ -57,6 +75,16 @@ class MessageFetchFormatter {
         fullContent: Boolean = false,
     ): String = messages.joinToString("\n") { recentMessageJson(it, fullContent).toString() }
 
+    private fun conversationMessageJson(message: ConversationMessage) =
+        buildJsonObject {
+            put("messageId", JsonPrimitive(message.id))
+            put("senderId", JsonPrimitive(message.senderId))
+            put("senderName", JsonPrimitive(message.senderName))
+            put("timestamp", JsonPrimitive(message.timestamp))
+            put("content", JsonPrimitive(message.content))
+            put("mentionsSelf", JsonPrimitive(message.mentionsSelf))
+        }
+
     private fun recentMessageJson(
         message: RecentMessageItem,
         fullContent: Boolean,
@@ -67,6 +95,7 @@ class MessageFetchFormatter {
         put("senderId", JsonPrimitive(message.senderId))
         put("senderName", JsonPrimitive(message.senderName))
         put("timestamp", JsonPrimitive(message.timestamp))
+        put("mentionsSelf", JsonPrimitive(message.mentionsSelf))
         val content = message.content
         if (fullContent || content.toByteArray().size <= MAX_CONTENT_BYTES) {
             put("content", JsonPrimitive(content))

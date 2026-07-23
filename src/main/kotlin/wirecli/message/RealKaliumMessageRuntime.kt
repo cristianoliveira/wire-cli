@@ -32,7 +32,6 @@ private val logger = KotlinLogging.logger {}
 internal typealias RealKaliumMessageRuntime = MessageRuntime
 
 private const val PREFLIGHT_SYNC_TIMEOUT_MS = 15_000L
-private const val FETCH_MESSAGES_LIMIT = 10
 internal const val MESSAGE_SEND_TIMEOUT_ENV = "WIRECLI_MESSAGE_SEND_TIMEOUT_MS"
 internal const val DEFAULT_SEND_TIMEOUT_MS = 60_000L
 internal const val MAX_SEND_TIMEOUT_MS = 300_000L
@@ -190,17 +189,20 @@ internal class SdkKaliumMessageRuntime(
     override fun fetchMessages(
         session: AuthSession,
         conversationId: String,
-    ): MessageStepResult<List<ConversationMessage>> = fetchMessages(session, conversationId, synchronizeBeforeRead = true)
+        limit: Int,
+    ): MessageStepResult<List<ConversationMessage>> = fetchMessages(session, conversationId, limit, synchronizeBeforeRead = true)
 
     override fun fetchLocalMessages(
         session: AuthSession,
         conversationId: String,
-    ): MessageStepResult<List<ConversationMessage>> = fetchMessages(session, conversationId, synchronizeBeforeRead = false)
+        limit: Int,
+    ): MessageStepResult<List<ConversationMessage>> = fetchMessages(session, conversationId, limit, synchronizeBeforeRead = false)
 
     @Suppress("LongMethod", "ReturnCount")
     private fun fetchMessages(
         session: AuthSession,
         conversationId: String,
+        limit: Int,
         synchronizeBeforeRead: Boolean,
     ): MessageStepResult<List<ConversationMessage>> {
         val isConversationBlank = conversationId.isBlank()
@@ -250,7 +252,7 @@ internal class SdkKaliumMessageRuntime(
                                     messages.searchMessagesInConversation(
                                         conversationId = kaliumConvId,
                                         searchQuery = "",
-                                        limit = FETCH_MESSAGES_LIMIT,
+                                        limit = limit,
                                     )
                                 }
                             }
@@ -273,7 +275,7 @@ internal class SdkKaliumMessageRuntime(
                                     "message-fetch getRecentMessages request body start: conversationId=$conversationId"
                                 }
                                 syncExecutor.request {
-                                    messages.getRecentMessages(kaliumConvId, limit = FETCH_MESSAGES_LIMIT).first()
+                                    messages.getRecentMessages(kaliumConvId, limit = limit).first()
                                 }
                             }
                         }
@@ -710,8 +712,16 @@ private fun Message.toConversationMessage(): ConversationMessage {
         senderName = senderDisplayName ?: sender?.name ?: senderUserId.toString(),
         timestamp = date.toString(),
         content = contentText,
+        mentionsSelf = content.mentionsSelf(),
     )
 }
+
+internal fun MessageContent.mentionsSelf(): Boolean =
+    when (this) {
+        is MessageContent.Text -> mentions.any { it.isSelfMention }
+        is MessageContent.Multipart -> mentions.any { it.isSelfMention }
+        else -> false
+    }
 
 @Suppress("ComplexMethod", "LongMethod")
 private fun renderContent(

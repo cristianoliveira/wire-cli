@@ -353,6 +353,7 @@ class SessionBackedMessageServiceTest {
                         override fun fetchMessages(
                             session: AuthSession,
                             conversationId: String,
+                            limit: Int,
                         ): FetchMessagesResult =
                             FetchMessagesResult.Success(
                                 FetchMessagesView(conversationId = conversationId, messages = emptyList()),
@@ -419,6 +420,7 @@ class SessionBackedMessageServiceTest {
         override fun fetchMessages(
             session: AuthSession,
             conversationId: String,
+            limit: Int,
         ): FetchMessagesResult {
             return fetchResult
         }
@@ -426,6 +428,7 @@ class SessionBackedMessageServiceTest {
         override fun fetchLocalMessages(
             session: AuthSession,
             conversationId: String,
+            limit: Int,
         ): FetchMessagesResult {
             onLocalFetch(conversationId)
             return fetchResult

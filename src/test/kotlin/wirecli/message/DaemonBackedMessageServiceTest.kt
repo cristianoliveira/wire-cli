@@ -21,7 +21,7 @@ class DaemonBackedMessageServiceTest {
         val delegate = FakeMessageService()
         val service = DaemonBackedMessageService({ delegate }, DaemonStatus { true })
 
-        service.listRecentMessages(limit = 5, receivedOnly = true)
+        service.listRecentMessages(RecentMessagesQuery(limit = 5, receivedOnly = true))
 
         assertEquals(1, delegate.localListCalls)
         assertEquals(0, delegate.serverListCalls, "daemon warm must not sync")
@@ -32,7 +32,7 @@ class DaemonBackedMessageServiceTest {
         val delegate = FakeMessageService()
         val service = DaemonBackedMessageService({ delegate }, DaemonStatus { false })
 
-        service.listRecentMessages(limit = 5, receivedOnly = false)
+        service.listRecentMessages(RecentMessagesQuery(limit = 5, receivedOnly = false))
 
         assertEquals(1, delegate.serverListCalls)
         assertEquals(0, delegate.localListCalls)
@@ -51,7 +51,7 @@ class DaemonBackedMessageServiceTest {
                 },
             )
 
-        service.listServerRecentMessages(limit = 5, receivedOnly = false)
+        service.listServerRecentMessages(RecentMessagesQuery(limit = 5, receivedOnly = false))
 
         assertEquals(1, delegate.serverListCalls)
         assertEquals(0, delegate.localListCalls)
@@ -140,28 +140,28 @@ class DaemonBackedMessageServiceTest {
             text: String,
         ) = SendMessageResult.Success
 
-        override fun fetchMessages(conversationId: String): FetchMessagesResult {
+        override fun fetchMessages(
+            conversationId: String,
+            limit: Int,
+        ): FetchMessagesResult {
             serverFetchCalls++
             return serverResult
         }
 
-        override fun fetchLocalMessages(conversationId: String): FetchMessagesResult {
+        override fun fetchLocalMessages(
+            conversationId: String,
+            limit: Int,
+        ): FetchMessagesResult {
             localFetchCalls++
             return localResult
         }
 
-        override fun listRecentMessages(
-            limit: Int,
-            receivedOnly: Boolean,
-        ): ListRecentMessagesResult {
+        override fun listRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult {
             serverListCalls++
             return ListRecentMessagesResult.Success(RecentMessagesView(emptyList()))
         }
 
-        override fun listLocalRecentMessages(
-            limit: Int,
-            receivedOnly: Boolean,
-        ): ListRecentMessagesResult {
+        override fun listLocalRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult {
             localListCalls++
             return ListRecentMessagesResult.Success(RecentMessagesView(emptyList()))
         }

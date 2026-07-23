@@ -203,7 +203,10 @@ class MessageWatchCommandTest {
             text: String,
         ): SendMessageResult = SendMessageResult.Success
 
-        override fun fetchMessages(conversationId: String): FetchMessagesResult {
+        override fun fetchMessages(
+            conversationId: String,
+            limit: Int,
+        ): FetchMessagesResult {
             fetchCalls += 1
             return FetchMessagesResult.Success(FetchMessagesView(conversationId, emptyList()))
         }

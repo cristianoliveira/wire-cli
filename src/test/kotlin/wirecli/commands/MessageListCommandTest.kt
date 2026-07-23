@@ -12,10 +12,14 @@ import wirecli.message.ListRecentMessagesResult
 import wirecli.message.MessageService
 import wirecli.message.ReactionAction
 import wirecli.message.RecentMessageItem
+import wirecli.message.RecentMessagesQuery
 import wirecli.message.RecentMessagesView
 import wirecli.message.SearchMessagesResult
 import wirecli.message.SendMessageResult
 import wirecli.message.ToggleReactionResult
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -66,6 +70,57 @@ class MessageListCommandTest {
         assertEquals(5, service.capturedLimit)
         assertEquals(true, service.capturedReceivedOnly)
         assertEquals(true, service.capturedServerPath, "--no-cache must use the server path")
+    }
+
+    @Test
+    fun `list command accepts daily summary filters`() {
+        val service =
+            FakeMessageService(
+                listResult = ListRecentMessagesResult.Success(RecentMessagesView(emptyList())),
+            )
+        val command = MessageListCommand { service }
+
+        val result =
+            execute(
+                command,
+                listOf(
+                    "--since",
+                    "2026-03-20T09:30:00Z",
+                    "--conversation-id",
+                    "conv-123",
+                    "--mentions-me",
+                ),
+            )
+
+        assertEquals(0, result.exitCode)
+        assertEquals(Instant.parse("2026-03-20T09:30:00Z"), service.capturedQuery?.since)
+        assertEquals("conv-123", service.capturedQuery?.conversationId)
+        assertEquals(true, service.capturedQuery?.mentionsMe)
+    }
+
+    @Test
+    fun `list command resolves today from local start of day`() {
+        val service = FakeMessageService(ListRecentMessagesResult.Success(RecentMessagesView(emptyList())))
+        val clock = Clock.fixed(Instant.parse("2026-03-20T14:30:00Z"), ZoneOffset.UTC)
+
+        val result = execute(MessageListCommand(clock) { service }, listOf("--since", "today"))
+
+        assertEquals(0, result.exitCode)
+        assertEquals(Instant.parse("2026-03-20T00:00:00Z"), service.capturedQuery?.since)
+    }
+
+    @Test
+    fun `list command rejects invalid since value before calling service`() {
+        val service = FakeMessageService(ListRecentMessagesResult.Success(RecentMessagesView(emptyList())))
+
+        val result = execute(MessageListCommand { service }, listOf("--since", "yesterday-ish"))
+
+        assertEquals(2, result.exitCode)
+        assertEquals(null, service.capturedLimit)
+        assertEquals(
+            "validation error: since must be 'today', an ISO-8601 date, or an ISO-8601 timestamp",
+            result.stderr.trim(),
+        )
     }
 
     @Test
@@ -385,35 +440,39 @@ class MessageListCommandTest {
             private set
         var capturedServerPath: Boolean? = null
             private set
+        var capturedQuery: RecentMessagesQuery? = null
+            private set
 
         override fun sendMessage(
             conversationId: String,
             text: String,
         ): SendMessageResult = SendMessageResult.Success
 
-        override fun fetchMessages(conversationId: String) =
-            wirecli.message.FetchMessagesResult.Success(
-                wirecli.message.FetchMessagesView(conversationId, emptyList()),
-            )
-
-        override fun listRecentMessages(
+        override fun fetchMessages(
+            conversationId: String,
             limit: Int,
-            receivedOnly: Boolean,
-        ): ListRecentMessagesResult {
-            capturedLimit = limit
-            capturedReceivedOnly = receivedOnly
-            capturedServerPath = false
+        ) = wirecli.message.FetchMessagesResult.Success(
+            wirecli.message.FetchMessagesView(conversationId, emptyList()),
+        )
+
+        override fun listRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult {
+            capture(query, serverPath = false)
             return listResult
         }
 
-        override fun listServerRecentMessages(
-            limit: Int,
-            receivedOnly: Boolean,
-        ): ListRecentMessagesResult {
-            capturedLimit = limit
-            capturedReceivedOnly = receivedOnly
-            capturedServerPath = true
+        override fun listServerRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult {
+            capture(query, serverPath = true)
             return listResult
+        }
+
+        private fun capture(
+            query: RecentMessagesQuery,
+            serverPath: Boolean,
+        ) {
+            capturedQuery = query
+            capturedLimit = query.limit
+            capturedReceivedOnly = query.receivedOnly
+            capturedServerPath = serverPath
         }
 
         override fun searchMessages(

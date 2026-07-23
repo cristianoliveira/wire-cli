@@ -14,46 +14,46 @@ class DaemonBackedMessageService(
 ) : MessageService {
     private val delegate by lazy(delegateProvider)
 
-    override fun fetchMessages(conversationId: String): FetchMessagesResult {
-        if (!daemonStatus.isRunning()) return delegate.fetchMessages(conversationId)
+    override fun fetchMessages(
+        conversationId: String,
+        limit: Int,
+    ): FetchMessagesResult {
+        if (!daemonStatus.isRunning()) return delegate.fetchMessages(conversationId, limit)
 
-        return when (val cached = delegate.fetchLocalMessages(conversationId)) {
+        return when (val cached = delegate.fetchLocalMessages(conversationId, limit)) {
             is FetchMessagesResult.Success -> cached
-            is FetchMessagesResult.Failure -> delegate.fetchMessages(conversationId)
+            is FetchMessagesResult.Failure -> delegate.fetchMessages(conversationId, limit)
         }
     }
 
-    override fun fetchServerMessages(conversationId: String): FetchMessagesResult = delegate.fetchMessages(conversationId)
+    override fun fetchServerMessages(
+        conversationId: String,
+        limit: Int,
+    ): FetchMessagesResult = delegate.fetchMessages(conversationId, limit)
 
-    override fun fetchLocalMessages(conversationId: String): FetchMessagesResult = delegate.fetchLocalMessages(conversationId)
+    override fun fetchLocalMessages(
+        conversationId: String,
+        limit: Int,
+    ): FetchMessagesResult = delegate.fetchLocalMessages(conversationId, limit)
 
     override fun sendMessage(
         conversationId: String,
         text: String,
     ): SendMessageResult = delegate.sendMessage(conversationId, text)
 
-    override fun listRecentMessages(
-        limit: Int,
-        receivedOnly: Boolean,
-    ): ListRecentMessagesResult {
+    override fun listRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult {
         // A running daemon keeps the local cache warm, so skip the sync and
         // read local; without it, the delegate syncs once then reads local.
         return if (daemonStatus.isRunning()) {
-            delegate.listLocalRecentMessages(limit, receivedOnly)
+            delegate.listLocalRecentMessages(query)
         } else {
-            delegate.listRecentMessages(limit, receivedOnly)
+            delegate.listRecentMessages(query)
         }
     }
 
-    override fun listServerRecentMessages(
-        limit: Int,
-        receivedOnly: Boolean,
-    ): ListRecentMessagesResult = delegate.listRecentMessages(limit, receivedOnly)
+    override fun listServerRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult = delegate.listRecentMessages(query)
 
-    override fun listLocalRecentMessages(
-        limit: Int,
-        receivedOnly: Boolean,
-    ): ListRecentMessagesResult = delegate.listLocalRecentMessages(limit, receivedOnly)
+    override fun listLocalRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult = delegate.listLocalRecentMessages(query)
 
     override fun searchMessages(
         query: String,

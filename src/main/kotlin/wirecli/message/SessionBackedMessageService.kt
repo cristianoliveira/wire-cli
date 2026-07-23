@@ -54,8 +54,11 @@ class SessionBackedMessageService(
         }
     }
 
-    override fun fetchMessages(conversationId: String): FetchMessagesResult {
-        logger.debug { "Service operation: fetchMessages(conversationId=$conversationId) started" }
+    override fun fetchMessages(
+        conversationId: String,
+        limit: Int,
+    ): FetchMessagesResult {
+        logger.debug { "Service operation: fetchMessages(conversationId=$conversationId, limit=$limit) started" }
 
         val session =
             sessionStore.readActiveSession()
@@ -67,7 +70,7 @@ class SessionBackedMessageService(
         logger.info {
             "message-fetch session resolved: userId=${session.userId}, conversationId=$conversationId"
         }
-        return apiClient.fetchMessages(session, conversationId).also { result ->
+        return apiClient.fetchMessages(session, conversationId, limit).also { result ->
             when (result) {
                 is FetchMessagesResult.Success ->
                     logger.info {
@@ -82,8 +85,11 @@ class SessionBackedMessageService(
         }
     }
 
-    override fun fetchLocalMessages(conversationId: String): FetchMessagesResult {
-        logger.debug { "Service operation: fetchLocalMessages(conversationId=$conversationId) started" }
+    override fun fetchLocalMessages(
+        conversationId: String,
+        limit: Int,
+    ): FetchMessagesResult {
+        logger.debug { "Service operation: fetchLocalMessages(conversationId=$conversationId, limit=$limit) started" }
         val session = sessionStore.readActiveSession()
         if (session == null) {
             logger.warn { "No active session found for local message fetch" }
@@ -93,7 +99,7 @@ class SessionBackedMessageService(
             )
         }
 
-        return apiClient.fetchLocalMessages(session, conversationId)
+        return apiClient.fetchLocalMessages(session, conversationId, limit)
     }
 
     override fun observeMessages(conversationId: String): Flow<FetchMessagesResult> {
@@ -117,24 +123,17 @@ class SessionBackedMessageService(
             ?: flowOf(apiClient.fetchMessages(session, conversationId))
     }
 
-    override fun listRecentMessages(
-        limit: Int,
-        receivedOnly: Boolean,
-    ): ListRecentMessagesResult = listRecentMessages(limit, receivedOnly, localOnly = false)
+    override fun listRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult = listRecentMessages(query, localOnly = false)
 
-    override fun listLocalRecentMessages(
-        limit: Int,
-        receivedOnly: Boolean,
-    ): ListRecentMessagesResult = listRecentMessages(limit, receivedOnly, localOnly = true)
+    override fun listLocalRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult = listRecentMessages(query, localOnly = true)
 
     private fun listRecentMessages(
-        limit: Int,
-        receivedOnly: Boolean,
+        query: RecentMessagesQuery,
         localOnly: Boolean,
     ): ListRecentMessagesResult {
         val overallStartNanos = System.nanoTime()
         logger.debug {
-            "Service operation: listRecentMessages(limit=$limit, receivedOnly=$receivedOnly, localOnly=$localOnly) started"
+            "Service operation: listRecentMessages(query=$query, localOnly=$localOnly) started"
         }
 
         val session =
@@ -165,6 +164,10 @@ class SessionBackedMessageService(
                     return ListRecentMessagesResult.Failure(message = message, exitCode = result.exitCode)
                 }
             }
+        val scopedConversations =
+            query.conversationId?.let { requestedId ->
+                conversations.filter { it.id == requestedId }
+            } ?: conversations
         val listConversationsMs = elapsedMs(listConversationsStartNanos)
 
         // One session-wide refresh is enough: the preflight sync is global, so
@@ -183,7 +186,7 @@ class SessionBackedMessageService(
         }
 
         val fetchLoopStartNanos = System.nanoTime()
-        val aggregation = aggregateRecentMessages(session, conversations, readLocal)
+        val aggregation = aggregateRecentMessages(session, scopedConversations, readLocal, query.limit)
         val fetchLoopMs = elapsedMs(fetchLoopStartNanos)
         val aggregated =
             when (aggregation) {
@@ -196,18 +199,20 @@ class SessionBackedMessageService(
         val messages =
             aggregated.messages
                 .asSequence()
-                .filter { !receivedOnly || it.senderId != session.userId }
+                .filter { !query.receivedOnly || it.senderId != session.userId }
+                .filter { query.since == null || !parseTimestamp(it.timestamp).isBefore(query.since) }
+                .filter { !query.mentionsMe || it.mentionsSelf }
                 .sortedWith(
                     compareByDescending<RecentMessageItem> { parseTimestamp(it.timestamp) }
                         .thenByDescending { it.timestamp }
                         .thenBy { it.conversationId }
                         .thenBy { it.messageId },
-                ).take(limit)
+                ).take(query.limit)
                 .toList()
         val sortMs = elapsedMs(sortStartNanos)
 
         logger.info {
-            "listRecentMessages phases: conversations=${conversations.size} " +
+            "listRecentMessages phases: conversations=${scopedConversations.size} " +
                 "listConversationsMs=$listConversationsMs refreshMs=$refreshMs " +
                 "fetchLoopMs=$fetchLoopMs fetchedConversations=${aggregated.conversationCount} " +
                 "aggregatedMessages=${aggregated.messageCount} sortMs=$sortMs " +
@@ -221,15 +226,16 @@ class SessionBackedMessageService(
         session: AuthSession,
         conversations: List<Conversation>,
         readLocal: Boolean,
+        perConversationLimit: Int,
     ): MessageAggregation {
         val aggregated = mutableListOf<RecentMessageItem>()
         var conversationCount = 0
         for (conversation in conversations) {
             val fetchResult =
                 if (readLocal) {
-                    apiClient.fetchLocalMessages(session, conversation.id)
+                    apiClient.fetchLocalMessages(session, conversation.id, perConversationLimit)
                 } else {
-                    apiClient.fetchMessages(session, conversation.id)
+                    apiClient.fetchMessages(session, conversation.id, perConversationLimit)
                 }
 
             when (fetchResult) {
@@ -245,6 +251,7 @@ class SessionBackedMessageService(
                                 senderName = message.senderName,
                                 timestamp = message.timestamp,
                                 content = message.content,
+                                mentionsSelf = message.mentionsSelf,
                             )
                         }
                 }

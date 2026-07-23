@@ -21,9 +21,12 @@ class AuthGuardedMessageService(
         }
     }
 
-    override fun fetchMessages(conversationId: String): FetchMessagesResult {
+    override fun fetchMessages(
+        conversationId: String,
+        limit: Int,
+    ): FetchMessagesResult {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.fetchMessages(conversationId)
+            is AuthResult.Success -> delegate.fetchMessages(conversationId, limit)
             is AuthResult.Failure ->
                 FetchMessagesResult.Failure(
                     message = authResult.message,
@@ -32,9 +35,12 @@ class AuthGuardedMessageService(
         }
     }
 
-    override fun fetchLocalMessages(conversationId: String): FetchMessagesResult {
+    override fun fetchLocalMessages(
+        conversationId: String,
+        limit: Int,
+    ): FetchMessagesResult {
         return when (val authResult = authSessionService.requireActiveSession()) {
-            is AuthResult.Success -> delegate.fetchLocalMessages(conversationId)
+            is AuthResult.Success -> delegate.fetchLocalMessages(conversationId, limit)
             is AuthResult.Failure ->
                 FetchMessagesResult.Failure(
                     message = authResult.message,
@@ -43,20 +49,14 @@ class AuthGuardedMessageService(
         }
     }
 
-    override fun listRecentMessages(
-        limit: Int,
-        receivedOnly: Boolean,
-    ): ListRecentMessagesResult = withSession { delegate.listRecentMessages(limit, receivedOnly) }
+    override fun listRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult =
+        withSession { delegate.listRecentMessages(query) }
 
-    override fun listServerRecentMessages(
-        limit: Int,
-        receivedOnly: Boolean,
-    ): ListRecentMessagesResult = withSession { delegate.listServerRecentMessages(limit, receivedOnly) }
+    override fun listServerRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult =
+        withSession { delegate.listServerRecentMessages(query) }
 
-    override fun listLocalRecentMessages(
-        limit: Int,
-        receivedOnly: Boolean,
-    ): ListRecentMessagesResult = withSession { delegate.listLocalRecentMessages(limit, receivedOnly) }
+    override fun listLocalRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult =
+        withSession { delegate.listLocalRecentMessages(query) }
 
     private inline fun withSession(action: () -> ListRecentMessagesResult): ListRecentMessagesResult =
         when (val authResult = authSessionService.requireActiveSession()) {

@@ -3,25 +3,25 @@ package wirecli.commands
 import com.github.ajalt.clikt.core.ProgramResult
 import wirecli.auth.AccountListing
 import wirecli.auth.AccountService
-import wirecli.auth.AuthSession
+import wirecli.auth.StoredAccount
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class AccountCommandTest {
-    private val alice = AuthSession("alice@wire.com", "tok-a", "wire.com")
-    private val bob = AuthSession("bob@wire.com", "tok-b", null)
+    private val alice = StoredAccount("alice@wire.com", "tok-a", "wire.com", label = "work")
+    private val bob = StoredAccount("bob@wire.com", "tok-b", null, label = null)
 
     @Test
-    fun `account list marks the active account with a star`() {
-        val service = FakeAccountService(AccountListing(listOf(alice, bob), activeUserId = "bob@wire.com"))
+    fun `account list marks the active account and shows labels when present`() {
+        val service = FakeAccountService(AccountListing(listOf(alice, bob), activeUserId = "alice@wire.com"))
         val result = run(listOf("list"), service)
 
         assertEquals(0, result.exitCode)
         val lines = result.stdout.trimEnd().lines()
         assertEquals(2, lines.size)
-        assertTrue(lines.any { it.startsWith("* bob@wire.com") })
-        assertTrue(lines.any { it.startsWith("  alice@wire.com  (wire.com)") })
+        assertTrue(lines.any { it.startsWith("* work  alice@wire.com  (wire.com)") })
+        assertTrue(lines.any { it.startsWith("  bob@wire.com") })
     }
 
     @Test
@@ -34,41 +34,50 @@ class AccountCommandTest {
     }
 
     @Test
-    fun `account use switches and prints confirmation`() {
+    fun `account use resolves a label and prints a labeled confirmation`() {
         val service = FakeAccountService(AccountListing(listOf(alice), activeUserId = "alice@wire.com"))
-        val result = run(listOf("use", "alice@wire.com"), service)
+        val result = run(listOf("use", "work"), service)
 
         assertEquals(0, result.exitCode)
-        assertEquals("alice@wire.com", service.useCalledWith)
-        assertTrue(result.stdout.contains("Switched to alice@wire.com"))
+        assertEquals("work", service.useCalledWith)
+        assertTrue(result.stdout.contains("Switched to work (alice@wire.com)"))
+    }
+
+    @Test
+    fun `account use accepts a userId when no label is set`() {
+        val service = FakeAccountService(AccountListing(listOf(bob), activeUserId = "bob@wire.com"))
+        val result = run(listOf("use", "bob@wire.com"), service)
+
+        assertEquals(0, result.exitCode)
+        assertTrue(result.stdout.contains("Switched to bob@wire.com"))
     }
 
     @Test
     fun `account use exits with validation error for an unknown account`() {
         val service = FakeAccountService(AccountListing(emptyList(), activeUserId = null))
-        val result = run(listOf("use", "ghost@wire.com"), service)
+        val result = run(listOf("use", "ghost"), service)
 
         assertEquals(processExitCode(wirecli.auth.ExitCodes.VALIDATION_ERROR), result.exitCode)
-        assertTrue(result.stderr.contains("No stored account for 'ghost@wire.com'"))
+        assertTrue(result.stderr.contains("No stored account for 'ghost'"))
     }
 
     @Test
     fun `account remove removes and prints confirmation`() {
         val service = FakeAccountService(AccountListing(listOf(alice), activeUserId = "alice@wire.com"))
-        val result = run(listOf("remove", "alice@wire.com"), service)
+        val result = run(listOf("remove", "work"), service)
 
         assertEquals(0, result.exitCode)
-        assertEquals("alice@wire.com", service.removeCalledWith)
-        assertTrue(result.stdout.contains("Removed alice@wire.com"))
+        assertEquals("work", service.removeCalledWith)
+        assertTrue(result.stdout.contains("Removed work (alice@wire.com)"))
     }
 
     @Test
-    fun `whoami prints the active account`() {
+    fun `whoami prints label and userId when labeled`() {
         val service = FakeAccountService(AccountListing(listOf(alice), activeUserId = "alice@wire.com"))
         val result = runWhoami(emptyList(), service)
 
         assertEquals(0, result.exitCode)
-        assertTrue(result.stdout.contains("alice@wire.com"))
+        assertTrue(result.stdout.contains("work  alice@wire.com"))
     }
 
     @Test
@@ -129,23 +138,26 @@ class AccountCommandTest {
 
     private class FakeAccountService(
         private val listing: AccountListing,
-        private val current: AuthSession? = listing.accounts.firstOrNull { it.userId == listing.activeUserId },
+        private val current: StoredAccount? = listing.accounts.firstOrNull { it.userId == listing.activeUserId },
     ) : AccountService {
         var useCalledWith: String? = null
         var removeCalledWith: String? = null
 
         override fun listAccounts(): AccountListing = listing
 
-        override fun currentAccount(): AuthSession? = current
+        override fun currentAccount(): StoredAccount? = current
 
-        override fun useAccount(userId: String): AuthSession? {
-            useCalledWith = userId
-            return listing.accounts.firstOrNull { it.userId == userId }
+        override fun useAccount(selector: String): StoredAccount? {
+            useCalledWith = selector
+            return listing.accounts.resolve(selector)
         }
 
-        override fun removeAccount(userId: String): AuthSession? {
-            removeCalledWith = userId
-            return listing.accounts.firstOrNull { it.userId == userId }
+        override fun removeAccount(selector: String): StoredAccount? {
+            removeCalledWith = selector
+            return listing.accounts.resolve(selector)
         }
+
+        private fun List<StoredAccount>.resolve(selector: String): StoredAccount? =
+            firstOrNull { it.label == selector } ?: firstOrNull { it.userId == selector }
     }
 }

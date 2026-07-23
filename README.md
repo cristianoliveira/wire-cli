@@ -100,26 +100,30 @@ active one without logging out. The active account is an explicit pointer (like
 kubectl `current-context`); every command runs against it.
 
 ```bash
-# Add accounts (each login stores and activates that account)
-wire login --email jane@example.com   # personal
-wire login --email jane@company.com   # work
+# Add accounts (each login stores and activates that account).
+# --label gives a human name (kubectl "context" style); it is optional and unique.
+wire login --email jane@example.com --label personal
+wire login --email jane@company.com --label work
 
 # List stored accounts; the active one is marked with *
 wire account list
+#   personal  jane@example.com
+# * work      jane@company.com
 
 # Show the currently active account
 wire whoami
 
-# Switch the active account (local only, no re-authentication)
-wire account use jane@company.com
+# Switch the active account by label or user id (local only, no re-authentication)
+wire account use work
 
 # Remove a single stored account (local only; use `wire logout` for server logout)
-wire account remove jane@example.com
+wire account remove personal
 ```
 
 `wire logout` removes only the **active** account and clears the active pointer;
-run `wire account use <user-id>` to select another. Accounts are stored in the
-session file (`~/.config/wire/session` by default; override with
+run `wire account use <label|user-id>` to select another. Labels are optional
+and must be unique; logging in with an existing label is rejected. Accounts are
+stored in the session file (`~/.config/wire/session` by default; override with
 `WIRE_SESSION_FILE`).
 
 `wire daemon` runs in the foreground until interrupted. Use systemd, launchd, Docker, or another process supervisor to keep it running. Kalium stores synchronized state under `~/.wire/kalium`.

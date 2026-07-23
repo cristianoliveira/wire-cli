@@ -19,6 +19,7 @@ class WhoamiCommand(
             throw ProgramResult(processExitCode(ExitCodes.UNAUTHORIZED))
         }
         val server = current.server?.let { "  ($it)" }.orEmpty()
-        echo("${current.userId}$server")
+        val identity = if (current.label != null) "${current.label}  ${current.userId}" else current.userId
+        echo("$identity$server")
     }
 }

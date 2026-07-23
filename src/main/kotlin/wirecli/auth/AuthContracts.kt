@@ -5,6 +5,7 @@ data class LoginInput(
     val email: String,
     val password: String,
     val server: String?,
+    val label: String? = null,
 )
 
 data class AuthSession(
@@ -14,9 +15,26 @@ data class AuthSession(
 )
 
 /**
+ * A stored account: the [AuthSession] credential plus an optional human label
+ * (e.g. "work", "personal") used to identify the account when switching.
+ *
+ * Labels are the kubectl "context" analog; [userId] remains the stable identity
+ * key. [toAuthSession] strips the label so API clients keep receiving the plain
+ * credential type.
+ */
+data class StoredAccount(
+    val userId: String,
+    val accessToken: String,
+    val server: String?,
+    val label: String? = null,
+) {
+    fun toAuthSession(): AuthSession = AuthSession(userId = userId, accessToken = accessToken, server = server)
+}
+
+/**
  * Full multi-account view of local credential storage.
  *
- * - [accounts] holds every persisted account, keyed by [AuthSession.userId].
+ * - [accounts] holds every persisted account, keyed by [StoredAccount.userId].
  * - [activeUserId] is the explicitly selected account (like kubectl `current-context`).
  *   It may point at no account (null) even when accounts exist.
  * - [invalidAccounts] / [diagnosticMessage] carry parse/migration diagnostics.
@@ -24,12 +42,12 @@ data class AuthSession(
  * @invariant [activeUserId] is null or matches one entry in [accounts] in a healthy file.
  */
 data class AccountInventory(
-    val accounts: List<AuthSession>,
+    val accounts: List<StoredAccount>,
     val activeUserId: String?,
     val invalidAccounts: Int = 0,
     val diagnosticMessage: String? = null,
 ) {
-    val activeAccount: AuthSession?
+    val activeAccount: StoredAccount?
         get() = accounts.firstOrNull { it.userId == activeUserId }
 }
 
@@ -68,13 +86,13 @@ interface AuthSessionStore : SessionProvider {
     fun readAccounts(): AccountInventory
 
     fun addAccount(
-        account: AuthSession,
+        account: StoredAccount,
         makeActive: Boolean = true,
     )
 
-    fun setActiveAccount(userId: String): AuthSession?
+    fun setActiveAccount(userId: String): StoredAccount?
 
-    fun removeAccount(userId: String): AuthSession?
+    fun removeAccount(userId: String): StoredAccount?
 }
 
 interface AuthSessionService {
@@ -88,21 +106,24 @@ interface AuthSessionService {
 /**
  * Local account management: list, inspect the active account, and switch or
  * remove accounts without touching the network. Backed by [AuthSessionStore].
+ *
+ * [useAccount] and [removeAccount] accept a selector that matches an account's
+ * label first, then its userId.
  */
 interface AccountService {
     fun listAccounts(): AccountListing
 
-    fun currentAccount(): AuthSession?
+    fun currentAccount(): StoredAccount?
 
-    /** Activates the account for [userId]; returns it, or null when absent. */
-    fun useAccount(userId: String): AuthSession?
+    /** Activates the account matching [selector] (label or userId); null if absent. */
+    fun useAccount(selector: String): StoredAccount?
 
-    /** Removes the account for [userId]; returns the removed account, or null when absent. */
-    fun removeAccount(userId: String): AuthSession?
+    /** Removes the account matching [selector] (label or userId); null if absent. */
+    fun removeAccount(selector: String): StoredAccount?
 }
 
 data class AccountListing(
-    val accounts: List<AuthSession>,
+    val accounts: List<StoredAccount>,
     val activeUserId: String?,
 )
 

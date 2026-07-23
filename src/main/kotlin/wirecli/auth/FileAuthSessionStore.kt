@@ -53,20 +53,20 @@ class FileAuthSessionStore(
         check(session == null || session.accessToken.isNotBlank()) {
             "Stored active session must include a non-blank access token."
         }
-        return session
+        return session?.toAuthSession()
     }
 
     /**
      * Reads the full account inventory including validation status and diagnostics.
      *
-     * Automatically migrates v1/legacy session format to v2 if needed.
+     * Automatically migrates older session formats to v3 if needed.
      * Returns an empty inventory if no session file exists.
      *
      * @return AccountInventory with accounts, active pointer, and diagnostics
      * @throws Nothing - Returns an inventory with diagnostics on errors
      *
      * @post Result is non-null AccountInventory
-     * @post If v1/legacy format exists, automatic migration is attempted
+     * @post If an older format (v1/v2/legacy) exists, automatic migration is attempted
      * @post diagnosticMessage is set if migration failed or the format is unsupported
      */
     override fun readAccounts(): AccountInventory {
@@ -109,7 +109,7 @@ class FileAuthSessionStore(
      * @post Other accounts are preserved
      */
     override fun addAccount(
-        account: AuthSession,
+        account: StoredAccount,
         makeActive: Boolean,
     ) {
         require(account.userId.isNotBlank()) { "Account user ID must not be blank when persisting." }
@@ -134,7 +134,7 @@ class FileAuthSessionStore(
      *
      * @post If successful, [userId] is the active pointer and other accounts are unchanged
      */
-    override fun setActiveAccount(userId: String): AuthSession? {
+    override fun setActiveAccount(userId: String): StoredAccount? {
         logger.debug { "Setting active account to: $userId" }
         val current = readAccounts()
         val target = current.accounts.firstOrNull { it.userId == userId } ?: return null
@@ -154,7 +154,7 @@ class FileAuthSessionStore(
      * @post If the active account is removed, active pointer becomes null
      * @post If no accounts remain, the session file is deleted
      */
-    override fun removeAccount(userId: String): AuthSession? {
+    override fun removeAccount(userId: String): StoredAccount? {
         logger.debug { "Removing account: $userId" }
         val current = readAccounts()
         val target = current.accounts.firstOrNull { it.userId == userId } ?: return null
@@ -220,21 +220,23 @@ class FileAuthSessionStore(
         )
 
     /**
-     * Migrates v1/legacy session format to v2 if needed by rewriting the file.
-     * v2 and unsupported formats are returned unchanged.
+     * Migrates older session formats (v1/v2/legacy) to v3 by rewriting the file.
+     * v3 and unsupported formats are returned unchanged.
      */
     private fun handleFormatMigration(parsedData: ParsedSessionData): AccountInventory {
         logger.debug { "Parsed session format: ${parsedData.format}" }
 
-        if (parsedData.format != SessionFileFormat.VERSION_1 && parsedData.format != SessionFileFormat.LEGACY) {
+        if (parsedData.format == SessionFileFormat.VERSION_3 ||
+            parsedData.format == SessionFileFormat.UNSUPPORTED_VERSION
+        ) {
             return parsedData.inventory
         }
 
-        logger.info { "Outdated session format detected - migrating to v2" }
+        logger.info { "Outdated session format detected - migrating to v3" }
         val migrated =
             runCatching {
                 writeAtomically(serializeAccounts(parsedData.inventory))
-                logger.debug { "Session migration to v2 completed successfully" }
+                logger.debug { "Session migration to v3 completed successfully" }
             }
 
         return if (migrated.isFailure) {

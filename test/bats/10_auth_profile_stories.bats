@@ -169,7 +169,7 @@ run_wire_with_stdin() {
   assert_status 0
   [[ "${output}" == *"Handle: user-amy"* ]]
   read -r first_line <"${WIRE_SESSION_FILE}"
-  [ "${first_line}" = "wire-cli-session-store:2" ]
+  [ "${first_line}" = "wire-cli-session-store:3" ]
 }
 
 @test "Given unsupported session schema version, when profile runs, then actionable guidance is shown" {

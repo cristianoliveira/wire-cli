@@ -315,9 +315,9 @@ internal class SdkKaliumSyncRuntime(
                         )
                     }
 
-                    logger.debug { "Sync state observed: ${syncState::class.simpleName}" }
+                    logger.info { "Sync state observed: ${syncState::class.simpleName}" }
                     val status = mapSyncStateToStatus(syncState)
-                    logger.debug { "Mapped sync state to status: $status" }
+                    logger.info { "Mapped sync state to status: $status" }
 
                     val lagMs = calculateLagMs(syncState)
                     logger.debug { "Calculated sync lag: ${lagMs}ms" }
@@ -417,13 +417,16 @@ internal class SdkKaliumSyncRuntime(
                 try {
                     val syncResult =
                         coreLogic.sessionScope(qualifiedId) {
+                            logger.info { "Force sync: restarting slow sync process for recovery" }
                             client.restartSlowSyncProcessForRecoveryUseCase()
+                            logger.info { "Force sync: waiting up to ${FORCE_SYNC_WAIT_TIMEOUT_MS / 1000}s for live state" }
                             withTimeoutOrNull(FORCE_SYNC_WAIT_TIMEOUT_MS) {
                                 this@sessionScope.syncExecutor.request { waitUntilLiveOrFailure() }
                             }
                         }
 
                     if (syncResult == null) {
+                        logger.warn { "Force sync: timed out after ${FORCE_SYNC_WAIT_TIMEOUT_MS / 1000}s — MLS sync may be stuck" }
                         return@runBlocking SyncStatusResult.Failure(
                             message = "Timed out waiting for sync to reach live state after force sync.",
                             exitCode = SyncExitCodes.DEGRADED,
@@ -431,14 +434,32 @@ internal class SdkKaliumSyncRuntime(
                     }
 
                     if (syncResult is SyncRequestResult.Failure) {
+                        logger.warn { "Force sync failed: ${syncResult.error::class.simpleName}" }
                         return@runBlocking mapSyncRequestFailure(syncResult.error)
                     }
 
+                    logger.info { "Force sync reached live state" }
                     val (syncState, keyPackageCountResult) =
                         coreLogic.sessionScope(qualifiedId) {
+                            val observedSyncState = observeSyncState().firstOrNull()
+                            val keyPackageCount = client.mlsKeyPackageCountUseCase(fromAPI = false)
+                            logger.info {
+                                val kpInfo =
+                                    when (keyPackageCount) {
+                                        is MLSKeyPackageCountResult.Success ->
+                                            "keyPackagesAvailable=${keyPackageCount.count}" +
+                                                ", needsRefill=${keyPackageCount.needsRefill}" +
+                                                ", clientId=${keyPackageCount.clientId.value}"
+                                        is MLSKeyPackageCountResult.Failure ->
+                                            "keyPackageCheckFailed=${keyPackageCount::class.simpleName}"
+                                        else -> "keyPackageCheck=unknown"
+                                    }
+                                "Sync state after wait: " +
+                                    "${observedSyncState?.let { it::class.simpleName } ?: "null"}, $kpInfo"
+                            }
                             Pair(
-                                observeSyncState().firstOrNull() ?: SyncState.Live,
-                                client.mlsKeyPackageCountUseCase(fromAPI = false),
+                                observedSyncState ?: SyncState.Live,
+                                keyPackageCount,
                             )
                         }
 

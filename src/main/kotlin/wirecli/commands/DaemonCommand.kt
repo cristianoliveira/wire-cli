@@ -2,7 +2,20 @@ package wirecli.commands
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.option
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import wirecli.conversation.ConversationService
+import wirecli.conversation.ListConversationsResult
+import wirecli.message.FetchMessagesResult
+import wirecli.message.MessageService
 import wirecli.runtime.DaemonProcessMarker
 import wirecli.sync.SyncService
 import wirecli.sync.SyncStatusResult
@@ -15,11 +28,19 @@ private val logger = KotlinLogging.logger {}
 class DaemonCommand(
     private val syncServiceProvider: () -> SyncService,
     private val processMarkerProvider: () -> DaemonProcessMarker,
+    private val messageServiceProvider: () -> MessageService? = { null },
+    private val conversationServiceProvider: () -> ConversationService? = { null },
     private val awaitTermination: () -> Unit = { CountDownLatch(1).await() },
 ) : CliktCommand(
         name = "daemon",
         help = "Keep Wire message synchronization active and cache messages locally.",
     ) {
+    private val verbose by option(
+        "--verbose",
+        "-v",
+        help = "Emit new-message events as JSON lines to stdout.",
+    ).flag()
+
     override fun run() {
         when (val result = syncServiceProvider().startContinuousSync()) {
             is SyncStatusResult.Success -> {
@@ -28,7 +49,11 @@ class DaemonCommand(
                     marker.recordUpdate()
                     echo("Message sync daemon is active.")
                     startPeriodicHealthLogging()
-                    awaitTermination()
+                    if (verbose) {
+                        runBlocking { observeMessages() }
+                    } else {
+                        awaitTermination()
+                    }
                 }
             }
 
@@ -137,4 +162,83 @@ class DaemonCommand(
     private companion object {
         private const val DAEMON_HEALTH_INTERVAL_MS = 60_000L
     }
+
+    private suspend fun observeMessages() {
+        val messageService = messageServiceProvider()
+        val conversationService = conversationServiceProvider()
+        if (messageService == null || conversationService == null) {
+            awaitTermination()
+            return
+        }
+
+        val conversations = resolveConversations(conversationService)
+        if (conversations.isEmpty()) {
+            awaitTermination()
+            return
+        }
+
+        coroutineScope {
+            conversations.forEach { (conversationId, conversationName) ->
+                launch(Dispatchers.Default) {
+                    val knownMessageIds = mutableSetOf<String>()
+                    var hasBaselineSnapshot = false
+
+                    messageService.observeMessages(conversationId)
+                        .catch { /* transient failures logged by service */ }
+                        .collect { result ->
+                            when (result) {
+                                is FetchMessagesResult.Success -> {
+                                    if (!hasBaselineSnapshot) {
+                                        result.view.messages.forEach { knownMessageIds += it.id }
+                                        hasBaselineSnapshot = true
+                                        return@collect
+                                    }
+
+                                    val newMessages =
+                                        result.view.messages.filter { it.id !in knownMessageIds }
+                                    result.view.messages.forEach { knownMessageIds += it.id }
+                                    newMessages.forEach { message ->
+                                        echo(
+                                            formatMessageEvent(
+                                                conversationId = conversationId,
+                                                conversationName = conversationName,
+                                                message = message,
+                                            ),
+                                        )
+                                    }
+                                }
+
+                                is FetchMessagesResult.Failure -> {
+                                    // Non-fatal — skip this emission and continue watching.
+                                }
+                            }
+                        }
+                }
+            }
+
+            awaitTermination()
+        }
+    }
+
+    private fun resolveConversations(conversationService: ConversationService): List<Pair<String, String>> =
+        when (val result = conversationService.listConversations()) {
+            is ListConversationsResult.Success ->
+                result.view.conversations.map { it.id to it.name }
+            is ListConversationsResult.Failure -> emptyList()
+        }
+
+    private fun formatMessageEvent(
+        conversationId: String,
+        conversationName: String,
+        message: wirecli.message.ConversationMessage,
+    ): String =
+        buildJsonObject {
+            put("conversationId", JsonPrimitive(conversationId))
+            put("conversationName", JsonPrimitive(conversationName))
+            put("messageId", JsonPrimitive(message.id))
+            put("senderId", JsonPrimitive(message.senderId))
+            put("senderName", JsonPrimitive(message.senderName))
+            put("timestamp", JsonPrimitive(message.timestamp))
+            put("content", JsonPrimitive(message.content))
+        }.toString()
 }

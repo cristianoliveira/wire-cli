@@ -1,6 +1,29 @@
 package wirecli.commands
 
 import com.github.ajalt.clikt.core.ProgramResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import wirecli.conversation.Conversation
+import wirecli.conversation.ConversationListView
+import wirecli.conversation.ConversationService
+import wirecli.conversation.ConversationStatus
+import wirecli.conversation.ConversationType
+import wirecli.conversation.CreateConversationResult
+import wirecli.conversation.DeleteConversationResult
+import wirecli.conversation.GetConversationResult
+import wirecli.conversation.GetMembersResult
+import wirecli.conversation.ListConversationsResult
+import wirecli.message.ConversationMessage
+import wirecli.message.FetchMessagesResult
+import wirecli.message.FetchMessagesView
+import wirecli.message.ListRecentMessagesResult
+import wirecli.message.MessageService
+import wirecli.message.ReactionAction
+import wirecli.message.RecentMessagesQuery
+import wirecli.message.RecentMessagesView
+import wirecli.message.SearchMessagesResult
+import wirecli.message.SendMessageResult
+import wirecli.message.ToggleReactionResult
 import wirecli.runtime.DaemonProcessMarker
 import wirecli.sync.ConversationSyncStatusResult
 import wirecli.sync.DiagnosticsResult
@@ -15,6 +38,7 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class DaemonCommandTest {
     @Test
@@ -119,7 +143,105 @@ class DaemonCommandTest {
         assertEquals(0, endpoint.recordUpdateCalls, "no update recorded on sync failure")
     }
 
-    private fun execute(command: DaemonCommand): ExecutionResult {
+    @Test
+    fun `daemon with --verbose emits new message events as JSON`() {
+        var eventEmitted = false
+        val syncService =
+            FakeSyncService(
+                startResult =
+                    SyncStatusResult.Success(
+                        SyncStatusView(
+                            status = SyncStatus.READY,
+                            metrics = HealthMetrics(0L, 0, 100, "2026-07-14T10:00:00Z"),
+                        ),
+                    ),
+            )
+        val messageService =
+            FakeMessageService(
+                conversations =
+                    listOf(
+                        Conversation(
+                            id = "conv-1",
+                            name = "Engineering",
+                            type = ConversationType.GROUP,
+                            status = ConversationStatus.ACTIVE,
+                            memberCount = 2,
+                            createdAt = "2026-01-01T00:00:00Z",
+                            updatedAt = "2026-01-01T00:00:00Z",
+                        ),
+                    ),
+                messages =
+                    listOf(
+                        FetchMessagesResult.Success(
+                            FetchMessagesView(conversationId = "conv-1", messages = emptyList()),
+                        ),
+                        FetchMessagesResult.Success(
+                            FetchMessagesView(
+                                conversationId = "conv-1",
+                                messages =
+                                    listOf(
+                                        ConversationMessage(
+                                            id = "msg-1",
+                                            senderId = "alice",
+                                            senderName = "Alice",
+                                            timestamp = "2026-07-14T10:00:00Z",
+                                            content = "hello from daemon",
+                                        ),
+                                    ),
+                            ),
+                        ),
+                    ),
+            )
+        val command =
+            DaemonCommand(
+                syncServiceProvider = { syncService },
+                processMarkerProvider = { FakeDaemonProcessMarker() },
+                messageServiceProvider = { messageService },
+                conversationServiceProvider = { messageService },
+                awaitTermination = { eventEmitted = true },
+            )
+
+        val result = execute(command, listOf("--verbose"))
+
+        assertEquals(0, result.exitCode)
+        assertEquals(true, eventEmitted, "should allow termination after events")
+        assertTrue(result.stdout.contains("\"messageId\":\"msg-1\""), "stdout should contain message JSON")
+        assertTrue(result.stdout.contains("\"senderId\":\"alice\""))
+        assertTrue(result.stdout.contains("\"conversationId\":\"conv-1\""))
+    }
+
+    @Test
+    fun `daemon --verbose without message service still starts sync`() {
+        var awaitedTermination = false
+        val syncService =
+            FakeSyncService(
+                startResult =
+                    SyncStatusResult.Success(
+                        SyncStatusView(
+                            status = SyncStatus.READY,
+                            metrics = HealthMetrics(0L, 0, 100, "2026-07-14T10:00:00Z"),
+                        ),
+                    ),
+            )
+        val command =
+            DaemonCommand(
+                syncServiceProvider = { syncService },
+                processMarkerProvider = { FakeDaemonProcessMarker() },
+                awaitTermination = { awaitedTermination = true },
+            )
+
+        val result = execute(command, listOf("--verbose"))
+
+        assertEquals(0, result.exitCode)
+        assertEquals(true, awaitedTermination)
+        assertEquals(1, syncService.startCalls)
+        assertTrue(result.stdout.contains("Message sync daemon is active."))
+    }
+
+    private fun execute(
+        command: DaemonCommand,
+        args: List<String> = emptyList(),
+    ): ExecutionResult {
         val stdoutBuffer = java.io.ByteArrayOutputStream()
         val stderrBuffer = java.io.ByteArrayOutputStream()
         val originalOut = System.out
@@ -129,7 +251,7 @@ class DaemonCommandTest {
         try {
             System.setOut(java.io.PrintStream(stdoutBuffer))
             System.setErr(java.io.PrintStream(stderrBuffer))
-            command.parse(emptyList())
+            command.parse(args)
         } catch (programResult: ProgramResult) {
             exitCode = programResult.statusCode
         } finally {
@@ -196,5 +318,56 @@ class DaemonCommandTest {
         override fun getConversationSyncStatus(conversationId: String): ConversationSyncStatusResult = error("not used")
 
         override fun getPerConversationDiagnostics(conversationId: String): PerConversationDiagnosticsResult = error("not used")
+    }
+
+    private class FakeMessageService(
+        private val conversations: List<Conversation> = emptyList(),
+        private val messages: List<FetchMessagesResult> =
+            listOf(
+                FetchMessagesResult.Success(FetchMessagesView("", emptyList())),
+            ),
+    ) : MessageService, ConversationService {
+        override fun sendMessage(
+            conversationId: String,
+            text: String,
+        ): SendMessageResult = SendMessageResult.Success
+
+        override fun fetchMessages(
+            conversationId: String,
+            limit: Int,
+        ) = FetchMessagesResult.Success(FetchMessagesView(conversationId, emptyList()))
+
+        override fun observeMessages(conversationId: String): Flow<FetchMessagesResult> = flowOf(*messages.toTypedArray())
+
+        override fun listRecentMessages(query: RecentMessagesQuery): ListRecentMessagesResult =
+            ListRecentMessagesResult.Success(RecentMessagesView(emptyList()))
+
+        override fun searchMessages(
+            query: String,
+            conversationId: String?,
+            limit: Int,
+        ): SearchMessagesResult = SearchMessagesResult.Success(emptyList())
+
+        override fun toggleReaction(
+            conversationId: String,
+            messageId: String,
+            emoji: String,
+        ): ToggleReactionResult = ToggleReactionResult.Success(ReactionAction.ADDED)
+
+        override fun listConversations(): ListConversationsResult = ListConversationsResult.Success(ConversationListView(conversations))
+
+        override fun getConversation(conversationId: String): GetConversationResult = GetConversationResult.Failure("not implemented", 13)
+
+        override fun getMembers(conversationId: String): GetMembersResult = GetMembersResult.Failure("not implemented", 13)
+
+        override fun createConversation(
+            name: String,
+            type: ConversationType,
+        ): CreateConversationResult = CreateConversationResult.Failure("not implemented", 13)
+
+        override fun deleteConversation(conversationId: String): DeleteConversationResult =
+            DeleteConversationResult.Failure("not implemented", 13)
+
+        override fun getMemberCount(conversationId: String): GetConversationResult = GetConversationResult.Failure("not implemented", 13)
     }
 }

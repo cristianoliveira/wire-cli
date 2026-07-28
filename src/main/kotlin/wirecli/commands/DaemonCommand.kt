@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import wirecli.conversation.ConversationService
 import wirecli.conversation.ListConversationsResult
+import wirecli.hooks.DaemonHookService
 import wirecli.message.FetchMessagesResult
 import wirecli.message.MessageService
 import wirecli.runtime.DaemonProcessMarker
@@ -24,17 +25,17 @@ import java.time.Instant
 import java.util.concurrent.CountDownLatch
 
 private val logger = KotlinLogging.logger {}
+private const val DAEMON_COMMAND_NAME = "daemon"
+private const val DAEMON_COMMAND_HELP = "Keep Wire synchronization active, cache messages, and run configured hooks."
 
 class DaemonCommand(
     private val syncServiceProvider: () -> SyncService,
     private val processMarkerProvider: () -> DaemonProcessMarker,
     private val messageServiceProvider: () -> MessageService? = { null },
     private val conversationServiceProvider: () -> ConversationService? = { null },
+    private val daemonHookServiceProvider: () -> DaemonHookService? = { null },
     private val awaitTermination: () -> Unit = { CountDownLatch(1).await() },
-) : CliktCommand(
-        name = "daemon",
-        help = "Keep Wire message synchronization active and cache messages locally.",
-    ) {
+) : CliktCommand(name = DAEMON_COMMAND_NAME, help = DAEMON_COMMAND_HELP) {
     private val verbose by option(
         "--verbose",
         "-v",
@@ -49,8 +50,9 @@ class DaemonCommand(
                     marker.recordUpdate()
                     echo("Message sync daemon is active.")
                     startPeriodicHealthLogging()
-                    if (verbose) {
-                        runBlocking { observeMessages() }
+                    val daemonHookService = daemonHookServiceProvider()
+                    if (verbose || daemonHookService != null) {
+                        runBlocking { observeDaemon(daemonHookService) }
                     } else {
                         awaitTermination()
                     }
@@ -163,19 +165,24 @@ class DaemonCommand(
         private const val DAEMON_HEALTH_INTERVAL_MS = 60_000L
     }
 
+    private suspend fun observeDaemon(daemonHookService: DaemonHookService?) =
+        coroutineScope {
+            daemonHookService?.let { service ->
+                launch { service.observe() }
+            }
+            if (verbose) {
+                launch { observeMessages() }
+            }
+            launch(Dispatchers.IO) { awaitTermination() }
+        }
+
     private suspend fun observeMessages() {
         val messageService = messageServiceProvider()
         val conversationService = conversationServiceProvider()
-        if (messageService == null || conversationService == null) {
-            awaitTermination()
-            return
-        }
+        if (messageService == null || conversationService == null) return
 
         val conversations = resolveConversations(conversationService)
-        if (conversations.isEmpty()) {
-            awaitTermination()
-            return
-        }
+        if (conversations.isEmpty()) return
 
         coroutineScope {
             conversations.forEach { (conversationId, conversationName) ->
@@ -215,8 +222,6 @@ class DaemonCommand(
                         }
                 }
             }
-
-            awaitTermination()
         }
     }
 

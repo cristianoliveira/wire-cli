@@ -11,6 +11,12 @@ import wirecli.auth.SdkKaliumAuthRuntime
 import wirecli.auth.StandardAuthResponseParser
 import wirecli.auth.StandardAuthenticationOrchestrator
 import wirecli.auth.StubAuthApiClient
+import wirecli.calling.CallingApiClient
+import wirecli.calling.CallingService
+import wirecli.calling.RealKaliumCallingApiClient
+import wirecli.calling.SdkKaliumCallingRuntime
+import wirecli.calling.SessionBackedCallingService
+import wirecli.calling.StubCallingApiClient
 import wirecli.connection.AuthGuardedConnectionService
 import wirecli.connection.ConnectionApiClient
 import wirecli.connection.ConnectionService
@@ -45,6 +51,9 @@ import wirecli.exporting.ExportService
 import wirecli.exporting.LocalBackupService
 import wirecli.exporting.SdkLocalCacheBackupRuntime
 import wirecli.exporting.WireBackupJsonExporter
+import wirecli.hooks.DaemonHookService
+import wirecli.hooks.FileHookRunner
+import wirecli.hooks.OngoingCallHookService
 import wirecli.importing.DefaultImportService
 import wirecli.importing.ImportService
 import wirecli.importing.SdkWireBackupRuntime
@@ -112,6 +121,7 @@ interface KaliumRuntime : AutoCloseable {
     val downloadService: DownloadService
     val teamService: TeamService
     val accountService: AccountService
+    val daemonHookService: DaemonHookService
 
     fun shutdown()
 
@@ -313,6 +323,20 @@ private class DefaultKaliumRuntime(
         AccountServiceImpl(sessionStore)
     }
 
+    private val callingService: CallingService by lazy {
+        SessionBackedCallingService(
+            sessionStore = sessionStore,
+            apiClient = backend.callingApiClient,
+        )
+    }
+
+    override val daemonHookService: DaemonHookService by lazy {
+        OngoingCallHookService(
+            callingService = callingService,
+            hookRunner = FileHookRunner(environment),
+        )
+    }
+
     override fun shutdown() {
         if (!backendLazy.isInitialized()) return
         backend.shutdown()
@@ -359,6 +383,7 @@ internal interface RuntimeBackend {
     val connectionApiClient: ConnectionApiClient
     val downloadApiClient: DownloadApiClient
     val teamApiClient: TeamApiClient
+    val callingApiClient: CallingApiClient
 
     fun shutdown()
 }
@@ -377,6 +402,7 @@ private object StubRuntimeBackendFactory : RuntimeBackendFactory {
             override val connectionApiClient: ConnectionApiClient = StubConnectionApiClient(environment)
             override val downloadApiClient: DownloadApiClient = StubDownloadApiClient(environment)
             override val teamApiClient: TeamApiClient = StubTeamApiClient(environment)
+            override val callingApiClient: CallingApiClient = StubCallingApiClient(environment)
 
             override fun shutdown() {
                 // No background resources in stub backend.
@@ -443,6 +469,12 @@ private object RealRuntimeBackendFactory : RuntimeBackendFactory {
 
             override val teamApiClient: TeamApiClient by lazy {
                 RealKaliumTeamApiClient(SdkKaliumTeamRuntime(environment))
+            }
+
+            override val callingApiClient: CallingApiClient by lazy {
+                RealKaliumCallingApiClient(
+                    SdkKaliumCallingRuntime(syncRuntime::coreLogicForSession),
+                )
             }
 
             override fun shutdown() {

@@ -13,6 +13,7 @@ import wirecli.conversation.DeleteConversationResult
 import wirecli.conversation.GetConversationResult
 import wirecli.conversation.GetMembersResult
 import wirecli.conversation.ListConversationsResult
+import wirecli.hooks.DaemonHookService
 import wirecli.message.ConversationMessage
 import wirecli.message.FetchMessagesResult
 import wirecli.message.FetchMessagesView
@@ -70,6 +71,35 @@ class DaemonCommandTest {
         assertEquals(1, endpoint.startCalls)
         assertEquals(1, endpoint.closeCalls)
         assertEquals("Message sync daemon is active.", result.stdout.trim())
+    }
+
+    @Test
+    fun `daemon observes configured hooks while waiting without verbose mode`() {
+        var awaitedTermination = false
+        val hookService = FakeDaemonHookService()
+        val service =
+            FakeSyncService(
+                startResult =
+                    SyncStatusResult.Success(
+                        SyncStatusView(
+                            status = SyncStatus.READY,
+                            metrics = HealthMetrics(0L, 0, 100, "2026-07-14T10:00:00Z"),
+                        ),
+                    ),
+            )
+        val command =
+            DaemonCommand(
+                syncServiceProvider = { service },
+                processMarkerProvider = { FakeDaemonProcessMarker() },
+                daemonHookServiceProvider = { hookService },
+                awaitTermination = { awaitedTermination = true },
+            )
+
+        val result = execute(command)
+
+        assertEquals(0, result.exitCode)
+        assertEquals(true, awaitedTermination)
+        assertEquals(1, hookService.observeCalls)
     }
 
     @Test
@@ -271,6 +301,14 @@ class DaemonCommandTest {
         val stdout: String,
         val stderr: String,
     )
+
+    private class FakeDaemonHookService : DaemonHookService {
+        var observeCalls = 0
+
+        override suspend fun observe() {
+            observeCalls++
+        }
+    }
 
     private class FakeDaemonProcessMarker : DaemonProcessMarker {
         var startCalls = 0

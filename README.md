@@ -128,6 +128,34 @@ stored in the session file (`~/.config/wire/session` by default; override with
 
 `wire daemon` runs in the foreground until interrupted. Use systemd, launchd, Docker, or another process supervisor to keep it running. Kalium stores synchronized state under `~/.wire/kalium`.
 
+### Daemon hooks
+
+The daemon runs executable event hooks from `$XDG_CONFIG_HOME/wire/hooks`, falling back to `~/.config/wire/hooks`.
+
+Create `ongoing-call.sh` to react when a new incoming call appears:
+
+```bash
+mkdir -p ~/.config/wire/hooks
+cat > ~/.config/wire/hooks/ongoing-call.sh <<'EOF'
+#!/usr/bin/env bash
+notify-send "Wire call" "${WIRE_CALLER_NAME:-$WIRE_CALLER_ID}"
+EOF
+chmod +x ~/.config/wire/hooks/ongoing-call.sh
+
+WIRE_KALIUM_ENABLE_CALLING=true wire daemon
+```
+
+The hook runs once when each call enters incoming state. If the call disappears and later reappears, it runs again. It receives:
+
+- `WIRE_HOOK_EVENT=ongoing-call`
+- `WIRE_CALL_STATUS=incoming`
+- `WIRE_CALL_CONVERSATION_ID`
+- `WIRE_CALL_CONVERSATION_NAME`
+- `WIRE_CALLER_ID`
+- `WIRE_CALLER_NAME`
+
+Hooks have a 10-second timeout. Their stdout and stderr are discarded so daemon output remains script-friendly. Missing, non-executable, failed, or timed-out hooks do not stop synchronization. Real-backend call events require `WIRE_KALIUM_ENABLE_CALLING=true` and available AVS native libraries.
+
 `wire backup import` requires an active login and restores backup conversations, messages, users, and reactions into Kalium's local cache. Imported messages can then be read with `wire message fetch <conversation-id>`. Wire backup is the default source format; use `--from` only to override source selection.
 
 Presence values are normalized; unsupported or unavailable backend values are surfaced as `unknown`.

@@ -828,6 +828,11 @@ internal class SdkKaliumSyncRuntime(
         return result
     }
 
+    internal fun coreLogicForSession(userId: UserId): CoreLogic {
+        activeSessionUserIds += userId
+        return coreLogic
+    }
+
     override fun shutdown() {
         logger.debug { "SdkKaliumSyncRuntime: Shutting down sync runtime" }
         if (!coreLogicLazy.isInitialized()) {

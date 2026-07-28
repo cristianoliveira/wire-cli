@@ -89,6 +89,7 @@ fun main(args: Array<String>) {
                     processMarkerProvider = { FileDaemonProcessMarker() },
                     messageServiceProvider = { runtime.messageService },
                     conversationServiceProvider = { runtime.conversationService },
+                    daemonHookServiceProvider = { runtime.daemonHookService },
                 ),
                 BackupCommand(
                     importServiceProvider = { runtime.importService },

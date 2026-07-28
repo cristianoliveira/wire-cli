@@ -5,6 +5,8 @@ import wirecli.auth.AuthApiResult
 import wirecli.auth.AuthSession
 import wirecli.auth.ExitCodes
 import wirecli.auth.LoginInput
+import wirecli.calling.CallingApiClient
+import wirecli.calling.StubCallingApiClient
 import wirecli.connection.ConnectionActionResult
 import wirecli.connection.ConnectionApiClient
 import wirecli.connection.ConnectionListResult
@@ -60,6 +62,7 @@ class KaliumRuntimeDeferredInitializationTest {
         assertEquals(0, counters.presenceApiClientAccesses)
         assertEquals(0, counters.deviceApiClientAccesses)
         assertEquals(0, counters.syncApiClientAccesses)
+        assertEquals(0, counters.callingApiClientAccesses)
 
         runtime.close()
     }
@@ -77,6 +80,7 @@ class KaliumRuntimeDeferredInitializationTest {
         assertEquals(0, counters.deviceApiClientAccesses)
         assertEquals(0, counters.syncApiClientAccesses)
         assertEquals(0, counters.messageApiClientAccesses)
+        assertEquals(0, counters.callingApiClientAccesses)
         assertEquals(0, counters.shutdownCalls)
     }
 }
@@ -90,6 +94,7 @@ private data class BackendCounters(
     var messageApiClientAccesses: Int = 0,
     var userApiClientAccesses: Int = 0,
     var connectionApiClientAccesses: Int = 0,
+    var callingApiClientAccesses: Int = 0,
     var shutdownCalls: Int = 0,
 )
 
@@ -130,6 +135,9 @@ private fun countingBackendFactory(counters: BackendCounters): RuntimeBackendFac
 
                 override val teamApiClient: TeamApiClient
                     get() = NoopTeamApiClient
+
+                override val callingApiClient: CallingApiClient
+                    get() = StubCallingApiClient(environment).also { counters.callingApiClientAccesses += 1 }
 
                 override fun shutdown() {
                     counters.shutdownCalls += 1
